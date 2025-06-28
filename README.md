@@ -1,6 +1,6 @@
 # 🚀 Gemini API 轮询服务
 
-一个高性能的 Gemini API 代理服务，提供 OpenAI 兼容的 API 接口，支持智能负载均衡、思考模式、使用统计等高级功能。
+一个免费、简单、高性能的 Gemini API 轮询代理服务，提供 OpenAI 兼容的 API 接口，支持智能负载均衡、思考模式、使用统计等高级功能。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
@@ -15,13 +15,6 @@
 - 🌐 **Web 管理界面** - 美观的 Streamlit 管理面板
 - ☁️ **云端部署** - 支持 Render、Railway 等平台
 - 🇨🇳 **中国友好** - 优化的网络配置，支持大陆访问
-
-## 🎯 在线演示
-
-- **API 服务**: https://your-app.onrender.com
-- **管理界面**: https://your-app.streamlit.app
-- **API 文档**: https://your-app.onrender.com/docs
-- **健康检查**: https://your-app.onrender.com/health
 
 ## 🚀 快速开始
 
@@ -65,7 +58,7 @@
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/yourusername/gemini-api-proxy.git
+   git clone https://github.com/Arain119/gemini-api-proxy.git
    cd gemini-api-proxy
    ```
 
@@ -441,10 +434,6 @@ if success:
 - `refactor:` 重构
 - `test:` 测试相关
 
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
 ## 🙏 致谢
 
 - [FastAPI](https://fastapi.tiangolo.com/) - 现代化的 Python Web 框架
@@ -452,13 +441,6 @@ if success:
 - [Render](https://render.com/) - 简单的云部署平台
 - [Google Gemini](https://ai.google.dev/) - 强大的AI模型
 
-## 📞 支持
-
-- 📧 邮件：[your-email@example.com](mailto:your-email@example.com)
-- 🐛 问题反馈：[GitHub Issues](https://github.com/yourusername/gemini-api-proxy/issues)
-- 💬 讨论：[GitHub Discussions](https://github.com/yourusername/gemini-api-proxy/discussions)
-
----
 
 <div align="center">
 
