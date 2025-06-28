@@ -158,7 +158,7 @@ class RateLimitCache:
             return {'requests': total_requests, 'tokens': total_tokens}
 
 
-# 保持唤醒机制
+# 保持唤醒机制（仅在Render环境启用）
 async def keep_alive():
     """保持服务唤醒"""
     try:
@@ -1112,7 +1112,78 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
-# 管理端点（用于配置）
+# 🔥 新增：管理端点（修复404错误）
+@app.get("/admin/models/{model_name}")
+async def get_model_config(model_name: str):
+    """获取指定模型的配置"""
+    try:
+        model_config = db.get_model_config(model_name)
+        if not model_config:
+            raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
+
+        return {
+            "success": True,
+            "model_name": model_name,
+            **model_config
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get model config for {model_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/models/{model_name}")
+async def update_model_config(model_name: str, request: dict):
+    """更新指定模型的配置"""
+    try:
+        # 验证模型是否存在
+        if model_name not in db.get_supported_models():
+            raise HTTPException(status_code=404, detail=f"Model {model_name} not supported")
+
+        # 提取允许更新的字段
+        allowed_fields = ['single_api_rpm_limit', 'single_api_tpm_limit', 'single_api_rpd_limit', 'status']
+        update_data = {}
+
+        for field in allowed_fields:
+            if field in request:
+                update_data[field] = request[field]
+
+        if not update_data:
+            raise HTTPException(status_code=422, detail="No valid fields to update")
+
+        # 更新模型配置
+        success = db.update_model_config(model_name, **update_data)
+
+        if success:
+            logger.info(f"✅ Updated model config for {model_name}: {update_data}")
+            return {
+                "success": True,
+                "message": f"Model {model_name} configuration updated successfully",
+                "updated_fields": update_data
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update model configuration")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to update model config for {model_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/models")
+async def list_model_configs():
+    """获取所有模型的配置"""
+    try:
+        model_configs = db.get_all_model_configs()
+        return {
+            "success": True,
+            "models": model_configs
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get model configs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/admin/config/gemini-key")
 async def add_gemini_key(request: dict):
     """通过API添加Gemini密钥"""
@@ -1130,6 +1201,85 @@ async def generate_user_key(request: dict):
     key = db.generate_user_key(name)
     logger.info(f"🔑 Generated new user key for: {name}")
     return {"success": True, "key": key, "name": name}
+
+
+@app.post("/admin/config/thinking")
+async def update_thinking_config(request: dict):
+    """更新思考模式配置"""
+    try:
+        enabled = request.get('enabled')
+        budget = request.get('budget')
+        include_thoughts = request.get('include_thoughts')
+
+        success = db.set_thinking_config(
+            enabled=enabled,
+            budget=budget,
+            include_thoughts=include_thoughts
+        )
+
+        if success:
+            logger.info(f"✅ Updated thinking config: {request}")
+            return {
+                "success": True,
+                "message": "Thinking configuration updated successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update thinking configuration")
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ Failed to update thinking config: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/config/inject-prompt")
+async def update_inject_prompt_config(request: dict):
+    """更新提示词注入配置"""
+    try:
+        enabled = request.get('enabled')
+        content = request.get('content')
+        position = request.get('position')
+
+        success = db.set_inject_prompt_config(
+            enabled=enabled,
+            content=content,
+            position=position
+        )
+
+        if success:
+            logger.info(f"✅ Updated inject prompt config: enabled={enabled}, position={position}")
+            return {
+                "success": True,
+                "message": "Inject prompt configuration updated successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update inject prompt configuration")
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ Failed to update inject prompt config: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/config")
+async def get_all_config():
+    """获取所有系统配置"""
+    try:
+        configs = db.get_all_configs()
+        thinking_config = db.get_thinking_config()
+        inject_config = db.get_inject_prompt_config()
+
+        return {
+            "success": True,
+            "system_configs": configs,
+            "thinking_config": thinking_config,
+            "inject_config": inject_config
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get configs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/admin/stats")
