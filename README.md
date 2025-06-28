@@ -441,11 +441,3 @@ if success:
 - [Render](https://render.com/) - 简单的云部署平台
 - [Google Gemini](https://ai.google.dev/) - 强大的AI模型
 
-
-<div align="center">
-
-**⭐ 如果这个项目对你有帮助，请给个 Star！⭐**
-
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/gemini-api-proxy&type=Date)](https://star-history.com/#yourusername/gemini-api-proxy&Date)
-
-</div>
