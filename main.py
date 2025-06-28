@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import requests
-import json
-import os
+import threading
 import time
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+
+from database import Database
+from api_server import run_api_server
 
 # --- 页面配置 ---
 st.set_page_config(
@@ -16,89 +17,34 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- API配置 ---
-# 支持本地和远程API
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
-# 如果是Streamlit Cloud环境，需要配置远程API地址
-if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
-    # Streamlit Cloud环境，使用环境变量中的API地址
-    API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
-
-st.write(f"🌐 API地址: {API_BASE_URL}")
+# --- 初始化与缓存 ---
+@st.cache_resource
+def get_database():
+    """初始化数据库连接"""
+    return Database()
 
 
-# --- API调用函数 ---
-def call_api(endpoint: str, method: str = 'GET', data: Any = None, timeout: int = 30) -> Optional[Dict]:
-    """统一API调用函数"""
-    url = f"{API_BASE_URL}{endpoint}"
+@st.cache_resource
+def start_api_server():
+    """在后台线程中启动API服务器"""
 
-    try:
-        with st.spinner(f"调用 {endpoint}..."):
-            if method == 'GET':
-                response = requests.get(url, timeout=timeout)
-            elif method == 'POST':
-                response = requests.post(url, json=data, timeout=timeout)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
+    def run_server():
+        port = int(os.environ.get("PORT", 8000))
+        run_api_server(port=port)
 
-            if response.status_code == 200:
-                return response.json()
-            else:
-                st.error(f"API调用失败: {response.status_code} - {response.text}")
-                return None
-
-    except requests.exceptions.Timeout:
-        st.error("⏰ API调用超时，服务可能正在唤醒中，请稍后重试...")
-        return None
-    except requests.exceptions.ConnectionError:
-        st.error("🔌 无法连接到API服务，请检查服务状态")
-        return None
-    except Exception as e:
-        st.error(f"❌ API调用异常: {str(e)}")
-        return None
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    time.sleep(2)  # 等待服务器启动
+    return True
 
 
-def wake_up_service():
-    """唤醒服务"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/wake", timeout=10)
-        if response.status_code == 200:
-            st.success("✅ 服务已唤醒")
-            return True
-    except:
-        pass
-    return False
+db = get_database()
 
-
-def check_service_health():
-    """检查服务健康状态"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=10)
-        if response.status_code == 200:
-            return response.json()
-    except:
-        pass
-    return None
-
-
-# --- 缓存函数 ---
-@st.cache_data(ttl=30)  # 缓存30秒
-def get_cached_stats():
-    """获取缓存的统计数据"""
-    return call_api('/admin/stats')
-
-
-@st.cache_data(ttl=60)  # 缓存60秒
-def get_cached_status():
-    """获取缓存的服务状态"""
-    return call_api('/status')
-
-
-# --- 自定义CSS样式 ---
+# --- 自定义CSS样式 - 高级感设计 ---
 st.markdown("""
 <style>
-    /* 全局字体优化 */
+    /* 全局字体优化 - 使用系统字体栈 */
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -107,12 +53,12 @@ st.markdown("""
 
     /* 优化整体布局 */
     .block-container {
-        padding-top: 2rem;
+        padding-top: 2.5rem;
         padding-bottom: 2rem;
         max-width: 1280px;
     }
 
-    /* 度量卡片 */
+    /* 极简度量卡片 */
     [data-testid="metric-container"] {
         background-color: rgba(255, 255, 255, 0.8);
         backdrop-filter: blur(10px);
@@ -128,7 +74,23 @@ st.markdown("""
         transform: translateY(-1px);
     }
 
-    /* 按钮样式 */
+    /* 度量值样式 */
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        font-weight: 500;
+        color: #000;
+        font-size: 1.75rem;
+        letter-spacing: -0.02em;
+    }
+
+    /* 度量标签样式 */
+    [data-testid="metric-container"] [data-testid="metric-label"] {
+        color: #86868b;
+        font-size: 0.875rem;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+    }
+
+    /* 极简按钮样式 */
     .stButton > button {
         border-radius: 12px;
         font-weight: 500;
@@ -140,7 +102,7 @@ st.markdown("""
         box-shadow: none;
     }
 
-    /* Primary按钮 */
+    /* Primary按钮 - 类似苹果风格 */
     .stButton > button[kind="primary"] {
         background-color: #000;
         color: #fff;
@@ -150,7 +112,17 @@ st.markdown("""
         background-color: #333;
     }
 
-    /* 输入框样式 */
+    /* Secondary按钮 */
+    .stButton > button[kind="secondary"] {
+        background-color: #f5f5f7;
+        color: #000;
+    }
+
+    .stButton > button[kind="secondary"]:hover {
+        background-color: #e8e8ed;
+    }
+
+    /* 输入框样式 - 更加精致 */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
@@ -164,7 +136,16 @@ st.markdown("""
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* 标签页样式 */
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #0066cc;
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+        outline: none;
+    }
+
+    /* 标签页样式 - 更精致，增加更大间距 */
     .stTabs [data-testid="stTabBar"] {
         gap: 7rem;
         border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -187,36 +168,250 @@ st.markdown("""
         border-bottom-color: #000;
     }
 
-    /* 侧边栏样式 */
+    .stTabs [data-testid="stTabBar"] button:hover {
+        color: #000;
+    }
+
+    /* 容器样式 */
+    [data-testid="stHorizontalBlock"] {
+        gap: 1rem;
+    }
+
+    /* Expander样式 - 更精致 */
+    .streamlit-expanderHeader {
+        font-weight: 500;
+        color: #000;
+        background-color: rgba(0, 0, 0, 0.02);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        letter-spacing: -0.01em;
+    }
+
+    .streamlit-expanderHeader:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    /* 侧边栏样式 - 类似 macOS */
     section[data-testid="stSidebar"] {
         background-color: rgba(246, 246, 246, 0.8);
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(0, 0, 0, 0.06);
     }
 
-    /* 成功/错误消息样式 */
-    .stAlert[data-baseweb="notification"][aria-label*="success"] {
-        background-color: rgba(52, 199, 89, 0.08);
-        color: #34c759;
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 1.5rem;
+    }
+
+    /* Radio 按钮样式优化 */
+    .stRadio > div[role="radiogroup"] > label {
+        background-color: transparent;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        margin: 0.125rem 0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500;
+        color: #000;
+        font-size: 0.9375rem;
+        letter-spacing: -0.01em;
+    }
+
+    .stRadio > div[role="radiogroup"] > label:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .stRadio > div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {
+        display: none;
+    }
+
+    /* 分隔线样式 - 减少margin */
+    hr {
+        margin: 1.5rem 0;
+        border: none;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    /* 标题样式 - 减少margin */
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 600;
+        color: #000;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+    }
+
+    h2 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #000;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.02em;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #000;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
+    }
+
+    h4 {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #86868b;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.5rem;
+    }
+
+    /* 描述文字 */
+    p {
+        color: #86868b;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        letter-spacing: -0.01em;
+        margin-bottom: 0.75rem;
+    }
+
+    /* 代码块样式 */
+    code {
+        background-color: rgba(0, 0, 0, 0.04);
+        padding: 0.125rem 0.375rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: #000;
+        font-family: "SF Mono", Monaco, monospace;
+    }
+
+    .stCodeBlock {
+        background-color: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.06);
         border-radius: 10px;
     }
 
-    .stAlert[data-baseweb="notification"][aria-label*="error"] {
-        background-color: rgba(255, 59, 48, 0.08);
-        color: #ff3b30;
+    /* 信息框样式 */
+    .stAlert {
         border-radius: 10px;
-    }
-
-    .stAlert[data-baseweb="notification"][aria-label*="warning"] {
-        background-color: rgba(255, 149, 0, 0.08);
-        color: #ff9500;
-        border-radius: 10px;
+        border: none;
+        font-size: 0.9375rem;
+        padding: 0.75rem 1rem;
+        backdrop-filter: blur(10px);
+        margin-bottom: 0.75rem;
     }
 
     .stAlert[data-baseweb="notification"][aria-label*="info"] {
         background-color: rgba(0, 122, 255, 0.08);
         color: #0066cc;
+    }
+
+    .stAlert[data-baseweb="notification"][aria-label*="success"] {
+        background-color: rgba(52, 199, 89, 0.08);
+        color: #34c759;
+    }
+
+    .stAlert[data-baseweb="notification"][aria-label*="warning"] {
+        background-color: rgba(255, 149, 0, 0.08);
+        color: #ff9500;
+    }
+
+    .stAlert[data-baseweb="notification"][aria-label*="error"] {
+        background-color: rgba(255, 59, 48, 0.08);
+        color: #ff3b30;
+    }
+
+    /* Toggle开关样式 - 类似 iOS */
+    button[kind="secondary"][aria-pressed] {
+        background-color: #34c759 !important;
+        color: white !important;
+        padding: 0.25rem 0.75rem !important;
+        font-size: 0.8125rem !important;
+        border-radius: 20px !important;
+    }
+
+    button[kind="secondary"][aria-pressed="false"] {
+        background-color: rgba(0, 0, 0, 0.08) !important;
+        color: #86868b !important;
+    }
+
+    /* 页脚样式 */
+    .footer {
+        text-align: center; 
+        color: #86868b; 
+        font-size: 0.8125rem;
+        margin-top: 4rem;
+        padding: 2rem 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        letter-spacing: -0.01em;
+    }
+
+    /* 数据表格样式 */
+    [data-testid="stDataFrame"] {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    /* 成功消息样式 */
+    div[data-testid="stNotification"] {
         border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+    }
+
+    /* 减少元素间距 */
+    .element-container {
+        margin-bottom: 0.5rem;
+    }
+
+    /* 减少容器内部间距 */
+    .stContainer > div {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    /* 减少metric容器之间的间距 */
+    [data-testid="stMetricContainer"] {
+        margin-bottom: 0.375rem;
+    }
+
+    /* 优化小屏幕显示 */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 1.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 1.5rem;
+        }
+    }
+
+    /* 滚动条样式 - 类似 macOS */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -234,146 +429,90 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # 服务状态检查
+    # 服务状态
     st.markdown("#### 服务状态")
 
-    # 添加唤醒按钮
-    if st.button("🔄 刷新状态"):
-        # 清除缓存
-        st.cache_data.clear()
-
-    if st.button("☕ 唤醒服务"):
-        wake_up_service()
-
-    # 检查服务健康状态
-    health = check_service_health()
-    if health:
-        st.success("✅ API 服务正常")
-        with st.expander("服务详情"):
-            st.code(f"地址: {API_BASE_URL}")
-            st.code(f"状态: {health.get('status', 'unknown')}")
-            st.code(f"运行时间: {health.get('uptime_seconds', 0)}秒")
-            if 'request_count' in health:
-                st.code(f"总请求: {health['request_count']}")
+    # 启动API服务器
+    if start_api_server():
+        st.success("API 服务运行中")
+        with st.expander("连接详情"):
+            port = int(os.environ.get("PORT", 8000))
+            api_url = f"http://localhost:{port}" if port == 8000 else f"https://your-app.onrender.com"
+            st.code(api_url, language=None)
+            st.caption("OpenAI 兼容接口")
     else:
-        st.error("❌ API 服务离线")
-        st.info("💡 点击'唤醒服务'按钮尝试启动")
+        st.error("API 服务离线")
 
     st.markdown("---")
 
     # 快速统计
     st.markdown("#### 系统状态")
-    status_data = get_cached_status()
-    if status_data:
-        st.metric("可用密钥", status_data.get('active_keys', 0))
-        thinking_enabled = status_data.get('thinking_enabled', False)
-        st.metric("思考模式", "开启" if thinking_enabled else "关闭")
+    active_keys = len([k for k in db.get_all_gemini_keys() if k['status'] == 1])
+    total_keys = len(db.get_all_gemini_keys())
+    st.metric("活跃密钥", f"{active_keys}/{total_keys}")
 
-        # 显示内存使用
-        memory_mb = status_data.get('memory_usage_mb', 0)
-        if memory_mb > 0:
-            st.metric("内存使用", f"{memory_mb:.1f}MB")
+    thinking_enabled = db.get_thinking_config()['enabled']
+    st.metric("思考模式", "开启" if thinking_enabled else "关闭")
 
 # --- 主页面内容 ---
 if page == "概览":
-    st.title("📊 服务概览")
+    st.title("概览")
     st.markdown("监控 API 网关性能和使用指标")
 
     # 刷新按钮
     col1, col2 = st.columns([10, 1])
     with col2:
         if st.button("↻", help="刷新数据", key="refresh_dashboard"):
-            st.cache_data.clear()
             st.rerun()
-
-    # 获取统计数据
-    stats_data = get_cached_stats()
-    status_data = get_cached_status()
-
-    if not stats_data or not status_data:
-        st.error("❌ 无法获取服务数据，请检查API服务是否正常运行")
-        st.info("💡 尝试点击侧边栏的'唤醒服务'按钮")
-        st.stop()
 
     # 核心指标
     st.markdown("## 核心指标")
     col1, col2, col3, col4 = st.columns(4)
 
+    active_keys = [k for k in db.get_all_gemini_keys() if k['status'] == 1]
+    active_user_keys = [k for k in db.get_all_user_keys() if k['status'] == 1]
+
     with col1:
-        gemini_keys = stats_data.get('active_gemini_keys', 0)
-        total_gemini = stats_data.get('gemini_keys', 0)
         st.metric(
             "Gemini 密钥",
-            gemini_keys,
-            delta=f"共 {total_gemini} 个"
+            len(active_keys),
+            delta=f"共 {len(db.get_all_gemini_keys())} 个"
         )
-
     with col2:
-        user_keys = stats_data.get('active_user_keys', 0)
-        total_user = stats_data.get('user_keys', 0)
         st.metric(
             "用户密钥",
-            user_keys,
-            delta=f"共 {total_user} 个"
+            len(active_user_keys),
+            delta=f"共 {len(db.get_all_user_keys())} 个"
         )
-
     with col3:
-        models = stats_data.get('supported_models', [])
-        st.metric("支持模型", len(models))
-
+        st.metric("默认模型", db.get_config('default_model_name', 'gemini-2.5-flash'))
     with col4:
-        thinking_status = "已启用" if status_data.get('thinking_enabled', False) else "已禁用"
+        thinking_status = "已启用" if db.get_thinking_config()['enabled'] else "已禁用"
         st.metric("思考功能", thinking_status)
 
-    # 系统状态
-    st.markdown("## 系统状态")
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        uptime = status_data.get('uptime_seconds', 0)
-        uptime_hours = uptime / 3600
-        st.metric("运行时间", f"{uptime_hours:.1f}小时")
-
-    with col2:
-        memory_mb = status_data.get('memory_usage_mb', 0)
-        st.metric("内存使用", f"{memory_mb:.1f}MB")
-
-    with col3:
-        cpu_percent = status_data.get('cpu_percent', 0)
-        st.metric("CPU使用", f"{cpu_percent:.1f}%")
-
-    with col4:
-        total_requests = status_data.get('total_requests', 0)
-        st.metric("总请求数", f"{total_requests:,}")
-
-    # 使用率分析
+    # 使用率图表
     st.markdown("## 使用率分析")
 
-    usage_stats = stats_data.get('usage_stats', {})
-    if usage_stats and models:
+    model_configs = [mc for mc in db.get_all_model_configs() if mc['status'] == 1]
+    usage_stats = db.get_all_usage_stats()
+
+    if model_configs:
         # 准备数据
         model_data = []
-        for model in models:
-            stats = usage_stats.get(model, {'minute': {'requests': 0}, 'day': {'requests': 0}})
-
-            # 这里需要从API获取模型配置
-            model_config_data = call_api(f'/admin/models/{model}')  # 假设有这个端点
-            if not model_config_data:
-                # 使用默认值
-                rpm_limit = 1000 if 'flash' in model else 100
-                rpd_limit = 50000 if 'flash' in model else 10000
-            else:
-                rpm_limit = model_config_data.get('total_rpm_limit', 1000)
-                rpd_limit = model_config_data.get('total_rpd_limit', 50000)
+        for config in model_configs:
+            model_name = config['model_name']
+            stats = usage_stats.get(model_name, {'minute': {'requests': 0}, 'day': {'requests': 0}})
 
             rpm_used = stats['minute']['requests']
+            rpm_limit = config['total_rpm_limit']
             rpm_percent = (rpm_used / rpm_limit * 100) if rpm_limit > 0 else 0
 
             rpd_used = stats['day']['requests']
+            rpd_limit = config['total_rpd_limit']
             rpd_percent = (rpd_used / rpd_limit * 100) if rpd_limit > 0 else 0
 
             model_data.append({
-                'Model': model,
+                'Model': model_name,
                 'RPM Used': rpm_used,
                 'RPM Limit': rpm_limit,
                 'RPM %': rpm_percent,
@@ -382,230 +521,325 @@ if page == "概览":
                 'RPD %': rpd_percent
             })
 
-        if model_data:
-            df = pd.DataFrame(model_data)
+        df = pd.DataFrame(model_data)
 
-            # 创建图表
-            col1, col2 = st.columns(2)
+        # 创建图表
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig_rpm = go.Figure()
+            fig_rpm.add_trace(go.Bar(
+                x=df['Model'],
+                y=df['RPM %'],
+                text=[f"{x:.1f}%" for x in df['RPM %']],
+                textposition='outside',
+                marker_color='#007aff',
+                hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
+                customdata=df[['RPM Used', 'RPM Limit']].values
+            ))
+            fig_rpm.update_layout(
+                title={
+                    'text': "每分钟请求数 (RPM)",
+                    'font': {'size': 16, 'color': '#000', 'family': '-apple-system, BlinkMacSystemFont'}
+                },
+                yaxis_title="使用率 (%)",
+                yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
+                height=350,
+                showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'family': '-apple-system, BlinkMacSystemFont', 'color': '#000'},
+                yaxis={'gridcolor': 'rgba(0,0,0,0.06)', 'zerolinecolor': 'rgba(0,0,0,0.06)'},
+                xaxis={'linecolor': 'rgba(0,0,0,0.06)'},
+                bargap=0.3
+            )
+            st.plotly_chart(fig_rpm, use_container_width=True)
+
+        with col2:
+            fig_rpd = go.Figure()
+            fig_rpd.add_trace(go.Bar(
+                x=df['Model'],
+                y=df['RPD %'],
+                text=[f"{x:.1f}%" for x in df['RPD %']],
+                textposition='outside',
+                marker_color='#34c759',
+                hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
+                customdata=df[['RPD Used', 'RPD Limit']].values
+            ))
+            fig_rpd.update_layout(
+                title={
+                    'text': "每日请求数 (RPD)",
+                    'font': {'size': 16, 'color': '#000', 'family': '-apple-system, BlinkMacSystemFont'}
+                },
+                yaxis_title="使用率 (%)",
+                yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
+                height=350,
+                showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font={'family': '-apple-system, BlinkMacSystemFont', 'color': '#000'},
+                yaxis={'gridcolor': 'rgba(0,0,0,0.06)', 'zerolinecolor': 'rgba(0,0,0,0.06)'},
+                xaxis={'linecolor': 'rgba(0,0,0,0.06)'},
+                bargap=0.3
+            )
+            st.plotly_chart(fig_rpd, use_container_width=True)
+
+        # 详细数据表
+        with st.expander("查看详细数据"):
+            display_df = df[['Model', 'RPM Used', 'RPM Limit', 'RPM %', 'RPD Used', 'RPD Limit', 'RPD %']].copy()
+            display_df.columns = ['模型', '分钟请求', '分钟限制', '分钟使用率', '日请求', '日限制', '日使用率']
+            display_df['分钟使用率'] = display_df['分钟使用率'].apply(lambda x: f"{x:.1f}%")
+            display_df['日使用率'] = display_df['日使用率'].apply(lambda x: f"{x:.1f}%")
+            display_df['分钟请求'] = display_df['分钟请求'].apply(lambda x: f"{x:,}")
+            display_df['分钟限制'] = display_df['分钟限制'].apply(lambda x: f"{x:,}")
+            display_df['日请求'] = display_df['日请求'].apply(lambda x: f"{x:,}")
+            display_df['日限制'] = display_df['日限制'].apply(lambda x: f"{x:,}")
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("暂无活跃模型。请在模型页面中启用至少一个模型。")
+
+elif page == "模型":
+    st.title("模型配置")
+    st.markdown("配置速率限制并管理模型可用性")
+
+    # 获取激活的key数量
+    active_keys = [k for k in db.get_all_gemini_keys() if k['status'] == 1]
+    active_key_count = len(active_keys)
+
+    if active_key_count == 0:
+        st.warning("暂无活跃的 Gemini 密钥。请先在密钥页面添加并激活密钥。")
+    else:
+        st.info(f"速率限制基于 {active_key_count} 个活跃 API 密钥计算。")
+
+    # 模型配置列表
+    for config in db.get_all_model_configs():
+        with st.container():
+            model_name = config['model_name']
+            stats = db.get_all_usage_stats().get(
+                model_name,
+                {'minute': {'requests': 0, 'tokens': 0}, 'day': {'requests': 0, 'tokens': 0}}
+            )
+
+            # 模型标题行
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.markdown(f"### {model_name}")
+            with col2:
+                is_enabled = config['status'] == 1
+                if st.toggle("启用", value=is_enabled, key=f"toggle_{model_name}"):
+                    if not is_enabled:
+                        db.update_model_config(model_name, status=1)
+                        st.rerun()
+                else:
+                    if is_enabled:
+                        db.update_model_config(model_name, status=0)
+                        st.rerun()
+
+            # 配置详情
+            col1, col2, col3 = st.columns(3)
 
             with col1:
-                fig_rpm = go.Figure()
-                fig_rpm.add_trace(go.Bar(
-                    x=df['Model'],
-                    y=df['RPM %'],
-                    text=[f"{x:.1f}%" for x in df['RPM %']],
-                    textposition='outside',
-                    marker_color='#007aff',
-                    hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
-                    customdata=df[['RPM Used', 'RPM Limit']].values
-                ))
-                fig_rpm.update_layout(
-                    title={
-                        'text': "每分钟请求数 (RPM)",
-                        'font': {'size': 16, 'color': '#000', 'family': '-apple-system, BlinkMacSystemFont'}
-                    },
-                    yaxis_title="使用率 (%)",
-                    yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=350,
-                    showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font={'family': '-apple-system, BlinkMacSystemFont', 'color': '#000'},
-                    yaxis={'gridcolor': 'rgba(0,0,0,0.06)', 'zerolinecolor': 'rgba(0,0,0,0.06)'},
-                    xaxis={'linecolor': 'rgba(0,0,0,0.06)'},
-                    bargap=0.3
+                st.markdown("#### 单密钥限制")
+                new_rpm = st.number_input(
+                    "每分钟请求数",
+                    min_value=1,
+                    value=config['single_api_rpm_limit'],
+                    key=f"rpm_{model_name}"
                 )
-                st.plotly_chart(fig_rpm, use_container_width=True)
+                new_tpm = st.number_input(
+                    "每分钟令牌数",
+                    min_value=1000,
+                    value=config['single_api_tpm_limit'],
+                    key=f"tpm_{model_name}"
+                )
+                new_rpd = st.number_input(
+                    "每日请求数",
+                    min_value=1,
+                    value=config['single_api_rpd_limit'],
+                    key=f"rpd_{model_name}"
+                )
 
             with col2:
-                fig_rpd = go.Figure()
-                fig_rpd.add_trace(go.Bar(
-                    x=df['Model'],
-                    y=df['RPD %'],
-                    text=[f"{x:.1f}%" for x in df['RPD %']],
-                    textposition='outside',
-                    marker_color='#34c759',
-                    hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
-                    customdata=df[['RPD Used', 'RPD Limit']].values
-                ))
-                fig_rpd.update_layout(
-                    title={
-                        'text': "每日请求数 (RPD)",
-                        'font': {'size': 16, 'color': '#000', 'family': '-apple-system, BlinkMacSystemFont'}
-                    },
-                    yaxis_title="使用率 (%)",
-                    yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=350,
-                    showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font={'family': '-apple-system, BlinkMacSystemFont', 'color': '#000'},
-                    yaxis={'gridcolor': 'rgba(0,0,0,0.06)', 'zerolinecolor': 'rgba(0,0,0,0.06)'},
-                    xaxis={'linecolor': 'rgba(0,0,0,0.06)'},
-                    bargap=0.3
-                )
-                st.plotly_chart(fig_rpd, use_container_width=True)
+                st.markdown(f"#### 系统总限制")
+                st.caption(f"基于 {active_key_count} 个密钥")
+                st.metric("总 RPM", f"{config['total_rpm_limit']:,}")
+                st.metric("总 TPM", f"{config['total_tpm_limit']:,}")
+                st.metric("总 RPD", f"{config['total_rpd_limit']:,}")
 
-            # 详细数据表
-            with st.expander("查看详细数据"):
-                display_df = df[['Model', 'RPM Used', 'RPM Limit', 'RPM %', 'RPD Used', 'RPD Limit', 'RPD %']].copy()
-                display_df.columns = ['模型', '分钟请求', '分钟限制', '分钟使用率', '日请求', '日限制', '日使用率']
-                display_df['分钟使用率'] = display_df['分钟使用率'].apply(lambda x: f"{x:.1f}%")
-                display_df['日使用率'] = display_df['日使用率'].apply(lambda x: f"{x:.1f}%")
-                display_df['分钟请求'] = display_df['分钟请求'].apply(lambda x: f"{x:,}")
-                display_df['分钟限制'] = display_df['分钟限制'].apply(lambda x: f"{x:,}")
-                display_df['日请求'] = display_df['日请求'].apply(lambda x: f"{x:,}")
-                display_df['日限制'] = display_df['日限制'].apply(lambda x: f"{x:,}")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("📊 暂无使用数据。请先配置API密钥并发送请求。")
+            with col3:
+                st.markdown("#### 当前使用")
+                rpm_usage = stats['minute']['requests']
+                rpm_percent = (rpm_usage / config['total_rpm_limit'] * 100) if config['total_rpm_limit'] > 0 else 0
+                st.metric("分钟请求", f"{rpm_usage:,}", delta=f"{rpm_percent:.1f}%")
+
+                st.metric("分钟令牌", f"{stats['minute']['tokens']:,}")
+
+                rpd_usage = stats['day']['requests']
+                rpd_percent = (rpd_usage / config['total_rpd_limit'] * 100) if config['total_rpd_limit'] > 0 else 0
+                st.metric("今日请求", f"{rpd_usage:,}", delta=f"{rpd_percent:.1f}%")
+
+            # 更新按钮
+            if st.button(f"更新配置", key=f"update_{model_name}", type="primary"):
+                db.update_model_config(
+                    model_name,
+                    single_api_rpm_limit=new_rpm,
+                    single_api_tpm_limit=new_tpm,
+                    single_api_rpd_limit=new_rpd
+                )
+                st.success(f"{model_name} 配置已更新")
+                time.sleep(1)
+                st.rerun()
+
+            st.divider()
 
 elif page == "密钥":
-    st.title("🔑 密钥管理")
+    st.title("密钥管理")
     st.markdown("管理 Gemini API 密钥和用户访问令牌")
 
     tab1, tab2 = st.tabs(["Gemini 密钥", "用户密钥"])
 
     with tab1:
+        # 添加新Key
         st.markdown("### 添加新密钥")
-
-        with st.form("add_gemini_key"):
+        col1, col2 = st.columns([5, 1])
+        with col1:
             new_key = st.text_input(
                 "Gemini API 密钥",
                 type="password",
                 placeholder="输入你的 Gemini API 密钥...",
-                help="从 Google AI Studio 获取你的 Gemini API 密钥"
+                label_visibility="collapsed"
             )
-            submitted = st.form_submit_button("添加密钥", type="primary")
-
-            if submitted and new_key:
-                result = call_api('/admin/config/gemini-key', 'POST', {'key': new_key})
-                if result and result.get('success'):
-                    st.success("✅ 密钥添加成功！")
-                    st.cache_data.clear()  # 清除缓存
-                    time.sleep(1)
-                    st.rerun()
+        with col2:
+            if st.button("添加", type="primary", use_container_width=True):
+                if new_key:
+                    if db.add_gemini_key(new_key):
+                        st.success("密钥添加成功")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("添加失败，密钥可能已存在。")
                 else:
-                    st.error("❌ 添加失败，密钥可能已存在或无效")
+                    st.warning("请输入有效的 API 密钥。")
 
         st.divider()
 
-        # 显示现有密钥（模拟显示）
+        # 现有Keys列表
         st.markdown("### 现有密钥")
-        stats_data = get_cached_stats()
-        if stats_data:
-            total_keys = stats_data.get('gemini_keys', 0)
-            active_keys = stats_data.get('active_gemini_keys', 0)
+        gemini_keys = db.get_all_gemini_keys()
 
-            if total_keys > 0:
-                st.info(f"📊 共有 {total_keys} 个密钥，其中 {active_keys} 个处于激活状态")
+        if gemini_keys:
+            for idx, key in enumerate(gemini_keys):
+                with st.container():
+                    col1, col2, col3, col4, col5 = st.columns([1, 3, 2, 1, 1])
+                    with col1:
+                        st.markdown(f"**#{key['id']}**")
+                    with col2:
+                        masked_key = f"{key['key'][:20]}{'•' * 20}{key['key'][-10:]}"
+                        st.code(masked_key, language=None)
+                    with col3:
+                        st.caption(f"添加于 {key['created_at'][:10]}")
+                    with col4:
+                        is_enabled = key['status'] == 1
+                        status_label = "激活" if is_enabled else "停用"
+                        if st.toggle(status_label, value=is_enabled, key=f"toggle_gemini_{key['id']}"):
+                            if not is_enabled:
+                                db.update_gemini_key(key['id'], status=1)
+                                st.rerun()
+                        else:
+                            if is_enabled:
+                                db.update_gemini_key(key['id'], status=0)
+                                st.rerun()
+                    with col5:
+                        if st.button("删除", key=f"delete_gemini_{key['id']}", type="secondary"):
+                            db.delete_gemini_key(key['id'])
+                            st.rerun()
 
-                # 创建模拟的密钥列表显示
-                for i in range(min(total_keys, 5)):  # 最多显示5个
-                    with st.container():
-                        col1, col2, col3 = st.columns([1, 4, 1])
-                        with col1:
-                            st.markdown(f"**#{i + 1}**")
-                        with col2:
-                            # 模拟显示掩码密钥
-                            masked_key = f"AIzaSy{'•' * 30}abc{i + 1:02d}"
-                            st.code(masked_key, language=None)
-                        with col3:
-                            status = "🟢 激活" if i < active_keys else "🔴 禁用"
-                            st.markdown(status)
-
-                        if i < total_keys - 1:
-                            st.markdown("---")
-            else:
-                st.info("暂无配置的 Gemini 密钥。请在上方添加你的第一个密钥。")
+                if idx < len(gemini_keys) - 1:
+                    st.markdown("---")
+        else:
+            st.info("暂无配置的 Gemini 密钥。请在上方添加你的第一个密钥。")
 
     with tab2:
+        # 生成新的用户Key
         st.markdown("### 生成访问密钥")
-
-        with st.form("generate_user_key"):
+        col1, col2 = st.columns([4, 1])
+        with col1:
             key_name = st.text_input(
                 "密钥描述",
                 placeholder="例如：生产环境密钥",
-                help="为这个密钥添加一个描述，便于管理"
+                label_visibility="collapsed"
             )
-            submitted = st.form_submit_button("生成密钥", type="primary")
+        with col2:
+            if st.button("生成", type="primary", use_container_width=True):
+                new_key_val = db.generate_user_key(key_name)
+                st.session_state.latest_generated_key = new_key_val
 
-            if submitted:
-                result = call_api('/admin/config/user-key', 'POST', {'name': key_name or '未命名密钥'})
-                if result and result.get('success'):
-                    new_key = result.get('key')
-                    st.success("✅ 用户密钥生成成功！")
-                    st.warning("⚠️ 请立即保存此密钥，它不会再次显示。")
-                    st.code(new_key, language=None)
-
-                    # 使用说明
-                    st.markdown("### 使用说明")
-                    st.code(f"""
-import openai
-
-client = openai.OpenAI(
-    api_key="{new_key}",
-    base_url="{API_BASE_URL}/v1"
-)
-
-response = client.chat.completions.create(
-    model="gemini-2.5-flash",
-    messages=[{{"role": "user", "content": "Hello!"}}]
-)
-                    """, language="python")
-
-                    st.cache_data.clear()  # 清除缓存
-                else:
-                    st.error("❌ 生成失败，请重试")
+        # 显示最新生成的Key
+        if 'latest_generated_key' in st.session_state:
+            st.warning("请立即保存此密钥，它不会再次显示。")
+            st.code(st.session_state.latest_generated_key, language=None)
+            if st.button("我已保存", use_container_width=True):
+                del st.session_state.latest_generated_key
+                st.rerun()
 
         st.divider()
 
-        # 显示现有用户密钥
+        # 用户Keys列表
         st.markdown("### 现有密钥")
-        stats_data = get_cached_stats()
-        if stats_data:
-            total_user_keys = stats_data.get('user_keys', 0)
-            active_user_keys = stats_data.get('active_user_keys', 0)
+        user_keys = db.get_all_user_keys()
 
-            if total_user_keys > 0:
-                st.info(f"📊 共有 {total_user_keys} 个用户密钥，其中 {active_user_keys} 个处于激活状态")
+        if user_keys:
+            # 创建数据表
+            data = []
+            for k in user_keys:
+                data.append({
+                    'ID': k['id'],
+                    '描述': k['name'] or '-',
+                    '密钥预览': f"{k['key'][:15]}...",
+                    '状态': '激活' if k['status'] == 1 else '停用',
+                    '创建时间': k['created_at'][:10],
+                    '最后使用': k['last_used'][:16] if k['last_used'] else '从未'
+                })
 
-                # 创建模拟的用户密钥列表
-                data = []
-                for i in range(min(total_user_keys, 10)):  # 最多显示10个
-                    data.append({
-                        'ID': i + 1,
-                        '描述': f'密钥 {i + 1}' if i % 3 != 0 else '生产环境密钥',
-                        '密钥预览': f"sk-{'•' * 15}...",
-                        '状态': '激活' if i < active_user_keys else '停用',
-                        '创建时间': '2024-01-01',
-                        '最后使用': '2024-01-15' if i < active_user_keys else '从未'
-                    })
+            df = pd.DataFrame(data)
+            st.dataframe(
+                df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    'ID': st.column_config.NumberColumn(width='small'),
+                    '状态': st.column_config.TextColumn(width='small')
+                }
+            )
 
-                df = pd.DataFrame(data)
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        'ID': st.column_config.NumberColumn(width='small'),
-                        '状态': st.column_config.TextColumn(width='small')
-                    }
+            # 操作区
+            st.markdown("### 密钥操作")
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                selected_id = st.selectbox(
+                    "选择密钥",
+                    options=[k['id'] for k in user_keys],
+                    format_func=lambda
+                        x: f"密钥 #{x} - {next((k['name'] or '未命名' for k in user_keys if k['id'] == x), '未知')}"
                 )
-            else:
-                st.info("暂无用户密钥。请在上方生成你的第一个访问密钥。")
+            with col2:
+                if st.button("切换状态", use_container_width=True):
+                    db.toggle_user_key_status(selected_id)
+                    st.success(f"密钥 #{selected_id} 状态已更新")
+                    time.sleep(1)
+                    st.rerun()
+            with col3:
+                if st.button("删除", type="secondary", use_container_width=True):
+                    db.delete_user_key(selected_id)
+                    st.success(f"密钥 #{selected_id} 已删除")
+                    time.sleep(1)
+                    st.rerun()
+        else:
+            st.info("暂无用户密钥。请在上方生成你的第一个访问密钥。")
 
 elif page == "设置":
-    st.title("⚙️ 设置")
+    st.title("设置")
     st.markdown("配置高级功能和系统行为")
-
-    # 由于无法直接修改远程配置，这里主要显示当前状态
-    stats_data = get_cached_stats()
-    status_data = get_cached_status()
-
-    if not stats_data or not status_data:
-        st.error("❌ 无法获取配置数据")
-        st.stop()
 
     tab1, tab2, tab3 = st.tabs(["思考模式", "提示词注入", "系统"])
 
@@ -613,64 +847,147 @@ elif page == "设置":
         st.markdown("### 思考模式配置")
         st.markdown("启用内部推理以提高复杂查询的响应质量。")
 
-        thinking_config = stats_data.get('thinking_config', {})
+        thinking_config = db.get_thinking_config()
 
-        # 显示当前状态
-        thinking_enabled = thinking_config.get('enabled', False)
-        thinking_budget = thinking_config.get('budget', -1)
-        include_thoughts = thinking_config.get('include_thoughts', False)
+        # 启用开关
+        new_thinking_enabled = st.checkbox(
+            "启用思考模式",
+            value=thinking_config['enabled'],
+            help="启用后，模型将在生成响应前进行内部推理"
+        )
 
-        col1, col2 = st.columns(2)
+        if new_thinking_enabled != thinking_config['enabled']:
+            db.set_thinking_config(enabled=new_thinking_enabled)
+            st.success("思考模式设置已更新")
+            time.sleep(1)
+            st.rerun()
 
-        with col1:
-            st.metric("思考模式", "启用" if thinking_enabled else "禁用")
-            st.metric("思考预算", f"{thinking_budget} tokens" if thinking_budget >= 0 else "自动")
+        if new_thinking_enabled:
+            st.divider()
 
-        with col2:
-            st.metric("显示思考过程", "是" if include_thoughts else "否")
+            # 显示思考过程
+            new_include_thoughts = st.checkbox(
+                "在 API 响应中包含思考过程",
+                value=thinking_config['include_thoughts'],
+                help="启用后，API 响应将包含模型的推理过程"
+            )
 
-        st.info("💡 要修改思考模式配置，请通过API直接调用或在服务器端修改配置文件。")
+            if new_include_thoughts != thinking_config['include_thoughts']:
+                db.set_thinking_config(include_thoughts=new_include_thoughts)
+                st.success("思考显示设置已更新")
+                time.sleep(1)
+                st.rerun()
 
-        # 显示思考模式说明
-        with st.expander("思考模式说明"):
-            st.markdown("""
-            **思考模式功能：**
-            - 启用后，模型会在生成响应前进行内部推理
-            - 可以提高复杂问题的回答质量
-            - 支持设置思考预算来控制推理深度
+            st.divider()
 
-            **预算设置：**
-            - `-1`: 自动模式，由模型决定思考深度
-            - `0`: 禁用思考功能
-            - `1-32768`: 固定的思考token预算
-            """)
+            # 思考预算
+            st.markdown("#### 令牌预算")
+
+            budget_options = {
+                "自动": -1,
+                "禁用": 0,
+                "低 (4k)": 4096,
+                "中 (8k)": 8192,
+                "flash最高 (24k)": 24576,
+                "pro最高 (32k)": 32768,
+                "自定义": "custom"
+            }
+
+            current_budget = thinking_config['budget']
+            current_option = next((k for k, v in budget_options.items() if v == current_budget), "自定义")
+
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                selected_option = st.selectbox(
+                    "预算预设",
+                    options=list(budget_options.keys()),
+                    index=list(budget_options.keys()).index(current_option)
+                )
+
+            if selected_option == "自定义":
+                with col2:
+                    new_budget = st.number_input(
+                        "自定义令牌数",
+                        min_value=-1,
+                        max_value=32768,
+                        value=current_budget if current_budget > 0 else 4096
+                    )
+            else:
+                new_budget = budget_options[selected_option]
+
+            if st.button("更新令牌预算", type="primary"):
+                db.set_thinking_config(budget=new_budget)
+                st.success("令牌预算已更新")
+                time.sleep(1)
+                st.rerun()
 
     with tab2:
         st.markdown("### 提示词注入")
         st.markdown("自动为所有 API 请求添加自定义指令。")
 
-        inject_config = stats_data.get('inject_config', {})
+        inject_config = db.get_inject_prompt_config()
 
-        # 显示当前状态
-        inject_enabled = inject_config.get('enabled', False)
-        inject_content = inject_config.get('content', '')
-        inject_position = inject_config.get('position', 'system')
+        # 启用开关
+        new_inject_enabled = st.checkbox(
+            "启用提示词注入",
+            value=inject_config['enabled'],
+            help="启用后，所有请求都会包含你的自定义提示词"
+        )
 
-        col1, col2 = st.columns(2)
+        if new_inject_enabled != inject_config['enabled']:
+            db.set_inject_prompt_config(enabled=new_inject_enabled)
+            st.success("提示词注入设置已更新")
+            time.sleep(1)
+            st.rerun()
 
-        with col1:
-            st.metric("注入状态", "启用" if inject_enabled else "禁用")
-            st.metric("注入位置", inject_position)
+        if new_inject_enabled:
+            st.divider()
 
-        with col2:
-            content_preview = inject_content[:50] + "..." if len(inject_content) > 50 else inject_content
-            st.metric("内容预览", content_preview if content_preview else "无")
+            # 注入位置
+            position_options = {
+                'system': '作为系统消息',
+                'user_prefix': '用户消息之前',
+                'user_suffix': '用户消息之后'
+            }
 
-        if inject_content:
-            with st.expander("完整注入内容"):
-                st.text_area("注入的提示词", inject_content, disabled=True, height=150)
+            new_position = st.selectbox(
+                "注入位置",
+                options=list(position_options.keys()),
+                format_func=lambda x: position_options[x],
+                index=list(position_options.keys()).index(inject_config['position'])
+            )
 
-        st.info("💡 要修改提示词注入配置，请通过API直接调用或在服务器端修改配置文件。")
+            if new_position != inject_config['position']:
+                db.set_inject_prompt_config(position=new_position)
+                st.success("注入位置已更新")
+                time.sleep(1)
+                st.rerun()
+
+            st.divider()
+
+            # Prompt 内容
+            st.markdown("#### 提示词内容")
+            new_content = st.text_area(
+                "输入你的自定义提示词",
+                value=inject_config['content'],
+                height=150,
+                placeholder="你是一个专业的 AI 助手...",
+                label_visibility="collapsed"
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("保存提示词", type="primary", use_container_width=True):
+                    db.set_inject_prompt_config(content=new_content)
+                    st.success("提示词内容已保存")
+                    time.sleep(1)
+                    st.rerun()
+            with col2:
+                if st.button("清除提示词", type="secondary", use_container_width=True):
+                    db.set_inject_prompt_config(content="")
+                    st.success("提示词内容已清除")
+                    time.sleep(1)
+                    st.rerun()
 
     with tab3:
         st.markdown("### 系统配置")
@@ -678,97 +995,82 @@ elif page == "设置":
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("#### 服务信息")
-            st.metric("Python版本", status_data.get('python_version', 'Unknown').split()[0])
-            st.metric("服务版本", status_data.get('version', '1.0.0'))
-            st.metric("保持唤醒", "激活" if status_data.get('keep_alive_active', False) else "未激活")
+            st.markdown("#### 模型设置")
+
+            # 默认模型
+            current_model = db.get_config('default_model_name', 'gemini-2.5-flash')
+            supported_models = db.get_supported_models()
+            new_model = st.selectbox(
+                "默认模型",
+                options=supported_models,
+                index=supported_models.index(current_model),
+                help="请求未指定模型时使用的默认模型"
+            )
+            if new_model != current_model:
+                db.set_config('default_model_name', new_model)
+                st.success("默认模型已更新")
+                time.sleep(1)
+                st.rerun()
+
+            # 负载均衡策略
+            current_strategy = db.get_config('load_balance_strategy', 'least_used')
+            strategy_options = {
+                'least_used': '最少使用优先',
+                'round_robin': '轮询'
+            }
+            new_strategy = st.selectbox(
+                "负载均衡",
+                options=list(strategy_options.keys()),
+                format_func=lambda x: strategy_options[x],
+                index=0 if current_strategy == 'least_used' else 1,
+                help="在多个 API 密钥间分配请求的策略"
+            )
+            if new_strategy != current_strategy:
+                db.set_config('load_balance_strategy', new_strategy)
+                st.success("负载均衡策略已更新")
+                time.sleep(1)
+                st.rerun()
 
         with col2:
-            st.markdown("#### 支持的模型")
-            models = status_data.get('models', [])
-            for model in models:
-                st.markdown(f"• {model}")
+            st.markdown("#### 网络设置")
 
-        # 系统指标
-        st.markdown("### 系统指标")
+            # 请求超时
+            current_timeout = int(db.get_config('request_timeout', '60'))
+            new_timeout = st.number_input(
+                "请求超时（秒）",
+                min_value=10,
+                max_value=300,
+                value=current_timeout,
+                step=10,
+                help="等待 API 响应的最长时间"
+            )
+            if new_timeout != current_timeout:
+                db.set_config('request_timeout', str(new_timeout))
+                st.success("超时设置已更新")
+                time.sleep(1)
+                st.rerun()
 
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            memory_mb = status_data.get('memory_usage_mb', 0)
-            st.metric("内存使用", f"{memory_mb:.1f} MB")
-
-        with col2:
-            cpu_percent = status_data.get('cpu_percent', 0)
-            st.metric("CPU使用率", f"{cpu_percent:.1f}%")
-
-        with col3:
-            uptime = status_data.get('uptime_seconds', 0)
-            uptime_hours = uptime / 3600
-            st.metric("运行时间", f"{uptime_hours:.1f} 小时")
-
-elif page == "模型":
-    st.title("🤖 模型配置")
-    st.markdown("查看模型状态和使用情况")
-
-    stats_data = get_cached_stats()
-    status_data = get_cached_status()
-
-    if not stats_data or not status_data:
-        st.error("❌ 无法获取模型数据")
-        st.stop()
-
-    models = status_data.get('models', [])
-    usage_stats = stats_data.get('usage_stats', {})
-
-    if not models:
-        st.warning("暂无可用模型")
-        st.stop()
-
-    st.info(f"当前支持 {len(models)} 个模型")
-
-    # 显示每个模型的状态
-    for model in models:
-        with st.container():
-            st.markdown(f"### {model}")
-
-            stats = usage_stats.get(model,
-                                    {'minute': {'requests': 0, 'tokens': 0}, 'day': {'requests': 0, 'tokens': 0}})
-
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                st.markdown("#### 分钟级使用")
-                st.metric("请求数", f"{stats['minute']['requests']:,}")
-                st.metric("令牌数", f"{stats['minute']['tokens']:,}")
-
-            with col2:
-                st.markdown("#### 日级使用")
-                st.metric("请求数", f"{stats['day']['requests']:,}")
-                st.metric("令牌数", f"{stats['day']['tokens']:,}")
-
-            with col3:
-                st.markdown("#### 模型特性")
-                if '2.5' in model:
-                    st.success("✅ 支持思考模式")
-                else:
-                    st.info("ℹ️ 标准模式")
-
-                if 'flash' in model:
-                    st.info("⚡ 快速响应")
-                elif 'pro' in model:
-                    st.info("🎯 专业版本")
-
-            st.divider()
+            # 最大重试次数
+            current_retries = int(db.get_config('max_retries', '3'))
+            new_retries = st.number_input(
+                "最大重试次数",
+                min_value=1,
+                max_value=10,
+                value=current_retries,
+                help="请求失败时的重试次数"
+            )
+            if new_retries != current_retries:
+                db.set_config('max_retries', str(new_retries))
+                st.success("重试设置已更新")
+                time.sleep(1)
+                st.rerun()
 
 # --- 页脚 ---
 st.markdown(
     """
-    <div style='text-align: center; color: #86868b; font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(0, 0, 0, 0.06); letter-spacing: -0.01em;'>
-        Gemini API 轮询服务 | 
-        <a href='{api_url}' target='_blank' style='color: #86868b; text-decoration: none;'>API文档</a> | 
-        <a href='{api_url}/health' target='_blank' style='color: #86868b; text-decoration: none;'>健康检查</a>
+    <div class='footer'>
+        Gemini API 轮询
     </div>
-    """.format(api_url=API_BASE_URL),
+    """,
     unsafe_allow_html=True
 )
