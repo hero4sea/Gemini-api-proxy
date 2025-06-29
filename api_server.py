@@ -1112,7 +1112,7 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
-# 🔥 新增：管理端点（修复404错误）
+# 🔥 管理端点（修复404错误）
 @app.get("/admin/models/{model_name}")
 async def get_model_config(model_name: str):
     """获取指定模型的配置"""
@@ -1295,6 +1295,111 @@ async def get_admin_stats():
         "thinking_config": db.get_thinking_config(),
         "inject_config": db.get_inject_prompt_config()
     }
+
+
+# 🔍 调试端点
+@app.get("/debug/database")
+async def debug_database():
+    """调试数据库状态"""
+    try:
+        # 获取数据库基本信息
+        db_info = db.get_system_info()
+
+        # 获取所有表的记录数
+        stats = db.get_database_stats()
+
+        # 检查密钥
+        gemini_keys = db.get_all_gemini_keys()
+        user_keys = db.get_all_user_keys()
+
+        return {
+            "database_info": db_info,
+            "database_stats": stats,
+            "gemini_keys_count": len(gemini_keys),
+            "user_keys_count": len(user_keys),
+            "gemini_keys_preview": [
+                {
+                    "id": k['id'],
+                    "key_preview": f"{k['key'][:20]}...",
+                    "status": k['status'],
+                    "created_at": k['created_at']
+                } for k in gemini_keys
+            ],
+            "user_keys_preview": [
+                {
+                    "id": k['id'],
+                    "name": k['name'],
+                    "key_preview": f"{k['key'][:20]}...",
+                    "status": k['status'],
+                    "created_at": k['created_at']
+                } for k in user_keys
+            ]
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "database_path": db.db_path,
+            "database_exists": os.path.exists(db.db_path) if hasattr(db, 'db_path') else "unknown"
+        }
+
+
+@app.post("/debug/test-auth")
+async def test_auth(request: dict):
+    """测试认证功能"""
+    test_key = request.get("test_key", "")
+
+    try:
+        # 验证密钥
+        user_key = db.validate_user_key(test_key)
+
+        if user_key:
+            return {
+                "success": True,
+                "message": "Authentication successful",
+                "user_key_info": {
+                    "id": user_key['id'],
+                    "name": user_key['name'],
+                    "status": user_key['status'],
+                    "created_at": user_key['created_at'],
+                    "last_used": user_key['last_used']
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Authentication failed",
+                "available_user_keys": len(db.get_all_user_keys()),
+                "active_user_keys": len([k for k in db.get_all_user_keys() if k['status'] == 1])
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/debug/create-test-data")
+async def create_test_data():
+    """创建测试数据"""
+    try:
+        # 生成测试用户密钥
+        test_user_key = db.generate_user_key("Debug Test User")
+
+        return {
+            "success": True,
+            "message": "Test data created successfully",
+            "test_user_key": test_user_key,
+            "instructions": [
+                "Use this key to test API calls:",
+                f"Authorization: Bearer {test_user_key}",
+                "Test endpoint: POST /v1/chat/completions"
+            ]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 # 运行服务器的函数

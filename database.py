@@ -18,11 +18,11 @@ class Database:
                 db_path = "/opt/render/project/src/gemini_proxy.db"
                 # 确保目录存在
                 os.makedirs(os.path.dirname(db_path), exist_ok=True)
-                print(f"Render environment detected, using database path: {db_path}")
+                print(f"🌐 Render environment detected, using database path: {db_path}")
             else:
                 # 本地环境
                 db_path = "gemini_proxy.db"
-                print(f"Local environment detected, using database path: {db_path}")
+                print(f"💻 Local environment detected, using database path: {db_path}")
 
         self.db_path = db_path
         self.local = threading.local()
@@ -60,6 +60,8 @@ class Database:
             self.local.conn.execute("PRAGMA journal_mode=WAL")
             self.local.conn.execute("PRAGMA synchronous=NORMAL")
             self.local.conn.execute("PRAGMA cache_size=1000")
+            # 确保外键约束
+            self.local.conn.execute("PRAGMA foreign_keys=ON")
         yield self.local.conn
 
     def init_db(self):

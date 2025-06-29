@@ -434,14 +434,17 @@ with st.sidebar:
 
     # 启动API服务器
     if start_api_server():
-        st.success("API 服务运行中")
+        st.success("✅ API 服务运行中")
         with st.expander("连接详情"):
             port = int(os.environ.get("PORT", 8000))
-            api_url = f"http://localhost:{port}" if port == 8000 else f"https://your-app.onrender.com"
+            if os.getenv('RENDER_EXTERNAL_URL'):
+                api_url = os.getenv('RENDER_EXTERNAL_URL')
+            else:
+                api_url = f"http://localhost:{port}"
             st.code(api_url, language=None)
             st.caption("OpenAI 兼容接口")
     else:
-        st.error("API 服务离线")
+        st.error("❌ API 服务离线")
 
     st.markdown("---")
 
@@ -686,7 +689,7 @@ elif page == "模型":
                     single_api_tpm_limit=new_tpm,
                     single_api_rpd_limit=new_rpd
                 )
-                st.success(f"{model_name} 配置已更新")
+                st.success(f"✅ {model_name} 配置已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -713,11 +716,11 @@ elif page == "密钥":
             if st.button("添加", type="primary", use_container_width=True):
                 if new_key:
                     if db.add_gemini_key(new_key):
-                        st.success("密钥添加成功")
+                        st.success("✅ 密钥添加成功")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("添加失败，密钥可能已存在。")
+                        st.error("❌ 添加失败，密钥可能已存在。")
                 else:
                     st.warning("请输入有效的 API 密钥。")
 
@@ -752,6 +755,8 @@ elif page == "密钥":
                     with col5:
                         if st.button("删除", key=f"delete_gemini_{key['id']}", type="secondary"):
                             db.delete_gemini_key(key['id'])
+                            st.success("✅ 密钥已删除")
+                            time.sleep(1)
                             st.rerun()
 
                 if idx < len(gemini_keys) - 1:
@@ -776,8 +781,26 @@ elif page == "密钥":
 
         # 显示最新生成的Key
         if 'latest_generated_key' in st.session_state:
-            st.warning("请立即保存此密钥，它不会再次显示。")
+            st.warning("⚠️ 请立即保存此密钥，它不会再次显示。")
             st.code(st.session_state.latest_generated_key, language=None)
+
+            # 使用说明
+            st.markdown("### 使用说明")
+            api_url = os.getenv('RENDER_EXTERNAL_URL', 'http://localhost:8000')
+            st.code(f"""
+import openai
+
+client = openai.OpenAI(
+    api_key="{st.session_state.latest_generated_key}",
+    base_url="{api_url}/v1"
+)
+
+response = client.chat.completions.create(
+    model="gemini-2.5-flash",
+    messages=[{{"role": "user", "content": "Hello!"}}]
+)
+            """, language="python")
+
             if st.button("我已保存", use_container_width=True):
                 del st.session_state.latest_generated_key
                 st.rerun()
@@ -825,13 +848,13 @@ elif page == "密钥":
             with col2:
                 if st.button("切换状态", use_container_width=True):
                     db.toggle_user_key_status(selected_id)
-                    st.success(f"密钥 #{selected_id} 状态已更新")
+                    st.success(f"✅ 密钥 #{selected_id} 状态已更新")
                     time.sleep(1)
                     st.rerun()
             with col3:
                 if st.button("删除", type="secondary", use_container_width=True):
                     db.delete_user_key(selected_id)
-                    st.success(f"密钥 #{selected_id} 已删除")
+                    st.success(f"✅ 密钥 #{selected_id} 已删除")
                     time.sleep(1)
                     st.rerun()
         else:
@@ -858,7 +881,7 @@ elif page == "设置":
 
         if new_thinking_enabled != thinking_config['enabled']:
             db.set_thinking_config(enabled=new_thinking_enabled)
-            st.success("思考模式设置已更新")
+            st.success("✅ 思考模式设置已更新")
             time.sleep(1)
             st.rerun()
 
@@ -874,7 +897,7 @@ elif page == "设置":
 
             if new_include_thoughts != thinking_config['include_thoughts']:
                 db.set_thinking_config(include_thoughts=new_include_thoughts)
-                st.success("思考显示设置已更新")
+                st.success("✅ 思考显示设置已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -917,7 +940,7 @@ elif page == "设置":
 
             if st.button("更新令牌预算", type="primary"):
                 db.set_thinking_config(budget=new_budget)
-                st.success("令牌预算已更新")
+                st.success("✅ 令牌预算已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -936,7 +959,7 @@ elif page == "设置":
 
         if new_inject_enabled != inject_config['enabled']:
             db.set_inject_prompt_config(enabled=new_inject_enabled)
-            st.success("提示词注入设置已更新")
+            st.success("✅ 提示词注入设置已更新")
             time.sleep(1)
             st.rerun()
 
@@ -959,7 +982,7 @@ elif page == "设置":
 
             if new_position != inject_config['position']:
                 db.set_inject_prompt_config(position=new_position)
-                st.success("注入位置已更新")
+                st.success("✅ 注入位置已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -979,13 +1002,13 @@ elif page == "设置":
             with col1:
                 if st.button("保存提示词", type="primary", use_container_width=True):
                     db.set_inject_prompt_config(content=new_content)
-                    st.success("提示词内容已保存")
+                    st.success("✅ 提示词内容已保存")
                     time.sleep(1)
                     st.rerun()
             with col2:
                 if st.button("清除提示词", type="secondary", use_container_width=True):
                     db.set_inject_prompt_config(content="")
-                    st.success("提示词内容已清除")
+                    st.success("✅ 提示词内容已清除")
                     time.sleep(1)
                     st.rerun()
 
@@ -1008,7 +1031,7 @@ elif page == "设置":
             )
             if new_model != current_model:
                 db.set_config('default_model_name', new_model)
-                st.success("默认模型已更新")
+                st.success("✅ 默认模型已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -1027,7 +1050,7 @@ elif page == "设置":
             )
             if new_strategy != current_strategy:
                 db.set_config('load_balance_strategy', new_strategy)
-                st.success("负载均衡策略已更新")
+                st.success("✅ 负载均衡策略已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -1046,7 +1069,7 @@ elif page == "设置":
             )
             if new_timeout != current_timeout:
                 db.set_config('request_timeout', str(new_timeout))
-                st.success("超时设置已更新")
+                st.success("✅ 超时设置已更新")
                 time.sleep(1)
                 st.rerun()
 
@@ -1061,9 +1084,22 @@ elif page == "设置":
             )
             if new_retries != current_retries:
                 db.set_config('max_retries', str(new_retries))
-                st.success("重试设置已更新")
+                st.success("✅ 重试设置已更新")
                 time.sleep(1)
                 st.rerun()
+
+        # 数据库信息
+        st.markdown("### 数据库状态")
+
+        db_stats = db.get_database_stats()
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("数据库大小", f"{db_stats.get('database_size_mb', 0):.2f} MB")
+        with col2:
+            st.metric("Gemini密钥", f"{db_stats.get('gemini_keys_count', 0)} 个")
+        with col3:
+            st.metric("用户密钥", f"{db_stats.get('user_keys_count', 0)} 个")
 
 # --- 页脚 ---
 st.markdown(
