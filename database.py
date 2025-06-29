@@ -403,19 +403,6 @@ class Database:
             conn.commit()
             return cursor.rowcount > 0
 
-    def toggle_gemini_key_status(self, key_id: int) -> bool:
-        """切换Gemini Key状态"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE gemini_keys 
-                SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END,
-                    updated_at = CURRENT_TIMESTAMP 
-                WHERE id = ?
-            ''', (key_id,))
-            conn.commit()
-            return cursor.rowcount > 0
-
     def delete_gemini_key(self, key_id: int) -> bool:
         """删除Gemini Key"""
         with self.get_connection() as conn:

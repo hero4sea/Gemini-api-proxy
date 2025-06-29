@@ -1112,7 +1112,7 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
-# 🔥 管理端点 - 模型管理
+# 🔥 新增：管理端点（修复404错误）
 @app.get("/admin/models/{model_name}")
 async def get_model_config(model_name: str):
     """获取指定模型的配置"""
@@ -1181,122 +1181,6 @@ async def list_model_configs():
         }
     except Exception as e:
         logger.error(f"❌ Failed to get model configs: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 🔥 管理端点 - 密钥管理
-@app.get("/admin/gemini-keys")
-async def get_gemini_keys():
-    """获取所有Gemini密钥"""
-    try:
-        keys = db.get_all_gemini_keys()
-        # 对密钥进行掩码处理
-        for key in keys:
-            original_key = key['key']
-            if len(original_key) > 20:
-                key['masked_key'] = f"{original_key[:8]}{'•' * 20}{original_key[-8:]}"
-            else:
-                key['masked_key'] = f"{original_key[:4]}{'•' * 10}{original_key[-4:]}"
-            # 不返回完整密钥以保护安全
-            del key['key']
-
-        return {
-            "success": True,
-            "keys": keys
-        }
-    except Exception as e:
-        logger.error(f"❌ Failed to get Gemini keys: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/admin/gemini-keys/{key_id}/toggle")
-async def toggle_gemini_key_status(key_id: int):
-    """切换Gemini密钥状态"""
-    try:
-        success = db.toggle_gemini_key_status(key_id)
-        if success:
-            return {
-                "success": True,
-                "message": f"Gemini key #{key_id} status toggled successfully"
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Key not found")
-    except Exception as e:
-        logger.error(f"❌ Failed to toggle Gemini key status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.delete("/admin/gemini-keys/{key_id}")
-async def delete_gemini_key_endpoint(key_id: int):
-    """删除Gemini密钥"""
-    try:
-        success = db.delete_gemini_key(key_id)
-        if success:
-            logger.info(f"✅ Deleted Gemini key #{key_id}")
-            return {
-                "success": True,
-                "message": f"Gemini key #{key_id} deleted successfully"
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Key not found")
-    except Exception as e:
-        logger.error(f"❌ Failed to delete Gemini key: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/admin/user-keys")
-async def get_user_keys():
-    """获取所有用户密钥"""
-    try:
-        keys = db.get_all_user_keys()
-        # 对密钥进行掩码处理
-        for key in keys:
-            original_key = key['key']
-            key['masked_key'] = f"{original_key[:15]}{'•' * 10}..."
-            # 不返回完整密钥以保护安全
-            del key['key']
-
-        return {
-            "success": True,
-            "keys": keys
-        }
-    except Exception as e:
-        logger.error(f"❌ Failed to get user keys: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/admin/user-keys/{key_id}/toggle")
-async def toggle_user_key_status(key_id: int):
-    """切换用户密钥状态"""
-    try:
-        success = db.toggle_user_key_status(key_id)
-        if success:
-            return {
-                "success": True,
-                "message": f"User key #{key_id} status toggled successfully"
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Key not found")
-    except Exception as e:
-        logger.error(f"❌ Failed to toggle user key status: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.delete("/admin/user-keys/{key_id}")
-async def delete_user_key_endpoint(key_id: int):
-    """删除用户密钥"""
-    try:
-        success = db.delete_user_key(key_id)
-        if success:
-            logger.info(f"✅ Deleted user key #{key_id}")
-            return {
-                "success": True,
-                "message": f"User key #{key_id} deleted successfully"
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Key not found")
-    except Exception as e:
-        logger.error(f"❌ Failed to delete user key: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
