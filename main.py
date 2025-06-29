@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 
 # --- 页面配置 ---
 st.set_page_config(
-    page_title="Gemini API Gateway",
+    page_title="Gemini API 网关",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -22,35 +22,38 @@ API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
 
+
 # --- API调用函数 ---
 def call_api(endpoint: str, method: str = 'GET', data: Any = None, timeout: int = 30) -> Optional[Dict]:
     """统一API调用函数"""
     url = f"{API_BASE_URL}{endpoint}"
 
     try:
-        spinner_message = "Loading..." if method == 'GET' else "Saving..."
+        spinner_message = "加载中..." if method == 'GET' else "保存中..."
         with st.spinner(spinner_message):
             if method == 'GET':
                 response = requests.get(url, timeout=timeout)
             elif method == 'POST':
                 response = requests.post(url, json=data, timeout=timeout)
+            elif method == 'DELETE':
+                response = requests.delete(url, timeout=timeout)
             else:
-                raise ValueError(f"Unsupported method: {method}")
+                raise ValueError(f"不支持的方法: {method}")
 
             if response.status_code == 200:
                 return response.json()
             else:
-                st.error(f"API Error: {response.status_code}")
+                st.error(f"API错误: {response.status_code}")
                 return None
 
     except requests.exceptions.Timeout:
-        st.error("Request timeout. Please try again.")
+        st.error("请求超时，请重试。")
         return None
     except requests.exceptions.ConnectionError:
-        st.error("Cannot connect to API service.")
+        st.error("无法连接到API服务。")
         return None
     except Exception as e:
-        st.error(f"API Error: {str(e)}")
+        st.error(f"API错误: {str(e)}")
         return None
 
 
@@ -59,7 +62,7 @@ def wake_up_service():
     try:
         response = requests.get(f"{API_BASE_URL}/wake", timeout=10)
         if response.status_code == 200:
-            st.success("Service activated")
+            st.success("服务已激活")
             return True
     except:
         pass
@@ -146,6 +149,16 @@ st.markdown("""
         background: #374151;
         transform: translateY(-1px);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 删除按钮特殊样式 */
+    .delete-button > button {
+        background: #ef4444;
+        color: white;
+    }
+
+    .delete-button > button:hover {
+        background: #dc2626;
     }
 
     /* 输入框样式 - 更精致 */
@@ -248,63 +261,63 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown("### Gemini API Gateway")
+    st.markdown("### Gemini API 网关")
     st.markdown("---")
 
     page = st.radio(
-        "Navigation",
-        ["Dashboard", "Models", "API Keys", "Settings"],
+        "导航",
+        ["控制台", "模型配置", "密钥管理", "系统设置"],
         label_visibility="collapsed"
     )
 
     st.markdown("---")
 
     # 服务状态检查
-    st.markdown("#### Service Status")
+    st.markdown("#### 服务状态")
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Refresh", use_container_width=True):
+        if st.button("刷新", use_container_width=True):
             st.cache_data.clear()
     with col2:
-        if st.button("Wake Up", use_container_width=True):
+        if st.button("唤醒", use_container_width=True):
             wake_up_service()
 
     # 检查服务健康状态
     health = check_service_health()
     if health:
-        st.success("Service Online")
-        with st.expander("Details"):
-            st.text(f"URL: {API_BASE_URL}")
-            st.text(f"Status: {health.get('status', 'unknown')}")
-            st.text(f"Uptime: {health.get('uptime_seconds', 0)}s")
+        st.success("服务在线")
+        with st.expander("详细信息"):
+            st.text(f"地址: {API_BASE_URL}")
+            st.text(f"状态: {health.get('status', 'unknown')}")
+            st.text(f"运行时间: {health.get('uptime_seconds', 0)}秒")
     else:
-        st.error("Service Offline")
-        st.info("Click 'Wake Up' to activate")
+        st.error("服务离线")
+        st.info("点击'唤醒'按钮激活服务")
 
     st.markdown("---")
 
     # 快速统计
-    st.markdown("#### System Overview")
+    st.markdown("#### 系统概览")
     status_data = get_cached_status()
     if status_data:
-        st.metric("Active Keys", status_data.get('active_keys', 0))
+        st.metric("可用密钥", status_data.get('active_keys', 0))
         thinking_enabled = status_data.get('thinking_enabled', False)
-        st.metric("Thinking Mode", "ON" if thinking_enabled else "OFF")
+        st.metric("思考模式", "开启" if thinking_enabled else "关闭")
 
         memory_mb = status_data.get('memory_usage_mb', 0)
         if memory_mb > 0:
-            st.metric("Memory", f"{memory_mb:.1f}MB")
+            st.metric("内存使用", f"{memory_mb:.1f}MB")
 
 # --- 主页面内容 ---
-if page == "Dashboard":
-    st.title("Service Dashboard")
-    st.markdown("Monitor API gateway performance and usage metrics")
+if page == "控制台":
+    st.title("服务控制台")
+    st.markdown("监控 API 网关性能和使用指标")
 
     # 刷新按钮
     col1, col2 = st.columns([10, 1])
     with col2:
-        if st.button("↻", help="Refresh data", key="refresh_dashboard"):
+        if st.button("↻", help="刷新数据", key="refresh_dashboard"):
             st.cache_data.clear()
             st.rerun()
 
@@ -313,63 +326,63 @@ if page == "Dashboard":
     status_data = get_cached_status()
 
     if not stats_data or not status_data:
-        st.error("Unable to retrieve service data")
-        st.info("Try clicking 'Wake Up' in the sidebar")
+        st.error("无法获取服务数据")
+        st.info("请尝试点击侧边栏的'唤醒'按钮")
         st.stop()
 
     # 核心指标
-    st.markdown("## Core Metrics")
+    st.markdown("## 核心指标")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         gemini_keys = stats_data.get('active_gemini_keys', 0)
         total_gemini = stats_data.get('gemini_keys', 0)
         st.metric(
-            "Gemini Keys",
+            "Gemini密钥",
             gemini_keys,
-            delta=f"of {total_gemini}"
+            delta=f"共{total_gemini}个"
         )
 
     with col2:
         user_keys = stats_data.get('active_user_keys', 0)
         total_user = stats_data.get('user_keys', 0)
         st.metric(
-            "User Keys",
+            "用户密钥",
             user_keys,
-            delta=f"of {total_user}"
+            delta=f"共{total_user}个"
         )
 
     with col3:
         models = stats_data.get('supported_models', [])
-        st.metric("Models", len(models))
+        st.metric("支持模型", len(models))
 
     with col4:
-        thinking_status = "Enabled" if status_data.get('thinking_enabled', False) else "Disabled"
-        st.metric("Thinking", thinking_status)
+        thinking_status = "已启用" if status_data.get('thinking_enabled', False) else "已禁用"
+        st.metric("思考功能", thinking_status)
 
     # 系统状态
-    st.markdown("## System Status")
+    st.markdown("## 系统状态")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         uptime = status_data.get('uptime_seconds', 0)
         uptime_hours = uptime / 3600
-        st.metric("Uptime", f"{uptime_hours:.1f}h")
+        st.metric("运行时间", f"{uptime_hours:.1f}小时")
 
     with col2:
         memory_mb = status_data.get('memory_usage_mb', 0)
-        st.metric("Memory", f"{memory_mb:.1f}MB")
+        st.metric("内存使用", f"{memory_mb:.1f}MB")
 
     with col3:
         cpu_percent = status_data.get('cpu_percent', 0)
-        st.metric("CPU", f"{cpu_percent:.1f}%")
+        st.metric("CPU使用", f"{cpu_percent:.1f}%")
 
     with col4:
         total_requests = status_data.get('total_requests', 0)
-        st.metric("Requests", f"{total_requests:,}")
+        st.metric("总请求数", f"{total_requests:,}")
 
     # 使用率分析
-    st.markdown("## Usage Analysis")
+    st.markdown("## 使用率分析")
 
     usage_stats = stats_data.get('usage_stats', {})
     if usage_stats and models:
@@ -416,15 +429,15 @@ if page == "Dashboard":
                     text=[f"{x:.1f}%" for x in df['RPM %']],
                     textposition='outside',
                     marker_color='#6366f1',
-                    hovertemplate='<b>%{x}</b><br>Usage: %{y:.1f}%<br>Current: %{customdata[0]:,}<br>Limit: %{customdata[1]:,}<extra></extra>',
+                    hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
                     customdata=df[['RPM Used', 'RPM Limit']].values
                 ))
                 fig_rpm.update_layout(
                     title={
-                        'text': "Requests per Minute (RPM)",
+                        'text': "每分钟请求数 (RPM)",
                         'font': {'size': 14, 'color': '#1f2937', 'family': '-apple-system, BlinkMacSystemFont'}
                     },
-                    yaxis_title="Usage (%)",
+                    yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
                     height=320,
                     showlegend=False,
@@ -446,15 +459,15 @@ if page == "Dashboard":
                     text=[f"{x:.1f}%" for x in df['RPD %']],
                     textposition='outside',
                     marker_color='#10b981',
-                    hovertemplate='<b>%{x}</b><br>Usage: %{y:.1f}%<br>Current: %{customdata[0]:,}<br>Limit: %{customdata[1]:,}<extra></extra>',
+                    hovertemplate='<b>%{x}</b><br>使用率: %{y:.1f}%<br>当前: %{customdata[0]:,}<br>限制: %{customdata[1]:,}<extra></extra>',
                     customdata=df[['RPD Used', 'RPD Limit']].values
                 ))
                 fig_rpd.update_layout(
                     title={
-                        'text': "Requests per Day (RPD)",
+                        'text': "每日请求数 (RPD)",
                         'font': {'size': 14, 'color': '#1f2937', 'family': '-apple-system, BlinkMacSystemFont'}
                     },
-                    yaxis_title="Usage (%)",
+                    yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
                     height=320,
                     showlegend=False,
@@ -469,88 +482,93 @@ if page == "Dashboard":
                 st.plotly_chart(fig_rpd, use_container_width=True)
 
             # 详细数据表
-            with st.expander("View detailed data"):
+            with st.expander("查看详细数据"):
                 display_df = df[['Model', 'RPM Used', 'RPM Limit', 'RPM %', 'RPD Used', 'RPD Limit', 'RPD %']].copy()
-                display_df['RPM %'] = display_df['RPM %'].apply(lambda x: f"{x:.1f}%")
-                display_df['RPD %'] = display_df['RPD %'].apply(lambda x: f"{x:.1f}%")
+                display_df.columns = ['模型', '分钟请求', '分钟限制', '分钟使用率', '日请求', '日限制', '日使用率']
+                display_df['分钟使用率'] = display_df['分钟使用率'].apply(lambda x: f"{x:.1f}%")
+                display_df['日使用率'] = display_df['日使用率'].apply(lambda x: f"{x:.1f}%")
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
-        st.info("No usage data available. Please configure API keys and send requests.")
+        st.info("暂无使用数据。请先配置API密钥并发送请求。")
 
-elif page == "API Keys":
-    st.title("API Key Management")
-    st.markdown("Manage Gemini API keys and user access tokens")
+elif page == "密钥管理":
+    st.title("密钥管理")
+    st.markdown("管理 Gemini API 密钥和用户访问令牌")
 
-    tab1, tab2 = st.tabs(["Gemini Keys", "User Keys"])
+    tab1, tab2 = st.tabs(["Gemini 密钥", "用户密钥"])
 
     with tab1:
-        st.markdown("### Add New Key")
+        st.markdown("### 添加新密钥")
 
         with st.form("add_gemini_key"):
             new_key = st.text_input(
-                "Gemini API Key",
+                "Gemini API 密钥",
                 type="password",
-                placeholder="Enter your Gemini API key...",
-                help="Get your Gemini API key from Google AI Studio"
+                placeholder="输入你的 Gemini API 密钥...",
+                help="从 Google AI Studio 获取你的 Gemini API 密钥"
             )
-            submitted = st.form_submit_button("Add Key", type="primary")
+            submitted = st.form_submit_button("添加密钥", type="primary")
 
             if submitted and new_key:
                 result = call_api('/admin/config/gemini-key', 'POST', {'key': new_key})
                 if result and result.get('success'):
-                    st.success("Key added successfully!")
+                    st.success("密钥添加成功！")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Failed to add key. It may already exist.")
+                    st.error("添加失败，密钥可能已存在。")
 
         st.divider()
 
         # 显示现有密钥
-        st.markdown("### Active Keys")
+        st.markdown("### 现有密钥")
         stats_data = get_cached_stats()
         if stats_data:
             total_keys = stats_data.get('gemini_keys', 0)
             active_keys = stats_data.get('active_gemini_keys', 0)
 
             if total_keys > 0:
-                st.info(f"Total: {total_keys} keys, Active: {active_keys}")
+                st.info(f"共有 {total_keys} 个密钥，其中 {active_keys} 个处于激活状态")
 
                 # 显示密钥列表
                 for i in range(min(total_keys, 5)):
                     with st.container():
-                        col1, col2, col3 = st.columns([1, 4, 1])
+                        col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
                         with col1:
                             st.markdown(f"**#{i + 1}**")
                         with col2:
                             masked_key = f"AIzaSy{'•' * 30}abc{i + 1:02d}"
                             st.code(masked_key, language=None)
                         with col3:
-                            status = "Active" if i < active_keys else "Inactive"
+                            status = "激活" if i < active_keys else "禁用"
                             st.markdown(f"**{status}**")
+                        with col4:
+                            # 添加删除按钮
+                            if st.button("删除", key=f"del_gemini_{i}", use_container_width=True):
+                                st.warning(f"确定要删除密钥 #{i + 1} 吗？")
 
                         if i < total_keys - 1:
                             st.markdown("---")
             else:
-                st.info("No Gemini keys configured. Add your first key above.")
+                st.info("暂无 Gemini 密钥。请在上方添加你的第一个密钥。")
 
     with tab2:
-        st.markdown("### Generate Access Key")
+        st.markdown("### 生成访问密钥")
 
         with st.form("generate_user_key"):
-            submitted = st.form_submit_button("Generate New Key", type="primary")
+            submitted = st.form_submit_button("生成新密钥", type="primary")
 
             if submitted:
-                result = call_api('/admin/config/user-key', 'POST', {'name': 'API Key'})
+                result = call_api('/admin/config/user-key', 'POST', {'name': 'API密钥'})
                 if result and result.get('success'):
                     new_key = result.get('key')
-                    st.success("User key generated successfully!")
-                    st.warning("Save this key immediately. It won't be shown again.")
+                    st.success("用户密钥生成成功！")
+                    st.warning("请立即保存此密钥，它不会再次显示。")
                     st.code(new_key, language=None)
 
                     # 使用说明
-                    st.markdown("### Usage Example")
+                    st.markdown("### 使用示例")
                     st.code(f"""
 import openai
 
@@ -561,65 +579,71 @@ client = openai.OpenAI(
 
 response = client.chat.completions.create(
     model="gemini-2.5-flash",
-    messages=[{{"role": "user", "content": "Hello!"}}]
+    messages=[{{"role": "user", "content": "你好！"}}]
 )
                     """, language="python")
 
                     st.cache_data.clear()
                 else:
-                    st.error("Failed to generate key. Please try again.")
+                    st.error("生成失败，请重试。")
 
         st.divider()
 
         # 显示现有用户密钥
-        st.markdown("### Active Keys")
+        st.markdown("### 现有密钥")
         stats_data = get_cached_stats()
         if stats_data:
             total_user_keys = stats_data.get('user_keys', 0)
             active_user_keys = stats_data.get('active_user_keys', 0)
 
             if total_user_keys > 0:
-                st.info(f"Total: {total_user_keys} keys, Active: {active_user_keys}")
+                st.info(f"共有 {total_user_keys} 个用户密钥，其中 {active_user_keys} 个处于激活状态")
 
                 # 用户密钥列表
                 data = []
                 for i in range(min(total_user_keys, 10)):
                     data.append({
                         'ID': i + 1,
-                        'Key Preview': f"sk-{'•' * 15}...",
-                        'Status': 'Active' if i < active_user_keys else 'Inactive'
+                        '密钥预览': f"sk-{'•' * 15}...",
+                        '状态': '激活' if i < active_user_keys else '停用',
+                        '操作': ''  # 占位符，用于按钮
                     })
 
-                df = pd.DataFrame(data)
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        'ID': st.column_config.NumberColumn(width='small'),
-                        'Status': st.column_config.TextColumn(width='small')
-                    }
-                )
-            else:
-                st.info("No user keys generated. Generate your first access key above.")
+                # 创建表格
+                for idx, row in enumerate(data):
+                    col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+                    with col1:
+                        st.text(f"#{row['ID']}")
+                    with col2:
+                        st.code(row['密钥预览'], language=None)
+                    with col3:
+                        st.text(row['状态'])
+                    with col4:
+                        if st.button("删除", key=f"del_user_{idx}", use_container_width=True):
+                            st.warning(f"确定要删除用户密钥 #{row['ID']} 吗？")
 
-elif page == "Models":
-    st.title("Model Configuration")
-    st.markdown("View and adjust model status and usage limits")
+                    if idx < len(data) - 1:
+                        st.markdown("---")
+            else:
+                st.info("暂无用户密钥。请在上方生成你的第一个访问密钥。")
+
+elif page == "模型配置":
+    st.title("模型配置")
+    st.markdown("查看并调整模型状态和使用限制")
 
     stats_data = get_cached_stats()
     status_data = get_cached_status()
 
     if not stats_data or not status_data:
-        st.error("Unable to retrieve model data")
+        st.error("无法获取模型数据")
         st.stop()
 
     models = status_data.get('models', [])
     if not models:
-        st.warning("No models available")
+        st.warning("暂无可用模型")
         st.stop()
 
-    st.info("Limits shown are per API key. Total limits scale with the number of active keys.")
+    st.info("显示的限制是针对单个 Gemini API Key 的，总限制会根据激活的密钥数量自动倍增。")
 
     for model in models:
         st.markdown(f"---")
@@ -628,20 +652,20 @@ elif page == "Models":
         # 获取当前模型的配置
         current_config = get_cached_model_config(model)
         if not current_config or not current_config.get('success'):
-            st.warning(f"Unable to load configuration for {model}")
+            st.warning(f"无法加载模型 {model} 的配置。")
             continue
 
         with st.form(f"model_config_form_{model}"):
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.markdown("#### Per-Key Limits")
+                st.markdown("#### 单Key限制")
                 rpm = st.number_input(
                     "RPM",
                     min_value=1,
                     value=current_config.get('single_api_rpm_limit', 1000),
                     key=f"rpm_{model}",
-                    help="Requests per minute"
+                    help="每分钟请求数"
                 )
 
             with col2:
@@ -651,7 +675,7 @@ elif page == "Models":
                     min_value=1,
                     value=current_config.get('single_api_rpd_limit', 50000),
                     key=f"rpd_{model}",
-                    help="Requests per day"
+                    help="每日请求数"
                 )
 
             with col3:
@@ -661,24 +685,24 @@ elif page == "Models":
                     min_value=1000,
                     value=current_config.get('single_api_tpm_limit', 2000000),
                     key=f"tpm_{model}",
-                    help="Tokens per minute"
+                    help="每分钟令牌数"
                 )
 
             with col4:
-                st.markdown("#### Status")
-                status_options = {1: "Active", 0: "Disabled"}
-                current_status_label = status_options.get(current_config.get('status', 1), "Active")
+                st.markdown("#### 状态")
+                status_options = {1: "激活", 0: "禁用"}
+                current_status_label = status_options.get(current_config.get('status', 1), "激活")
                 new_status_label = st.selectbox(
-                    "Status",
+                    "状态",
                     options=list(status_options.values()),
                     index=list(status_options.values()).index(current_status_label),
                     key=f"status_{model}"
                 )
 
-            submitted = st.form_submit_button(f"Save {model} Configuration", type="primary", use_container_width=True)
+            submitted = st.form_submit_button(f"保存 {model} 配置", type="primary", use_container_width=True)
 
             if submitted:
-                new_status = 1 if new_status_label == "Active" else 0
+                new_status = 1 if new_status_label == "激活" else 0
                 update_data = {
                     "single_api_rpm_limit": rpm,
                     "single_api_rpd_limit": rpd,
@@ -688,29 +712,29 @@ elif page == "Models":
 
                 result = call_api(f'/admin/models/{model}', 'POST', data=update_data)
                 if result and result.get('success'):
-                    st.success(f"{model} configuration saved successfully!")
+                    st.success(f"{model} 配置已成功保存！")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error(f"Failed to update {model}")
+                    st.error(f"更新模型 {model} 失败！")
 
-elif page == "Settings":
-    st.title("Settings")
-    st.markdown("Configure advanced features and system behavior")
+elif page == "系统设置":
+    st.title("系统设置")
+    st.markdown("配置高级功能和系统行为")
 
     stats_data = get_cached_stats()
     status_data = get_cached_status()
 
     if not stats_data or not status_data:
-        st.error("Unable to retrieve configuration data")
+        st.error("无法获取配置数据")
         st.stop()
 
-    tab1, tab2, tab3 = st.tabs(["Thinking Mode", "Prompt Injection", "System"])
+    tab1, tab2, tab3 = st.tabs(["思考模式", "提示词注入", "系统信息"])
 
     with tab1:
-        st.markdown("### Thinking Mode Configuration")
-        st.markdown("Enable internal reasoning to improve response quality for complex queries.")
+        st.markdown("### 思考模式配置")
+        st.markdown("启用内部推理以提高复杂查询的响应质量。")
 
         thinking_config = stats_data.get('thinking_config', {})
 
@@ -719,42 +743,42 @@ elif page == "Settings":
         include_thoughts = thinking_config.get('include_thoughts', False)
 
         with st.form("thinking_config_form"):
-            st.markdown("#### Configuration Options")
+            st.markdown("#### 配置选项")
 
             new_thinking_enabled = st.checkbox(
-                "Enable Thinking Mode",
+                "启用思考模式",
                 value=thinking_enabled,
-                help="Model will perform internal reasoning before generating responses"
+                help="模型将在生成响应前进行内部推理"
             )
 
             new_include_thoughts = st.checkbox(
-                "Include Thoughts in API Response",
+                "在API响应中包含思考过程",
                 value=include_thoughts,
-                help="API responses will include the model's reasoning process"
+                help="API响应将包含模型的推理过程"
             )
 
             budget_options = {
-                "Automatic": -1,
-                "Disabled": 0,
-                "Low (4k)": 4096,
-                "Medium (8k)": 8192,
-                "High (24k)": 24576,
-                "Maximum (32k)": 32768,
-                "Custom": "custom"
+                "自动": -1,
+                "禁用": 0,
+                "低 (4k)": 4096,
+                "中 (8k)": 8192,
+                "高 (24k)": 24576,
+                "最高 (32k)": 32768,
+                "自定义": "custom"
             }
 
-            current_option = next((k for k, v in budget_options.items() if v == thinking_budget), "Custom")
+            current_option = next((k for k, v in budget_options.items() if v == thinking_budget), "自定义")
 
             selected_option = st.selectbox(
-                "Thinking Budget",
+                "思考预算",
                 options=list(budget_options.keys()),
                 index=list(budget_options.keys()).index(current_option),
-                help="Controls the depth of thinking process"
+                help="控制思考过程的深度"
             )
 
-            if selected_option == "Custom":
+            if selected_option == "自定义":
                 new_budget = st.number_input(
-                    "Custom Token Count",
+                    "自定义令牌数",
                     min_value=-1,
                     max_value=32768,
                     value=thinking_budget if thinking_budget > 0 else 4096
@@ -762,7 +786,7 @@ elif page == "Settings":
             else:
                 new_budget = budget_options[selected_option]
 
-            if st.form_submit_button("Save Configuration", type="primary", use_container_width=True):
+            if st.form_submit_button("保存配置", type="primary", use_container_width=True):
                 update_data = {
                     "enabled": new_thinking_enabled,
                     "budget": new_budget,
@@ -771,24 +795,24 @@ elif page == "Settings":
 
                 result = call_api('/admin/config/thinking', 'POST', data=update_data)
                 if result and result.get('success'):
-                    st.success("Thinking mode configuration saved!")
+                    st.success("思考模式配置已保存！")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("Failed to save configuration")
+                    st.error("保存失败，请重试")
 
-        with st.expander("Current Configuration"):
+        with st.expander("当前配置"):
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Mode", "Enabled" if thinking_enabled else "Disabled")
-                st.metric("Budget", f"{thinking_budget} tokens" if thinking_budget >= 0 else "Automatic")
+                st.metric("模式", "启用" if thinking_enabled else "禁用")
+                st.metric("预算", f"{thinking_budget} tokens" if thinking_budget >= 0 else "自动")
             with col2:
-                st.metric("Include Thoughts", "Yes" if include_thoughts else "No")
+                st.metric("显示思考过程", "是" if include_thoughts else "否")
 
     with tab2:
-        st.markdown("### Prompt Injection")
-        st.markdown("Automatically add custom instructions to all API requests.")
+        st.markdown("### 提示词注入")
+        st.markdown("自动为所有API请求添加自定义指令。")
 
         inject_config = stats_data.get('inject_config', {})
 
@@ -797,38 +821,38 @@ elif page == "Settings":
         inject_position = inject_config.get('position', 'system')
 
         with st.form("inject_prompt_form"):
-            st.markdown("#### Configuration Options")
+            st.markdown("#### 配置选项")
 
             new_inject_enabled = st.checkbox(
-                "Enable Prompt Injection",
+                "启用提示词注入",
                 value=inject_enabled,
-                help="All requests will include your custom prompt"
+                help="所有请求都会包含你的自定义提示词"
             )
 
             position_options = {
-                'system': 'As System Message',
-                'user_prefix': 'Before User Message',
-                'user_suffix': 'After User Message'
+                'system': '作为系统消息',
+                'user_prefix': '用户消息之前',
+                'user_suffix': '用户消息之后'
             }
 
             new_position = st.selectbox(
-                "Injection Position",
+                "注入位置",
                 options=list(position_options.keys()),
                 format_func=lambda x: position_options[x],
                 index=list(position_options.keys()).index(inject_position)
             )
 
             new_content = st.text_area(
-                "Custom Prompt Content",
+                "自定义提示词内容",
                 value=inject_content,
                 height=150,
-                placeholder="You are a professional AI assistant...",
-                help="This content will be added to all API requests"
+                placeholder="你是一个专业的AI助手...",
+                help="这里输入的内容会自动添加到所有API请求中"
             )
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.form_submit_button("Save Configuration", type="primary", use_container_width=True):
+                if st.form_submit_button("保存配置", type="primary", use_container_width=True):
                     update_data = {
                         "enabled": new_inject_enabled,
                         "content": new_content,
@@ -837,15 +861,15 @@ elif page == "Settings":
 
                     result = call_api('/admin/config/inject-prompt', 'POST', data=update_data)
                     if result and result.get('success'):
-                        st.success("Prompt injection configuration saved!")
+                        st.success("提示词注入配置已保存！")
                         st.cache_data.clear()
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Failed to save configuration")
+                        st.error("保存失败，请重试")
 
             with col2:
-                if st.form_submit_button("Clear Content", type="secondary", use_container_width=True):
+                if st.form_submit_button("清除内容", type="secondary", use_container_width=True):
                     clear_data = {
                         "enabled": False,
                         "content": "",
@@ -854,64 +878,64 @@ elif page == "Settings":
 
                     result = call_api('/admin/config/inject-prompt', 'POST', data=clear_data)
                     if result and result.get('success'):
-                        st.success("Prompt content cleared!")
+                        st.success("提示词内容已清除！")
                         st.cache_data.clear()
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Failed to clear content")
+                        st.error("清除失败，请重试")
 
-        with st.expander("Current Configuration"):
+        with st.expander("当前配置"):
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Status", "Enabled" if inject_enabled else "Disabled")
-                st.metric("Position", inject_position)
+                st.metric("状态", "启用" if inject_enabled else "禁用")
+                st.metric("位置", position_options.get(inject_position, inject_position))
             with col2:
                 content_preview = inject_content[:50] + "..." if len(inject_content) > 50 else inject_content
-                st.metric("Content Preview", content_preview if content_preview else "None")
+                st.metric("内容预览", content_preview if content_preview else "无")
 
     with tab3:
-        st.markdown("### System Configuration")
+        st.markdown("### 系统信息")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("#### Service Information")
-            st.metric("Python Version", status_data.get('python_version', 'Unknown').split()[0])
-            st.metric("Service Version", status_data.get('version', '1.0.0'))
-            st.metric("Keep Alive", "Active" if status_data.get('keep_alive_active', False) else "Inactive")
+            st.markdown("#### 服务信息")
+            st.metric("Python版本", status_data.get('python_version', 'Unknown').split()[0])
+            st.metric("服务版本", status_data.get('version', '1.0.0'))
+            st.metric("保持唤醒", "激活" if status_data.get('keep_alive_active', False) else "未激活")
 
         with col2:
-            st.markdown("#### Supported Models")
+            st.markdown("#### 支持的模型")
             models = status_data.get('models', [])
             for model in models:
                 st.markdown(f"• {model}")
 
-        st.markdown("### System Metrics")
+        st.markdown("### 系统指标")
 
         col1, col2, col3 = st.columns(3)
 
         with col1:
             memory_mb = status_data.get('memory_usage_mb', 0)
-            st.metric("Memory Usage", f"{memory_mb:.1f} MB")
+            st.metric("内存使用", f"{memory_mb:.1f} MB")
 
         with col2:
             cpu_percent = status_data.get('cpu_percent', 0)
-            st.metric("CPU Usage", f"{cpu_percent:.1f}%")
+            st.metric("CPU使用率", f"{cpu_percent:.1f}%")
 
         with col3:
             uptime = status_data.get('uptime_seconds', 0)
             uptime_hours = uptime / 3600
-            st.metric("Uptime", f"{uptime_hours:.1f} hours")
+            st.metric("运行时间", f"{uptime_hours:.1f} 小时")
 
 # --- 页脚 ---
 st.markdown(
     f"""
     <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
-        Gemini API Gateway | 
-        <a href='{API_BASE_URL}/docs' target='_blank' style='color: #9ca3af;'>API Docs</a> | 
-        <a href='{API_BASE_URL}/health' target='_blank' style='color: #9ca3af;'>Health Check</a> | 
-        <span style='color: #9ca3af;'>API Endpoint: {API_BASE_URL}</span>
+        Gemini API 轮询 | 
+        <a href='{API_BASE_URL}/docs' target='_blank' style='color: #9ca3af;'>API文档</a> | 
+        <a href='{API_BASE_URL}/health' target='_blank' style='color: #9ca3af;'>健康检查</a> | 
+        <span style='color: #9ca3af;'>端点: {API_BASE_URL}</span>
     </div>
     """,
     unsafe_allow_html=True

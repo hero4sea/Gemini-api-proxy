@@ -633,7 +633,7 @@ async def stream_gemini_response(
         openai_request: ChatCompletionRequest,
         key_info: Dict,
         model_name: str
-) -> AsyncGenerator[str, None]:
+) -> AsyncGenerator[bytes, None]:  # 修改返回类型为 bytes
     """处理Gemini的流式响应"""
     # 🔥 关键修复：添加 alt=sse 参数，这是官方文档要求的
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse"
@@ -655,8 +655,8 @@ async def stream_gemini_response(
                         error_text = await response.aread()
                         error_msg = error_text.decode() if error_text else "Unknown error"
                         logger.error(f"❌ Stream request failed with status {response.status_code}: {error_msg}")
-                        yield f"data: {json.dumps({'error': {'message': error_msg, 'type': 'api_error', 'code': response.status_code}})}\n\n"
-                        yield "data: [DONE]\n\n"
+                        yield f"data: {json.dumps({'error': {'message': error_msg, 'type': 'api_error', 'code': response.status_code}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                        yield "data: [DONE]\n\n".encode('utf-8')
                         return
 
                     stream_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
@@ -726,11 +726,11 @@ async def stream_gemini_response(
                                                         "model": openai_request.model,
                                                         "choices": [{
                                                             "index": 0,
-                                                            "delta": {"content": "**Thinking:**\n"},
+                                                            "delta": {"content": "**思考过程:**\n"},
                                                             "finish_reason": None
                                                         }]
                                                     }
-                                                    yield f"data: {json.dumps(thinking_header)}\n\n"
+                                                    yield f"data: {json.dumps(thinking_header, ensure_ascii=False)}\n\n".encode('utf-8')
                                                     thinking_sent = True
                                                     logger.debug("🧠 Sent thinking header")
                                                 elif not is_thought and thinking_sent:
@@ -741,11 +741,11 @@ async def stream_gemini_response(
                                                         "model": openai_request.model,
                                                         "choices": [{
                                                             "index": 0,
-                                                            "delta": {"content": "\n\n**Response:**\n"},
+                                                            "delta": {"content": "\n\n**回答:**\n"},
                                                             "finish_reason": None
                                                         }]
                                                     }
-                                                    yield f"data: {json.dumps(response_header)}\n\n"
+                                                    yield f"data: {json.dumps(response_header, ensure_ascii=False)}\n\n".encode('utf-8')
                                                     thinking_sent = False
                                                     logger.debug("💬 Sent response header")
 
@@ -761,7 +761,7 @@ async def stream_gemini_response(
                                                         "finish_reason": None
                                                     }]
                                                 }
-                                                yield f"data: {json.dumps(chunk_data)}\n\n"
+                                                yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n".encode('utf-8')
 
                                         # 检查是否结束
                                         finish_reason = candidate.get("finishReason")
@@ -777,8 +777,8 @@ async def stream_gemini_response(
                                                     "finish_reason": map_finish_reason(finish_reason)
                                                 }]
                                             }
-                                            yield f"data: {json.dumps(finish_chunk)}\n\n"
-                                            yield "data: [DONE]\n\n"
+                                            yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode('utf-8')
+                                            yield "data: [DONE]\n\n".encode('utf-8')
 
                                             logger.info(
                                                 f"✅ Stream completed with finish_reason: {finish_reason}, tokens: {total_tokens}")
@@ -812,8 +812,8 @@ async def stream_gemini_response(
                                     "finish_reason": "stop"
                                 }]
                             }
-                            yield f"data: {json.dumps(finish_chunk)}\n\n"
-                            yield "data: [DONE]\n\n"
+                            yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode('utf-8')
+                            yield "data: [DONE]\n\n".encode('utf-8')
 
                             logger.info(
                                 f"✅ Stream ended naturally, processed {processed_lines} lines, tokens: {total_tokens}")
@@ -830,7 +830,7 @@ async def stream_gemini_response(
                                 thoughts, content = extract_thoughts_and_content(fallback_response)
 
                                 if thoughts and openai_request.thinking_config and openai_request.thinking_config.include_thoughts:
-                                    full_content = f"**Thinking:**\n{thoughts}\n\n**Response:**\n{content}"
+                                    full_content = f"**思考过程:**\n{thoughts}\n\n**回答:**\n{content}"
                                 else:
                                     full_content = content
 
@@ -846,7 +846,7 @@ async def stream_gemini_response(
                                             "finish_reason": None
                                         }]
                                     }
-                                    yield f"data: {json.dumps(chunk_data)}\n\n"
+                                    yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n".encode('utf-8')
 
                                     finish_chunk = {
                                         "id": stream_id,
@@ -859,40 +859,40 @@ async def stream_gemini_response(
                                             "finish_reason": "stop"
                                         }]
                                     }
-                                    yield f"data: {json.dumps(finish_chunk)}\n\n"
+                                    yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode('utf-8')
                                     total_tokens = len(full_content.split())
 
                                     logger.info(f"✅ Fallback completed, tokens: {total_tokens}")
 
                             except Exception as e:
                                 logger.error(f"❌ Fallback request failed: {e}")
-                                yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}})}\n\n"
+                                yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
 
                         # 记录使用量
                         await rate_limiter.add_usage(model_name, 1, total_tokens)
-                        yield "data: [DONE]\n\n"
+                        yield "data: [DONE]\n\n".encode('utf-8')
                         return  # 成功完成
 
                     except (httpx.ReadError, httpx.RemoteProtocolError) as e:
                         logger.warning(f"🔌 Stream connection error (attempt {attempt + 1}): {str(e)}")
                         if attempt < max_retries - 1:
-                            yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}})}\n\n"
+                            yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
                             await asyncio.sleep(1)
                             continue
                         else:
-                            yield f"data: {json.dumps({'error': {'message': 'Stream connection failed after retries', 'type': 'connection_error'}})}\n\n"
-                            yield "data: [DONE]\n\n"
+                            yield f"data: {json.dumps({'error': {'message': 'Stream connection failed after retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                            yield "data: [DONE]\n\n".encode('utf-8')
                             return
 
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             logger.warning(f"⏰ Connection error (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
-                yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}})}\n\n"
+                yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
                 await asyncio.sleep(2 ** attempt)
                 continue
             else:
-                yield f"data: {json.dumps({'error': {'message': 'Connection failed after all retries', 'type': 'connection_error'}})}\n\n"
-                yield "data: [DONE]\n\n"
+                yield f"data: {json.dumps({'error': {'message': 'Connection failed after all retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                yield "data: [DONE]\n\n".encode('utf-8')
                 return
         except Exception as e:
             logger.error(f"💥 Unexpected error in stream (attempt {attempt + 1}): {str(e)}")
@@ -900,8 +900,8 @@ async def stream_gemini_response(
                 await asyncio.sleep(1)
                 continue
             else:
-                yield f"data: {json.dumps({'error': {'message': 'Unexpected error occurred', 'type': 'server_error'}})}\n\n"
-                yield "data: [DONE]\n\n"
+                yield f"data: {json.dumps({'error': {'message': 'Unexpected error occurred', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                yield "data: [DONE]\n\n".encode('utf-8')
                 return
 
 
@@ -1044,7 +1044,7 @@ async def chat_completions(
         db.log_usage(gemini_key_info['id'], user_key['id'], actual_model_name, 1, 0)
 
         if request.stream:
-            # 流式响应
+            # 流式响应 - 修改 media_type 添加 charset
             return StreamingResponse(
                 stream_gemini_response(
                     gemini_key_info['key'],
@@ -1053,7 +1053,7 @@ async def chat_completions(
                     gemini_key_info,
                     actual_model_name
                 ),
-                media_type="text/event-stream"
+                media_type="text/event-stream; charset=utf-8"  # 添加 charset=utf-8
             )
         else:
             # 非流式响应
@@ -1112,7 +1112,7 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
-# 🔥 新增：管理端点（修复404错误）
+# 🔥 管理端点
 @app.get("/admin/models/{model_name}")
 async def get_model_config(model_name: str):
     """获取指定模型的配置"""
