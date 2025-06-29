@@ -199,9 +199,9 @@ scheduler = None
 async def lifespan(app: FastAPI):
     global scheduler
     # 启动时的操作
-    logger.info("🚀 Gemini API Proxy starting...")
-    logger.info(f"📊 Available API keys: {len(db.get_available_gemini_keys())}")
-    logger.info(f"🌍 Environment: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
+    logger.info("Starting Gemini API Proxy...")
+    logger.info(f"Available API keys: {len(db.get_available_gemini_keys())}")
+    logger.info(f"Environment: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
 
     # 启动保持唤醒调度器（仅在Render环境）
     render_url = os.getenv('RENDER_EXTERNAL_URL')
@@ -215,15 +215,15 @@ async def lifespan(app: FastAPI):
             max_instances=1
         )
         scheduler.start()
-        logger.info("⏰ Keep-alive scheduler started (14min interval)")
+        logger.info("Keep-alive scheduler started (14min interval)")
 
     yield
 
     # 关闭时的操作
     if scheduler:
         scheduler.shutdown()
-        logger.info("⏰ Scheduler shutdown")
-    logger.info("🛑 API Server shutting down...")
+        logger.info("Scheduler shutdown")
+    logger.info("API Server shutting down...")
 
 
 app = FastAPI(
@@ -254,7 +254,7 @@ async def count_requests(request: Request, call_next):
     process_time = time.time() - start_time
 
     # 记录请求日志
-    logger.info(f"📡 {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
+    logger.info(f"{request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
 
     return response
 
@@ -263,7 +263,7 @@ async def count_requests(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """处理请求验证错误"""
-    logger.warning(f"❌ Request validation error: {exc}")
+    logger.warning(f"Request validation error: {exc}")
 
     # 提取具体的错误信息
     error_details = []
@@ -287,7 +287,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(ValidationError)
 async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
     """处理Pydantic验证错误"""
-    logger.warning(f"❌ Pydantic validation error: {exc}")
+    logger.warning(f"Pydantic validation error: {exc}")
 
     return JSONResponse(
         status_code=422,
@@ -304,7 +304,7 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """全局异常处理"""
-    logger.error(f"💥 Global exception: {str(exc)}")
+    logger.error(f"Global exception: {str(exc)}")
     return JSONResponse(
         status_code=500,
         content={
@@ -324,12 +324,12 @@ def get_actual_model_name(request_model: str) -> str:
 
     # 如果请求的是支持的模型，直接使用
     if request_model in supported_models:
-        logger.info(f"✅ Using requested model: {request_model}")
+        logger.info(f"Using requested model: {request_model}")
         return request_model
 
     # 否则使用默认模型
     default_model = db.get_config('default_model_name', 'gemini-2.5-flash')
-    logger.info(f"⚠️ Unsupported model: {request_model}, using default: {default_model}")
+    logger.info(f"Unsupported model: {request_model}, using default: {default_model}")
     return default_model
 
 
@@ -544,19 +544,19 @@ async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
     available_keys = db.get_available_gemini_keys()
 
     if not available_keys:
-        logger.warning("⚠️ No available Gemini keys found")
+        logger.warning("No available Gemini keys found")
         return None
 
     # 获取模型配置（已经包含计算的总限制）
     model_config = db.get_model_config(model_name)
     if not model_config:
-        logger.error(f"❌ Model config not found for: {model_name}")
+        logger.error(f"Model config not found for: {model_name}")
         return None
 
     # 记录限制信息
     logger.info(
-        f"📈 Model {model_name} limits: RPM={model_config['total_rpm_limit']}, TPM={model_config['total_tpm_limit']}, RPD={model_config['total_rpd_limit']}")
-    logger.info(f"🔑 Available API keys: {len(available_keys)}")
+        f"Model {model_name} limits: RPM={model_config['total_rpm_limit']}, TPM={model_config['total_tpm_limit']}, RPD={model_config['total_rpd_limit']}")
+    logger.info(f"Available API keys: {len(available_keys)}")
 
     # 检查模型级别的限制（使用总限制）
     current_usage = await rate_limiter.get_current_usage(model_name)
@@ -564,14 +564,14 @@ async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
     if (current_usage['requests'] >= model_config['total_rpm_limit'] or
             current_usage['tokens'] >= model_config['total_tpm_limit']):
         logger.warning(
-            f"🚫 Model {model_name} has reached rate limits: requests={current_usage['requests']}/{model_config['total_rpm_limit']}, tokens={current_usage['tokens']}/{model_config['total_tpm_limit']}")
+            f"Model {model_name} has reached rate limits: requests={current_usage['requests']}/{model_config['total_rpm_limit']}, tokens={current_usage['tokens']}/{model_config['total_tpm_limit']}")
         return None
 
     # 检查RPD限制（使用总限制）
     day_usage = db.get_usage_stats(model_name, 'day')
     if day_usage['requests'] >= model_config['total_rpd_limit']:
         logger.warning(
-            f"🚫 Model {model_name} has reached daily request limit: {day_usage['requests']}/{model_config['total_rpd_limit']}")
+            f"Model {model_name} has reached daily request limit: {day_usage['requests']}/{model_config['total_rpd_limit']}")
         return None
 
     # 负载均衡策略选择Key
@@ -584,7 +584,7 @@ async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
         # least_used策略，选择最少使用的Key（基于Key ID的使用分布）
         selected_key = available_keys[0]
 
-    logger.info(f"🎯 Selected API key #{selected_key['id']} for model {model_name}")
+    logger.info(f"Selected API key #{selected_key['id']} for model {model_name}")
 
     # 返回选中的Key和模型配置
     return {
@@ -623,7 +623,7 @@ async def make_gemini_request_with_retry(
                             detail=error_detail.get("error", {}).get("message", "Unknown error")
                         )
                     else:
-                        logger.warning(f"🔄 Request failed (attempt {attempt + 1}), retrying...")
+                        logger.warning(f"Request failed (attempt {attempt + 1}), retrying...")
                         await asyncio.sleep(2 ** attempt)  # 指数退避
                         continue
 
@@ -631,14 +631,14 @@ async def make_gemini_request_with_retry(
             if attempt == max_retries - 1:
                 raise HTTPException(status_code=504, detail="Request timeout")
             else:
-                logger.warning(f"⏰ Request timeout (attempt {attempt + 1}), retrying...")
+                logger.warning(f"Request timeout (attempt {attempt + 1}), retrying...")
                 await asyncio.sleep(2 ** attempt)
                 continue
         except Exception as e:
             if attempt == max_retries - 1:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
-                logger.warning(f"❌ Request failed (attempt {attempt + 1}): {str(e)}, retrying...")
+                logger.warning(f"Request failed (attempt {attempt + 1}): {str(e)}, retrying...")
                 await asyncio.sleep(2 ** attempt)
                 continue
 
@@ -657,7 +657,7 @@ async def stream_gemini_response(
     timeout = float(db.get_config('request_timeout', '60'))
     max_retries = int(db.get_config('max_retries', '3'))
 
-    logger.info(f"🌊 Starting stream request to: {url}")
+    logger.info(f"Starting stream request to: {url}")
 
     for attempt in range(max_retries):
         try:
@@ -671,7 +671,7 @@ async def stream_gemini_response(
                     if response.status_code != 200:
                         error_text = await response.aread()
                         error_msg = error_text.decode() if error_text else "Unknown error"
-                        logger.error(f"❌ Stream request failed with status {response.status_code}: {error_msg}")
+                        logger.error(f"Stream request failed with status {response.status_code}: {error_msg}")
                         yield f"data: {json.dumps({'error': {'message': error_msg, 'type': 'api_error', 'code': response.status_code}}, ensure_ascii=False)}\n\n".encode('utf-8')
                         yield "data: [DONE]\n\n".encode('utf-8')
                         return
@@ -683,7 +683,7 @@ async def stream_gemini_response(
                     has_content = False
                     processed_lines = 0
 
-                    logger.info(f"✅ Stream response started, status: {response.status_code}")
+                    logger.info(f"Stream response started, status: {response.status_code}")
 
                     try:
                         # 按照官方文档的SSE格式处理
@@ -695,14 +695,14 @@ async def stream_gemini_response(
 
                             # 记录原始行以便调试
                             if processed_lines <= 5:  # 只记录前几行
-                                logger.debug(f"📝 Stream line {processed_lines}: {line[:100]}...")
+                                logger.debug(f"Stream line {processed_lines}: {line[:100]}...")
 
                             if line.startswith("data: "):
                                 json_str = line[6:]
 
                                 # 检查结束标志
                                 if json_str.strip() == "[DONE]":
-                                    logger.info("🏁 Received [DONE] signal from stream")
+                                    logger.info("Received [DONE] signal from stream")
                                     break
 
                                 if not json_str.strip():
@@ -742,13 +742,13 @@ async def stream_gemini_response(
                                                         "model": openai_request.model,
                                                         "choices": [{
                                                             "index": 0,
-                                                            "delta": {"content": "**思考过程:**\n"},
+                                                            "delta": {"content": "**Thinking Process:**\n"},
                                                             "finish_reason": None
                                                         }]
                                                     }
                                                     yield f"data: {json.dumps(thinking_header, ensure_ascii=False)}\n\n".encode('utf-8')
                                                     thinking_sent = True
-                                                    logger.debug("🧠 Sent thinking header")
+                                                    logger.debug("Sent thinking header")
                                                 elif not is_thought and thinking_sent:
                                                     response_header = {
                                                         "id": stream_id,
@@ -757,13 +757,13 @@ async def stream_gemini_response(
                                                         "model": openai_request.model,
                                                         "choices": [{
                                                             "index": 0,
-                                                            "delta": {"content": "\n\n**回答:**\n"},
+                                                            "delta": {"content": "\n\n**Response:**\n"},
                                                             "finish_reason": None
                                                         }]
                                                     }
                                                     yield f"data: {json.dumps(response_header, ensure_ascii=False)}\n\n".encode('utf-8')
                                                     thinking_sent = False
-                                                    logger.debug("💬 Sent response header")
+                                                    logger.debug("Sent response header")
 
                                                 # 发送文本内容
                                                 chunk_data = {
@@ -797,14 +797,14 @@ async def stream_gemini_response(
                                             yield "data: [DONE]\n\n".encode('utf-8')
 
                                             logger.info(
-                                                f"✅ Stream completed with finish_reason: {finish_reason}, tokens: {total_tokens}")
+                                                f"Stream completed with finish_reason: {finish_reason}, tokens: {total_tokens}")
 
                                             # 记录使用量
                                             await rate_limiter.add_usage(model_name, 1, total_tokens)
                                             return
 
                                 except json.JSONDecodeError as e:
-                                    logger.warning(f"⚠️ JSON decode error: {e}, line: {json_str[:200]}...")
+                                    logger.warning(f"JSON decode error: {e}, line: {json_str[:200]}...")
                                     continue
 
                             # 处理其他SSE事件类型（如果需要）
@@ -832,12 +832,12 @@ async def stream_gemini_response(
                             yield "data: [DONE]\n\n".encode('utf-8')
 
                             logger.info(
-                                f"✅ Stream ended naturally, processed {processed_lines} lines, tokens: {total_tokens}")
+                                f"Stream ended naturally, processed {processed_lines} lines, tokens: {total_tokens}")
 
                         # 如果确实没有收到任何内容，才回退
                         if not has_content:
                             logger.warning(
-                                f"⚠️ Stream response had no content after processing {processed_lines} lines, falling back to non-stream")
+                                f"Stream response had no content after processing {processed_lines} lines, falling back to non-stream")
                             try:
                                 fallback_response = await make_gemini_request_with_retry(
                                     gemini_key, gemini_request, model_name, 1
@@ -846,7 +846,7 @@ async def stream_gemini_response(
                                 thoughts, content = extract_thoughts_and_content(fallback_response)
 
                                 if thoughts and openai_request.thinking_config and openai_request.thinking_config.include_thoughts:
-                                    full_content = f"**思考过程:**\n{thoughts}\n\n**回答:**\n{content}"
+                                    full_content = f"**Thinking Process:**\n{thoughts}\n\n**Response:**\n{content}"
                                 else:
                                     full_content = content
 
@@ -878,10 +878,10 @@ async def stream_gemini_response(
                                     yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode('utf-8')
                                     total_tokens = len(full_content.split())
 
-                                    logger.info(f"✅ Fallback completed, tokens: {total_tokens}")
+                                    logger.info(f"Fallback completed, tokens: {total_tokens}")
 
                             except Exception as e:
-                                logger.error(f"❌ Fallback request failed: {e}")
+                                logger.error(f"Fallback request failed: {e}")
                                 yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
 
                         # 记录使用量
@@ -890,7 +890,7 @@ async def stream_gemini_response(
                         return  # 成功完成
 
                     except (httpx.ReadError, httpx.RemoteProtocolError) as e:
-                        logger.warning(f"🔌 Stream connection error (attempt {attempt + 1}): {str(e)}")
+                        logger.warning(f"Stream connection error (attempt {attempt + 1}): {str(e)}")
                         if attempt < max_retries - 1:
                             yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
                             await asyncio.sleep(1)
@@ -901,7 +901,7 @@ async def stream_gemini_response(
                             return
 
         except (httpx.TimeoutException, httpx.ConnectError) as e:
-            logger.warning(f"⏰ Connection error (attempt {attempt + 1}): {str(e)}")
+            logger.warning(f"Connection error (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
                 yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
                 await asyncio.sleep(2 ** attempt)
@@ -911,7 +911,7 @@ async def stream_gemini_response(
                 yield "data: [DONE]\n\n".encode('utf-8')
                 return
         except Exception as e:
-            logger.error(f"💥 Unexpected error in stream (attempt {attempt + 1}): {str(e)}")
+            logger.error(f"Unexpected error in stream (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
                 await asyncio.sleep(1)
                 continue
@@ -1107,7 +1107,7 @@ async def chat_completions(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"💥 Unexpected error: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1128,6 +1128,115 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
+# 密钥管理端点
+@app.get("/admin/keys/gemini")
+async def get_gemini_keys():
+    """获取所有Gemini密钥列表"""
+    try:
+        keys = db.get_all_gemini_keys()
+        return {
+            "success": True,
+            "keys": keys
+        }
+    except Exception as e:
+        logger.error(f"Failed to get Gemini keys: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/keys/user")
+async def get_user_keys():
+    """获取所有用户密钥列表"""
+    try:
+        keys = db.get_all_user_keys()
+        return {
+            "success": True,
+            "keys": keys
+        }
+    except Exception as e:
+        logger.error(f"Failed to get user keys: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/keys/gemini/{key_id}")
+async def delete_gemini_key(key_id: int):
+    """删除指定的Gemini密钥"""
+    try:
+        success = db.delete_gemini_key(key_id)
+        if success:
+            logger.info(f"Deleted Gemini key #{key_id}")
+            return {
+                "success": True,
+                "message": f"Gemini key #{key_id} deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Key not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete Gemini key #{key_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/keys/user/{key_id}")
+async def delete_user_key(key_id: int):
+    """删除指定的用户密钥"""
+    try:
+        success = db.delete_user_key(key_id)
+        if success:
+            logger.info(f"Deleted user key #{key_id}")
+            return {
+                "success": True,
+                "message": f"User key #{key_id} deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Key not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete user key #{key_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/keys/gemini/{key_id}/toggle")
+async def toggle_gemini_key_status(key_id: int):
+    """切换Gemini密钥状态"""
+    try:
+        success = db.toggle_gemini_key_status(key_id)
+        if success:
+            logger.info(f"Toggled Gemini key #{key_id} status")
+            return {
+                "success": True,
+                "message": f"Gemini key #{key_id} status toggled successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Key not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to toggle Gemini key #{key_id} status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/keys/user/{key_id}/toggle")
+async def toggle_user_key_status(key_id: int):
+    """切换用户密钥状态"""
+    try:
+        success = db.toggle_user_key_status(key_id)
+        if success:
+            logger.info(f"Toggled user key #{key_id} status")
+            return {
+                "success": True,
+                "message": f"User key #{key_id} status toggled successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Key not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to toggle user key #{key_id} status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # 管理端点
 @app.get("/admin/models/{model_name}")
 async def get_model_config(model_name: str):
@@ -1143,7 +1252,7 @@ async def get_model_config(model_name: str):
             **model_config
         }
     except Exception as e:
-        logger.error(f"❌ Failed to get model config for {model_name}: {str(e)}")
+        logger.error(f"Failed to get model config for {model_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1170,7 +1279,7 @@ async def update_model_config(model_name: str, request: dict):
         success = db.update_model_config(model_name, **update_data)
 
         if success:
-            logger.info(f"✅ Updated model config for {model_name}: {update_data}")
+            logger.info(f"Updated model config for {model_name}: {update_data}")
             return {
                 "success": True,
                 "message": f"Model {model_name} configuration updated successfully",
@@ -1182,7 +1291,7 @@ async def update_model_config(model_name: str, request: dict):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to update model config for {model_name}: {str(e)}")
+        logger.error(f"Failed to update model config for {model_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1196,7 +1305,7 @@ async def list_model_configs():
             "models": model_configs
         }
     except Exception as e:
-        logger.error(f"❌ Failed to get model configs: {str(e)}")
+        logger.error(f"Failed to get model configs: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1205,7 +1314,7 @@ async def add_gemini_key(request: dict):
     """通过API添加Gemini密钥"""
     key = request.get("key")
     if key and db.add_gemini_key(key):
-        logger.info(f"✅ Added new Gemini API key")
+        logger.info(f"Added new Gemini API key")
         return {"success": True, "message": "Key added successfully"}
     return {"success": False, "message": "Failed to add key"}
 
@@ -1215,7 +1324,7 @@ async def generate_user_key(request: dict):
     """生成用户密钥"""
     name = request.get("name", "API User")
     key = db.generate_user_key(name)
-    logger.info(f"🔑 Generated new user key for: {name}")
+    logger.info(f"Generated new user key for: {name}")
     return {"success": True, "key": key, "name": name}
 
 
@@ -1234,7 +1343,7 @@ async def update_thinking_config(request: dict):
         )
 
         if success:
-            logger.info(f"✅ Updated thinking config: {request}")
+            logger.info(f"Updated thinking config: {request}")
             return {
                 "success": True,
                 "message": "Thinking configuration updated successfully"
@@ -1245,7 +1354,7 @@ async def update_thinking_config(request: dict):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        logger.error(f"❌ Failed to update thinking config: {str(e)}")
+        logger.error(f"Failed to update thinking config: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1264,7 +1373,7 @@ async def update_inject_prompt_config(request: dict):
         )
 
         if success:
-            logger.info(f"✅ Updated inject prompt config: enabled={enabled}, position={position}")
+            logger.info(f"Updated inject prompt config: enabled={enabled}, position={position}")
             return {
                 "success": True,
                 "message": "Inject prompt configuration updated successfully"
@@ -1275,7 +1384,7 @@ async def update_inject_prompt_config(request: dict):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
-        logger.error(f"❌ Failed to update inject prompt config: {str(e)}")
+        logger.error(f"Failed to update inject prompt config: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1294,7 +1403,7 @@ async def get_all_config():
             "inject_config": inject_config
         }
     except Exception as e:
-        logger.error(f"❌ Failed to get configs: {str(e)}")
+        logger.error(f"Failed to get configs: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1321,5 +1430,5 @@ def run_api_server(port: int = 8000):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"🚀 Starting Gemini API Proxy on port {port}")
+    logger.info(f"Starting Gemini API Proxy on port {port}")
     run_api_server(port)

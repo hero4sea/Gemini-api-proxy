@@ -14,7 +14,7 @@ class Database:
         # Render 环境下使用持久化路径
         if db_path is None:
             if os.getenv('RENDER_EXTERNAL_URL'):
-                # Render 环境 - 使用可写目录
+                # Render 环境
                 db_path = "/opt/render/project/src/gemini_proxy.db"
                 # 确保目录存在
                 os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -429,6 +429,27 @@ class Database:
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
+    def toggle_gemini_key_status(self, key_id: int) -> bool:
+        """切换Gemini Key状态"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE gemini_keys 
+                SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (key_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_gemini_key_by_id(self, key_id: int) -> Optional[Dict]:
+        """根据ID获取Gemini Key"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM gemini_keys WHERE id = ?', (key_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
     def get_thinking_models(self) -> List[str]:
         """获取支持思考功能的模型列表"""
         return [model for model in self.get_supported_models() if self.is_thinking_model(model)]
@@ -527,6 +548,74 @@ class Database:
             cursor.execute("DELETE FROM user_keys WHERE id = ?", (key_id,))
             conn.commit()
             return cursor.rowcount > 0
+
+    def get_user_key_by_id(self, key_id: int) -> Optional[Dict]:
+        """根据ID获取用户Key"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM user_keys WHERE id = ?', (key_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def update_user_key(self, key_id: int, **kwargs) -> bool:
+        """更新用户Key信息"""
+        allowed_fields = ['name', 'status']
+        fields = []
+        values = []
+
+        for field, value in kwargs.items():
+            if field in allowed_fields:
+                fields.append(f"{field} = ?")
+                values.append(value)
+
+        if not fields:
+            return False
+
+        values.append(key_id)
+        query = f"UPDATE user_keys SET {', '.join(fields)} WHERE id = ?"
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, values)
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_key_usage_stats(self, key_id: int, key_type: str = 'gemini', days: int = 7) -> Dict:
+        """获取密钥的使用统计"""
+        column = 'gemini_key_id' if key_type == 'gemini' else 'user_key_id'
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f'''
+                SELECT 
+                    COUNT(*) as total_requests,
+                    SUM(tokens) as total_tokens,
+                    DATE(timestamp) as date
+                FROM usage_logs 
+                WHERE {column} = ? 
+                AND timestamp > datetime('now', '-{days} days')
+                GROUP BY DATE(timestamp)
+                ORDER BY date DESC
+            ''', (key_id,))
+
+            daily_stats = [dict(row) for row in cursor.fetchall()]
+
+            # 总计
+            cursor.execute(f'''
+                SELECT 
+                    COUNT(*) as total_requests,
+                    SUM(tokens) as total_tokens
+                FROM usage_logs 
+                WHERE {column} = ? 
+                AND timestamp > datetime('now', '-{days} days')
+            ''', (key_id,))
+
+            total_stats = dict(cursor.fetchone())
+
+            return {
+                'daily_stats': daily_stats,
+                'total_stats': total_stats
+            }
 
     # 使用记录管理
     def log_usage(self, gemini_key_id: int, user_key_id: int, model_name: str, requests: int = 1, tokens: int = 0):
