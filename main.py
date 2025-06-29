@@ -40,6 +40,8 @@ def call_api(endpoint: str, method: str = 'GET', data: Any = None, timeout: int 
                 response = requests.get(url, timeout=timeout)
             elif method == 'POST':
                 response = requests.post(url, json=data, timeout=timeout)
+            elif method == 'DELETE':
+                response = requests.delete(url, timeout=timeout)
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
@@ -102,7 +104,19 @@ def get_cached_model_config(model_name: str):
     return call_api(f'/admin/models/{model_name}')
 
 
-# --- 自定义CSS样式 - 高级感设计 ---
+@st.cache_data(ttl=30)  # 缓存30秒
+def get_cached_gemini_keys():
+    """获取缓存的Gemini密钥"""
+    return call_api('/admin/gemini-keys')
+
+
+@st.cache_data(ttl=30)  # 缓存30秒
+def get_cached_user_keys():
+    """获取缓存的用户密钥"""
+    return call_api('/admin/user-keys')
+
+
+# --- 自定义CSS样式 ---
 st.markdown("""
 <style>
     /* 全局字体优化 */
@@ -497,34 +511,80 @@ elif page == "密钥":
 
         st.divider()
 
-        # 显示现有密钥（模拟显示）
+        # 🔥 修复：显示真实Gemini密钥数据
         st.markdown("### 现有密钥")
-        stats_data = get_cached_stats()
-        if stats_data:
-            total_keys = stats_data.get('gemini_keys', 0)
-            active_keys = stats_data.get('active_gemini_keys', 0)
 
-            if total_keys > 0:
-                st.info(f"📊 共有 {total_keys} 个密钥，其中 {active_keys} 个处于激活状态")
+        # 获取真实的Gemini密钥数据
+        gemini_keys_data = get_cached_gemini_keys()
 
-                # 创建模拟的密钥列表显示
-                for i in range(min(total_keys, 5)):  # 最多显示5个
+        if gemini_keys_data and gemini_keys_data.get('success'):
+            keys = gemini_keys_data.get('keys', [])
+
+            if keys:
+                st.info(f"📊 共有 {len(keys)} 个密钥")
+
+                for idx, key in enumerate(keys):
                     with st.container():
-                        col1, col2, col3 = st.columns([1, 4, 1])
-                        with col1:
-                            st.markdown(f"**#{i + 1}**")
-                        with col2:
-                            # 模拟显示掩码密钥
-                            masked_key = f"AIzaSy{'•' * 30}abc{i + 1:02d}"
-                            st.code(masked_key, language=None)
-                        with col3:
-                            status = "🟢 激活" if i < active_keys else "🔴 禁用"
-                            st.markdown(status)
+                        col1, col2, col3, col4, col5 = st.columns([1, 3, 2, 1, 1])
 
-                        if i < total_keys - 1:
+                        with col1:
+                            st.markdown(f"**#{key['id']}**")
+
+                        with col2:
+                            # 显示真实的掩码密钥
+                            st.code(key['masked_key'], language=None)
+
+                        with col3:
+                            # 显示真实的创建时间
+                            created_date = key['created_at'][:10] if key['created_at'] else '未知'
+                            st.caption(f"添加于 {created_date}")
+
+                        with col4:
+                            # 真实的状态显示和切换
+                            is_enabled = key['status'] == 1
+                            status_label = "🟢 激活" if is_enabled else "🔴 停用"
+                            st.caption(status_label)
+
+                            if st.button(
+                                    "停用" if is_enabled else "激活",
+                                    key=f"toggle_gemini_{key['id']}",
+                                    type="secondary"
+                            ):
+                                toggle_result = call_api(f'/admin/gemini-keys/{key["id"]}/toggle', 'POST')
+                                if toggle_result and toggle_result.get('success'):
+                                    st.success("✅ 状态已更新")
+                                    st.cache_data.clear()
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ 状态更新失败")
+
+                        with col5:
+                            # 删除确认机制
+                            confirm_key = f"confirm_delete_gemini_{key['id']}"
+                            if st.button("删除", key=f"delete_gemini_{key['id']}", type="secondary"):
+                                if st.session_state.get(confirm_key, False):
+                                    delete_result = call_api(f'/admin/gemini-keys/{key["id"]}', 'DELETE')
+                                    if delete_result and delete_result.get('success'):
+                                        st.success("✅ 密钥已删除")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ 删除失败")
+                                    # 重置确认状态
+                                    st.session_state[confirm_key] = False
+                                else:
+                                    # 第一次点击，设置确认状态
+                                    st.session_state[confirm_key] = True
+                                    st.warning("⚠️ 再次点击确认删除")
+
+                        if idx < len(keys) - 1:
                             st.markdown("---")
             else:
                 st.info("暂无配置的 Gemini 密钥。请在上方添加你的第一个密钥。")
+        else:
+            st.error("❌ 无法获取Gemini密钥数据")
 
     with tab2:
         st.markdown("### 生成访问密钥")
@@ -567,26 +627,39 @@ response = client.chat.completions.create(
 
         st.divider()
 
-        # 显示现有用户密钥
+        # 🔥 修复：显示真实用户密钥数据
         st.markdown("### 现有密钥")
-        stats_data = get_cached_stats()
-        if stats_data:
-            total_user_keys = stats_data.get('user_keys', 0)
-            active_user_keys = stats_data.get('active_user_keys', 0)
 
-            if total_user_keys > 0:
-                st.info(f"📊 共有 {total_user_keys} 个用户密钥，其中 {active_user_keys} 个处于激活状态")
+        # 获取真实的用户密钥数据
+        user_keys_data = get_cached_user_keys()
 
-                # 创建模拟的用户密钥列表
+        if user_keys_data and user_keys_data.get('success'):
+            keys = user_keys_data.get('keys', [])
+
+            if keys:
+                st.info(f"📊 共有 {len(keys)} 个用户密钥")
+
+                # 创建真实数据表
                 data = []
-                for i in range(min(total_user_keys, 10)):  # 最多显示10个
+                for key in keys:
+                    # 格式化时间显示
+                    created_date = key['created_at'][:10] if key['created_at'] else '未知'
+                    last_used = '从未使用'
+                    if key['last_used']:
+                        try:
+                            # 处理时间格式
+                            last_used_date = key['last_used'][:16] if len(key['last_used']) > 16 else key['last_used']
+                            last_used = last_used_date.replace('T', ' ')
+                        except:
+                            last_used = '解析错误'
+
                     data.append({
-                        'ID': i + 1,
-                        '描述': f'密钥 {i + 1}' if i % 3 != 0 else '生产环境密钥',
-                        '密钥预览': f"sk-{'•' * 15}...",
-                        '状态': '激活' if i < active_user_keys else '停用',
-                        '创建时间': '2024-01-01',
-                        '最后使用': '2024-01-15' if i < active_user_keys else '从未'
+                        'ID': key['id'],
+                        '描述': key['name'] or '未命名',
+                        '密钥预览': key['masked_key'],
+                        '状态': '🟢 激活' if key['status'] == 1 else '🔴 停用',
+                        '创建时间': created_date,
+                        '最后使用': last_used
                     })
 
                 df = pd.DataFrame(data)
@@ -596,11 +669,63 @@ response = client.chat.completions.create(
                     hide_index=True,
                     column_config={
                         'ID': st.column_config.NumberColumn(width='small'),
-                        '状态': st.column_config.TextColumn(width='small')
+                        '状态': st.column_config.TextColumn(width='small'),
+                        '描述': st.column_config.TextColumn(width='medium'),
+                        '密钥预览': st.column_config.TextColumn(width='medium'),
+                        '创建时间': st.column_config.TextColumn(width='small'),
+                        '最后使用': st.column_config.TextColumn(width='medium')
                     }
                 )
+
+                # 真实的密钥操作区
+                if keys:  # 只有当有密钥时才显示操作区
+                    st.markdown("### 密钥操作")
+                    col1, col2, col3 = st.columns([3, 1, 1])
+
+                    with col1:
+                        selected_key = st.selectbox(
+                            "选择密钥",
+                            options=keys,
+                            format_func=lambda x: f"密钥 #{x['id']} - {x['name'] or '未命名'}",
+                            key="selected_user_key"
+                        )
+
+                    with col2:
+                        if st.button("切换状态", use_container_width=True):
+                            if selected_key:
+                                toggle_result = call_api(f'/admin/user-keys/{selected_key["id"]}/toggle', 'POST')
+                                if toggle_result and toggle_result.get('success'):
+                                    st.success(f"✅ 密钥 #{selected_key['id']} 状态已更新")
+                                    st.cache_data.clear()
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ 状态更新失败")
+
+                    with col3:
+                        if st.button("删除", type="secondary", use_container_width=True):
+                            if selected_key:
+                                # 确认删除机制
+                                confirm_key = f"confirm_delete_user_{selected_key['id']}"
+                                if st.session_state.get(confirm_key, False):
+                                    delete_result = call_api(f'/admin/user-keys/{selected_key["id"]}', 'DELETE')
+                                    if delete_result and delete_result.get('success'):
+                                        st.success(f"✅ 密钥 #{selected_key['id']} 已删除")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ 删除失败")
+                                    # 重置确认状态
+                                    st.session_state[confirm_key] = False
+                                else:
+                                    # 第一次点击，设置确认状态
+                                    st.session_state[confirm_key] = True
+                                    st.warning("⚠️ 再次点击确认删除")
             else:
                 st.info("暂无用户密钥。请在上方生成你的第一个访问密钥。")
+        else:
+            st.error("❌ 无法获取用户密钥数据")
 
 elif page == "模型":
     st.title("🤖 模型配置")
@@ -701,6 +826,7 @@ elif page == "设置":
     st.title("⚙️ 设置")
     st.markdown("配置高级功能和系统行为")
 
+    # 🔥 修复：使用真实API数据而不是缓存的stats
     stats_data = get_cached_stats()
     status_data = get_cached_status()
 
