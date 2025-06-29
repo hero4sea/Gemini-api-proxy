@@ -18,15 +18,38 @@ class Database:
                 db_path = "/opt/render/project/src/gemini_proxy.db"
                 # 确保目录存在
                 os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                print(f"Render environment detected, using database path: {db_path}")
             else:
                 # 本地环境
                 db_path = "gemini_proxy.db"
+                print(f"Local environment detected, using database path: {db_path}")
 
         self.db_path = db_path
         self.local = threading.local()
 
         # 初始化数据库
         self.init_db()
+
+        # 验证数据库是否可写
+        self._test_database_write()
+
+    def _test_database_write(self):
+        """测试数据库是否可以写入"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO system_config (key, value) VALUES ('test_write', 'success')")
+                conn.commit()
+
+                cursor.execute("SELECT value FROM system_config WHERE key = 'test_write'")
+                result = cursor.fetchone()
+
+                if result and result['value'] == 'success':
+                    print("✅ Database write test successful")
+                else:
+                    print("❌ Database write test failed")
+        except Exception as e:
+            print(f"❌ Database write test error: {e}")
 
     @contextmanager
     def get_connection(self):
@@ -124,6 +147,7 @@ class Database:
             self._init_model_configs(cursor)
 
             conn.commit()
+            print("✅ Database initialized successfully")
 
     def _migrate_database(self, cursor):
         """迁移旧的数据库结构"""
@@ -376,8 +400,13 @@ class Database:
                     VALUES (?)
                 ''', (key,))
                 conn.commit()
+                print(f"✅ Added Gemini key: {key[:20]}...")
                 return True
         except sqlite3.IntegrityError:
+            print(f"❌ Gemini key already exists: {key[:20]}...")
+            return False
+        except Exception as e:
+            print(f"❌ Error adding Gemini key: {e}")
             return False
 
     def update_gemini_key(self, key_id: int, **kwargs):
@@ -427,7 +456,9 @@ class Database:
                 WHERE status = 1 
                 ORDER BY id ASC
             ''')
-            return [dict(row) for row in cursor.fetchall()]
+            keys = [dict(row) for row in cursor.fetchall()]
+            print(f"📊 Found {len(keys)} available Gemini keys")
+            return keys
 
     def get_thinking_models(self) -> List[str]:
         """获取支持思考功能的模型列表"""
@@ -472,12 +503,14 @@ class Database:
                     INSERT INTO user_keys (id, key, name) VALUES (?, ?, ?)
                 ''', (next_id, key, name))
                 conn.commit()
+                print(f"✅ Generated user key: {key[:20]}... for {name}")
             except sqlite3.IntegrityError:
                 # 如果ID冲突，则使用自动递增
                 cursor.execute('''
                     INSERT INTO user_keys (key, name) VALUES (?, ?)
                 ''', (key, name))
                 conn.commit()
+                print(f"✅ Generated user key (auto-id): {key[:20]}... for {name}")
 
         return key
 
@@ -498,8 +531,11 @@ class Database:
                     WHERE id = ?
                 ''', (row['id'],))
                 conn.commit()
+                print(f"✅ Valid user key found: {key[:20]}...")
                 return dict(row)
-            return None
+            else:
+                print(f"❌ Invalid user key: {key[:20]}...")
+                return None
 
     def get_all_user_keys(self) -> List[Dict]:
         """获取所有用户Keys"""
