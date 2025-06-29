@@ -1,443 +1,426 @@
-# 🚀 Gemini API 轮询服务
-
-一个免费、简单、高性能的 Gemini API 轮询代理服务，提供 OpenAI 兼容的 API 接口，支持智能负载均衡、思考模式、使用统计等高级功能。
+# Gemini API 轮询代理服务
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-## ✨ 核心功能
+一个专为**Gemini多Key轮询**设计的 Gemini API 代理服务，通过智能轮询多个 API Key 突破单Key限制，提供 OpenAI 兼容接口和完整的管理界面。无需服务器，一键免费部署到 Render 平台，立即获得公网访问地址。
 
-- 🔄 **OpenAI 兼容 API** - 完全兼容 OpenAI SDK，无缝替换
-- 🧠 **思考模式支持** - 启用模型内部推理，提高复杂查询质量
-- ⚖️ **智能负载均衡** - 多API密钥轮询，最大化吞吐量
-- 📊 **实时使用监控** - 详细的请求统计和性能指标
-- 🎯 **提示词注入** - 自动为请求添加自定义指令
-- 🔐 **多用户管理** - 生成和管理多个访问密钥
-- 🌐 **Web 管理界面** - 美观的 Streamlit 管理面板
-- ☁️ **云端部署** - 支持 Render、Railway 等平台
-- 🇨🇳 **中国友好** - 优化的网络配置，支持大陆访问
+> 🔥 **核心价值：N个Key = N倍限制！** 
+> 
+> 单个gemini-2.5-pro限制100RPM？轮询10个Key瞬间变成1000RPM！  
+> 告别API限制，享受丝滑AI体验！
 
-## 🚀 快速开始
+## ✨ 核心特性
 
-### 方法一：一键部署到 Render（推荐）
+- 🔄 **智能轮询**：多个 Gemini API Key 自动轮询，突破单Key请求限制
+- 📈 **倍增额度**：N个Key = N倍请求限制，告别额度不够的烦恼  
+- 🛡️ **高可用性**：单个Key失效不影响服务，自动故障转移
+- ⚖️ **负载均衡**：支持轮询(round-robin)和最少使用(least-used)策略
+- 🚀 **一键部署**：Fork 仓库后直接在 Render 部署，10分钟获得公网地址
+- 💰 **完全免费**：使用 Render 免费层，无需支付内网穿透或映射服务器费用
+- 🎯 **OpenAI 兼容**：完全兼容 OpenAI SDK，无需修改现有代码
+- 📊 **可视化管理**：Streamlit 构建的直观管理界面
+- ⚡ **高性能**：FastAPI + 异步处理，支持流式响应
+- 🔐 **安全可靠**：用户密钥管理、使用统计、速率限制
 
-1. **Fork 此仓库**到你的 GitHub 账户
+## 🔄 轮询优势
 
-2. **注册 Render 账户**
-   - 访问 [render.com](https://render.com)
-   - 使用 GitHub 账户登录
+### 为什么需要轮询？
 
-3. **部署服务**
-   - 点击 "New +" → "Web Service"
-   - 选择你 Fork 的仓库
-   - 配置部署设置：
-     ```
-     Name: gemini-api-proxy
-     Environment: Python 3
-     Region: Oregon (US West)
-     Build Command: pip install -r requirements.txt
-     Start Command: python run_server.py
-     ```
+**单个 Gemini API Key 限制：**
+- gemini-2.5-flash：500 RPDD  
+- gemini-2.5-pro：100 RPDD
 
-4. **等待部署完成**（约3-5分钟）
+### 轮询策略
 
-5. **配置 API 密钥**
-   ```bash
-   curl -X POST https://your-app.onrender.com/admin/config/gemini-key \
-        -H "Content-Type: application/json" \
-        -d '{"key": "your-gemini-api-key"}'
-   ```
+- **🔄 Round Robin（轮询）**：按顺序循环使用每个Key，平均分配负载
+- **📊 Least Used（最少使用）**：优先使用使用量最少的Key，智能负载均衡
 
-6. **生成用户密钥**
-   ```bash
-   curl -X POST https://your-app.onrender.com/admin/config/user-key \
-        -H "Content-Type: application/json" \
-        -d '{"name": "My API Key"}'
-   ```
-
-### 方法二：本地开发
-
-1. **克隆项目**
-   ```bash
-   git clone https://github.com/Arain119/gemini-api-proxy.git
-   cd gemini-api-proxy
-   ```
-
-2. **安装依赖**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **启动服务**
-   ```bash
-   python run_server.py
-   ```
-
-4. **启动管理界面**
-   ```bash
-   streamlit run main.py
-   ```
-
-5. **访问服务**
-   - API 服务: http://localhost:8000
-   - 管理界面: http://localhost:8501
-
-## 📋 项目结构
+### 实际效果示例
 
 ```
-gemini-api-proxy/
-├── api_server.py           # FastAPI 主服务
-├── database.py             # 数据库管理
-├── main.py                 # Streamlit 管理界面
-├── run_server.py           # 启动脚本
-├── requirements.txt        # Python 依赖
-├── render.yaml            # Render 部署配置
-├── .gitignore             # Git 忽略文件
-└── README.md              # 项目文档
+单Key场景：
+❌ 请求100次/分钟 → 超出限制，请求失败
+
+3Key轮询场景：  
+✅ 请求300次/分钟 → 每个Key承担1000次，完全OK
+✅ 某个Key失效 → 自动使用其他2个Key，服务不中断
 ```
 
-## 🔧 配置说明
+## 🎯 快速开始
 
-### 环境变量
+### 1. Fork 本仓库
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `PORT` | 服务端口 | `8000` |
-| `RENDER_EXTERNAL_URL` | Render 部署URL | 自动生成 |
-| `API_BASE_URL` | API 基础地址 | `http://localhost:8000` |
+点击页面右上角的 **Fork** 按钮，将本项目复制到你的 GitHub 账户下。
 
-### 系统配置
+### 2. 部署后端 API 服务
 
-通过管理界面或 API 调用配置：
+#### 2.1 创建 Render 账户
+1. 访问 [Render.com](https://render.com)
+2. 使用 GitHub 账户登录（推荐）或邮箱注册
+3. **需要MasterCard或VisaCard验证身份！但完全免费**
 
-- **默认模型**: `gemini-2.5-flash` 或 `gemini-2.5-pro`
-- **请求超时**: 60秒
-- **最大重试**: 3次
-- **负载均衡**: `least_used` 或 `round_robin`
+#### 2.2 部署后端服务
+1. 在 Render 控制台点击 **"New +"** → **"Web Service"**
+2. 选择 **"Build and deploy from a Git repository"**
+3. 连接你的 GitHub 账户，选择刚刚 Fork 的仓库
+4. 配置服务参数：
 
-## 📚 API 使用指南
+```yaml
+Name: gemini-api-proxy
+Environment: Python 3
+Branch: main
+Build Command: pip install -r requirements.txt
+Start Command: python run_server.py
+```
 
-### OpenAI SDK 兼容
+5. 选择 **"Free"** 实例类型
+6. 在 **Environment Variables** 中添加：
+   - `PYTHONUNBUFFERED` = `1`
+   - `PYTHONDONTWRITEBYTECODE` = `1`
+7. 点击 **"Create Web Service"**
+
+#### 2.3 获取后端地址
+部署完成后，你会获得一个类似 `https://your-service-name.onrender.com` 的地址。
+
+**重要：请保存这个地址，前端配置时需要用到！**
+
+### 3. 部署前端管理界面
+
+#### 3.1 创建前端服务
+1. 再次点击 **"New +"** → **"Web Service"**
+2. 选择相同的 GitHub 仓库
+3. 配置前端服务参数：
+
+```yaml
+Name: gemini-proxy-admin
+Environment: Python 3
+Branch: main
+Build Command: pip install -r requirements.txt
+Start Command: streamlit run main.py --server.port $PORT --server.address 0.0.0.0
+```
+
+4. 选择 **"Free"** 实例类型
+5. 在 **Environment Variables** 中添加：
+   - `API_BASE_URL` = `你的后端地址`（上一步获得的地址）
+   - `PYTHONUNBUFFERED` = `1`
+6. 点击 **"Create Web Service"**
+
+#### 3.2 访问管理界面
+前端部署完成后，你会获得另一个地址，这就是你的管理界面地址。
+
+## 🔧 配置指南
+
+### 1. 添加多个 Gemini API Key
+
+轮询的核心是配置多个API Key，建议至少添加3-5个Key：
+
+1. 访问前端管理界面
+2. 进入 **"密钥管理"** → **"Gemini 密钥"** 页面
+3. **逐个添加**多个 Gemini API Key：
+
+```
+Key 1: AIzaSyXXXXXXXXXXXXXXXXXXXXXX
+Key 2: AIzaSyYYYYYYYYYYYYYYYYYYYYYY  
+Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
+... 更多Key
+```
+
+4. API Key 获取方式：
+   - 访问 [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - 登录并创建新的 API Key
+   - 复制密钥（格式：`AIzaSy...`）
+   - **建议创建多个项目，每个项目生成一个Key**
+
+**💡 配置建议：**
+- ✅ **至少3个Key**：保证基本的轮询效果
+- ✅ **5-10个Key**：获得更高的请求限制和稳定性
+- ✅ **不同项目的Key**：降低同时被限制的风险
+
+### 2. 配置轮询策略
+
+1. 进入 **"系统设置"** → **"轮询配置"** 页面
+2. 选择轮询策略：
+   - **Round Robin**：按顺序轮询，负载分配均匀
+   - **Least Used（推荐）**：智能选择使用量最少的Key
+3. 设置故障转移：自动跳过失效的Key
+
+### 3. 生成用户访问密钥
+
+1. 在管理界面进入 **"密钥管理"** → **"用户密钥"** 页面
+2. 点击 **"生成新密钥"**，输入密钥名称
+3. **立即保存生成的密钥**（格式：`sk-...`），它不会再次显示
+
+### 3. 配置思考模式
+
+1. 进入 **"系统设置"** → **"思考模式"** 页面
+2. 启用思考模式以获得更好的推理能力
+3. 选择合适的思考预算：
+   - **自动**：让模型自动决定
+   - **2.5flash最大思考预算 (24k)**：快速响应
+   - **2.5pro最大思考预算 (32k)**：深度思考
+
+## 📡 使用 API
+
+配置完成后，你就可以使用 OpenAI SDK 访问轮询代理了。系统会自动在多个 Gemini Key 之间进行轮询，提供更高的请求限制和稳定性。
+
+### 轮询效果展示
+
+```python
+# 假设你配置了5个Key，每个Key限制100 RPM
+# 轮询后总限制 = 5 × 1000 = 500 RPM
+
+import openai
+import asyncio
+import time
+
+client = openai.OpenAI(
+    api_key="sk-key",  # 你生成的用户密钥
+    base_url="https://your-service-name.onrender.com/v1"  # 你的后端地址
+)
+
+# 高并发测试 - 轮询自动分配负载
+async def test_polling_performance():
+    tasks = []
+    start_time = time.time()
+    
+    # 同时发送100个请求
+    for i in range(100):
+        task = asyncio.create_task(
+            client.chat.completions.create(
+                model="gemini-2.5-flash",
+                messages=[{"role": "user", "content": f"请求 #{i}"}]
+            )
+        )
+        tasks.append(task)
+    
+    # 等待所有请求完成
+    responses = await asyncio.gather(*tasks)
+    end_time = time.time()
+    
+    print(f"✅ 100个并发请求完成，耗时：{end_time - start_time:.2f}秒")
+    print(f"🔄 系统自动在{len(responses)}个Key之间轮询分配")
+
+# 运行测试
+# asyncio.run(test_polling_performance())
+```
+
+### Python 示例
 
 ```python
 import openai
 
-# 配置客户端
 client = openai.OpenAI(
-    api_key="your-generated-user-key",
-    base_url="https://your-app.onrender.com/v1"
+    api_key="sk-your-user-key",  # 你生成的用户密钥
+    base_url="https://your-service-name.onrender.com/v1"  # 你的后端地址
 )
 
-# 基础对话
 response = client.chat.completions.create(
     model="gemini-2.5-flash",
     messages=[
-        {"role": "user", "content": "你好，请介绍一下自己"}
+        {"role": "user", "content": "你好！"}
     ]
 )
 
 print(response.choices[0].message.content)
 ```
 
-### 流式响应
+### Node.js 示例
 
-```python
-stream = client.chat.completions.create(
-    model="gemini-2.5-flash",
-    messages=[{"role": "user", "content": "写一个Python函数"}],
-    stream=True
-)
+```javascript
+import OpenAI from 'openai';
 
-for chunk in stream:
-    if chunk.choices[0].delta.content is not None:
-        print(chunk.choices[0].delta.content, end="")
-```
+const openai = new OpenAI({
+  apiKey: 'sk-your-user-key',
+  baseURL: 'https://your-service-name.onrender.com/v1',
+});
 
-### 思考模式
+const response = await openai.chat.completions.create({
+  model: 'gemini-2.5-flash',
+  messages: [{ role: 'user', content: '你好！' }],
+});
 
-```python
-response = client.chat.completions.create(
-    model="gemini-2.5-flash",
-    messages=[{"role": "user", "content": "解决这个数学问题：..."}],
-    thinking_config={
-        "thinking_budget": 8192,
-        "include_thoughts": True
-    }
-)
+console.log(response.choices[0].message.content);
 ```
 
 ### cURL 示例
 
 ```bash
-# 基础请求
-curl -X POST https://your-app.onrender.com/v1/chat/completions \
+curl -X POST "https://your-service-name.onrender.com/v1/chat/completions" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-user-key" \
+  -H "Authorization: Bearer sk-your-user-key" \
   -d '{
     "model": "gemini-2.5-flash",
-    "messages": [{"role": "user", "content": "Hello!"}]
+    "messages": [{"role": "user", "content": "你好！"}]
   }'
-
-# 流式请求
-curl -X POST https://your-app.onrender.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-user-key" \
-  -d '{
-    "model": "gemini-2.5-flash",
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "stream": true
-  }' \
-  --no-buffer
 ```
 
-## 🌐 支持的模型
+**💡 轮询优势：**
+- 🚀 **线性扩展**：N个Key = N倍限制，突破单Key瓶颈
+- 🛡️ **高可用性**：单Key失效不影响整体服务
+- ⚖️ **负载均衡**：请求均匀分配，避免单点过载
 
-| 模型名称 | 描述 | 思考模式 | 适用场景 |
-|----------|------|----------|----------|
-| `gemini-2.5-flash` | 快速响应版本 | ✅ | 日常对话、快速查询 |
-| `gemini-2.5-pro` | 专业增强版本 | ✅ | 复杂推理、专业分析 |
+## 🎛️ 管理功能
 
-## 🛠️ 高级功能
+### 控制台
+- 📊 **轮询效率监控**：实时查看每个Key的使用分布
+- 📈 **聚合请求统计**：所有Key的总体请求量图表
+- 🔍 **Key状态分析**：快速识别失效或过载的Key
+- 💹 **限制倍增显示**：直观展示轮询带来的限制提升
 
-### 1. 思考模式配置
+### 密钥管理
+- 🔑 **多Key轮询管理**：批量添加、启用/禁用Gemini API Key
+- 🔄 **轮询状态监控**：查看每个Key的轮询参与状态  
+- 👤 **用户访问密钥生成**：为客户端生成访问令牌
+- 🚦 **智能故障检测**：自动识别并跳过失效Key
 
-```python
-# 通过 API 配置思考模式
-response = requests.post(f"{API_BASE_URL}/admin/config/thinking", json={
-    "enabled": True,
-    "budget": 16384,  # -1=自动, 0=禁用, 1-32768=固定预算
-    "include_thoughts": False
-})
+### 轮询配置
+- ⚖️ **负载均衡策略**：Round Robin / Least Used 策略切换
+- 🎯 **Key权重设置**：为不同Key设置不同的使用权重
+- 🛡️ **故障转移配置**：设置Key失效时的自动切换策略
+- 📊 **使用率阈值**：单Key使用率预警和保护
+
+### 模型配置
+- ⚙️ **单Key限制设置**：配置每个Key的RPM/TPM限制
+- 📊 **总限制计算**：自动计算轮询后的总体限制  
+- 🔧 **模型状态管理**：启用/禁用特定模型的轮询
+
+### 系统设置
+- 🧠 思考模式配置
+- 📝 提示词注入
+- 📋 系统状态监控
+
+## 🆓 Render 免费层说明
+
+### 免费额度
+- ⏰ **运行时间**：每月 750 小时
+- 📶 **带宽**：每月 100GB 出站流量
+- 💾 **数据库**：1GB PostgreSQL（90天）
+- 🌍 **域名**：免费 `.onrender.com` 子域名
+- 🔒 **HTTPS**：自动 SSL 证书
+
+### 限制说明
+- 🛌 **休眠机制**：15分钟无请求后自动休眠
+- ⚡ **冷启动**：休眠后首次请求需要15-30秒唤醒
+- 🔄 **自动重启**：系统可能随时重启服务
+
+### 保活机制
+本项目内置保活功能，每14分钟自动发送请求保持服务活跃，减少休眠时间。
+
+## 🌐 自定义域名（可选）
+
+Render 免费层支持自定义域名：
+
+1. 在服务设置中添加自定义域名
+2. 在域名提供商处添加 CNAME 记录
+3. Render 自动提供 SSL 证书
+
+## 🔧 高级配置
+
+### 环境变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `API_BASE_URL` | 后端API地址 | - |
+| `PORT` | 服务端口 | 自动分配 |
+| `PYTHONUNBUFFERED` | Python输出缓冲 | 1 |
+
+### render.yaml 配置
+
+```yaml
+services:
+  - type: web
+    name: gemini-api-proxy
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run_server.py
+    healthCheckPath: /health
+    
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
 ```
 
-### 2. 提示词注入
+## 🚨 注意事项
 
-```python
-# 配置全局提示词注入
-response = requests.post(f"{API_BASE_URL}/admin/config/inject-prompt", json={
-    "enabled": True,
-    "content": "你是一个专业的AI助手，请用中文回答。",
-    "position": "system"  # system, user_prefix, user_suffix
-})
-```
+### 轮询最佳实践
+- 🔑 **Key数量建议**：3-10个Key为最佳，过多Key管理复杂
+- 🌍 **Key来源分散**：使用不同Google账号和项目创建Key
+- 📊 **监控使用率**：定期检查Key使用分布，确保轮询效果
+- 🔄 **及时替换**：发现失效Key立即替换，保持轮询池健康
+- ⚖️ **策略选择**：高并发场景用Round Robin，日常使用Least Used
 
-### 3. 使用统计监控
-
-```python
-# 获取使用统计
-stats = requests.get(f"{API_BASE_URL}/admin/stats").json()
-print(f"今日请求: {stats['usage_stats']['gemini-2.5-flash']['day']['requests']}")
-```
-
-### 4. 健康检查和监控
-
-```python
-# 健康检查
-health = requests.get(f"{API_BASE_URL}/health").json()
-print(f"服务状态: {health['status']}")
-print(f"可用密钥: {health['available_keys']}")
-
-# 详细状态
-status = requests.get(f"{API_BASE_URL}/status").json()
-print(f"内存使用: {status['memory_usage_mb']:.1f}MB")
-print(f"运行时间: {status['uptime_seconds']}秒")
-```
-
-## 🎨 管理界面功能
-
-Web 管理界面提供以下功能：
-
-- 📊 **实时监控** - 服务状态、使用率图表
-- 🔑 **密钥管理** - 添加 Gemini 密钥、生成用户密钥
-- 🤖 **模型配置** - 查看模型状态、调整限制
-- ⚙️ **系统设置** - 思考模式、提示词注入配置
-
-## 🔐 安全特性
-
-- **API 密钥验证** - 所有请求需要有效的用户密钥
-- **速率限制** - 基于模型的 RPM/TPM/RPD 限制
-- **请求日志** - 详细的使用记录和审计
-- **错误处理** - 优雅的错误处理和重试机制
-
-## 📈 性能优化
-
-### 自动唤醒机制
-
-Render 免费版在15分钟无活动后会休眠，项目内置智能唤醒机制：
-
-1. **内置定时器** - 每14分钟自动ping服务
-2. **外部监控** - 推荐配置 UptimeRobot 监控
-3. **智能重试** - 客户端自动处理冷启动延迟
-
-### 负载均衡
-
-```python
-# 配置负载均衡策略
-strategies = ["least_used", "round_robin"]
-```
-
-### 连接池优化
-
-```python
-# HTTP 连接池配置
-async with httpx.AsyncClient(
-    timeout=30.0,
-    limits=httpx.Limits(
-        max_keepalive_connections=20,
-        max_connections=100,
-        keepalive_expiry=30
-    ),
-    http2=True
-) as client:
-    # API 调用
-```
-
-## 🌍 中国大陆访问优化
-
-### 1. 服务器地区选择
-- ✅ 推荐：美国西海岸（Oregon、California）
-- ✅ 备选：新加坡、日本
-- ❌ 避免：美国东海岸、欧洲
-
-### 2. CDN 加速配置
-
-**使用 Cloudflare（推荐）:**
-
-1. 注册 Cloudflare 账户
-2. 添加域名到 Cloudflare
-3. 配置 DNS 记录指向 Render 服务
-4. 启用代理模式（橙色云朵）
-5. SSL/TLS 设置为"灵活"
-
-**配置示例:**
-```dns
-类型: A
-名称: api
-IPv4: [Render服务IP]
-代理状态: 已代理
-```
-
-## 🐛 故障排除
+### 安全提醒
+- 🔐 用户密钥仅显示一次，请立即保存
+- 🚫 不要在客户端直接使用 Gemini API Key
+- 🔒 定期轮换所有 API 密钥
+- 🛡️ 多Key轮询降低单点安全风险
 
 ### 常见问题
 
-**1. 服务无响应**
+**Q: 需要多少个Key才有轮询效果？**
+A: 至少2个Key，推荐3-5个Key获得最佳平衡。
+
+**Q: 某个Key失效了怎么办？**
+A: 系统自动跳过失效Key，继续使用其他Key，服务不中断。
+
+**Q: 如何知道轮询是否在工作？**
+A: 在管理界面可以看到每个Key的使用分布和轮询状态。
+
+**Q: 服务访问很慢怎么办？**
+A: 这是 Render 免费层的冷启动特性，等待15-30秒即可恢复正常。
+
+**Q: 如何避免服务休眠？**
+A: 项目内置保活机制，**即使是免费层也不会休眠！**
+
+**Q: 可以商用吗？**
+A: 本项目采用 CC BY-NC 4.0 许可证，仅允许非商业使用。
+
+## 🛠️ 本地开发
+
+### 环境要求
+- Python 3.8+
+- pip
+
+### 安装依赖
 ```bash
-# 检查服务状态
-curl https://your-app.onrender.com/health
-
-# 手动唤醒
-curl https://your-app.onrender.com/wake
+pip install -r requirements.txt
 ```
 
-**2. API 调用失败**
-- 检查用户密钥是否有效
-- 确认 Authorization 头格式：`Bearer your-key`
-- 查看错误日志获取详细信息
-
-**3. 思考模式不工作**
-- 确认使用支持思考的模型（2.5系列）
-- 检查思考配置是否启用
-- 验证思考预算设置
-
-**4. 中国访问慢**
-- 配置 Cloudflare CDN
-- 选择美国西海岸服务器
-- 增加客户端超时时间
-
-### 调试工具
-
-```python
-# 获取调试信息
-debug_info = requests.get(f"{API_BASE_URL}/debug/info").json()
-
-# 获取服务指标
-metrics = requests.get(f"{API_BASE_URL}/metrics").json()
-
-# 查看系统状态
-status = requests.get(f"{API_BASE_URL}/status").json()
+### 启动后端
+```bash
+python run_server.py
 ```
 
-## 📊 监控和维护
-
-### 外部监控服务
-
-**UptimeRobot 配置:**
-1. 注册 [uptimerobot.com](https://uptimerobot.com)
-2. 创建 HTTP 监控：
-   ```
-   URL: https://your-app.onrender.com/wake
-   监控间隔: 5分钟
-   ```
-
-**Cron-job.org 配置:**
-1. 注册 [cron-job.org](https://cron-job.org)
-2. 创建定时任务：
-   ```
-   URL: https://your-app.onrender.com/wake
-   间隔: */14 * * * * (每14分钟)
-   ```
-
-### 日志管理
-
-```python
-# 清理旧日志
-from database import Database
-db = Database()
-deleted_count = db.cleanup_old_logs(days=30)
-print(f"清理了 {deleted_count} 条日志记录")
-
-# 数据库备份
-success = db.backup_database("backup_20240101.db")
-if success:
-    print("数据库备份成功")
+### 启动前端
+```bash
+streamlit run main.py
 ```
 
-## 🚢 部署选项
+## 📄 许可证
 
-### Render.com（推荐）
-- ✅ 免费 750 小时/月
-- ✅ 无需信用卡
-- ❌ 15分钟无活动后休眠
+本项目采用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 许可证。
 
-### Railway.app
-- ✅ $5 免费额度/月
-- ✅ 无强制休眠
-- ❌ 需要监控用量
+- ✅ 允许：分享、修改、分发
+- ❌ 禁止：商业使用
+- 📝 要求：署名原作者
 
-### Streamlit Cloud
-- ✅ 完全免费
-- ✅ 适合管理界面
-- ❌ 仅支持 Streamlit 应用
-
-### 自托管
-- ✅ 完全控制
-- ✅ 无使用限制
-- ❌ 需要运维经验
-
-## 🤝 贡献指南
+## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
 
-### 开发环境设置
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
-1. Fork 项目并克隆
-2. 安装开发依赖：`pip install -r requirements.txt`
-3. 运行测试：`python -m pytest tests/`
-4. 提交前检查代码格式：`black . && flake8`
 
-### 提交规范
-
-- `feat:` 新功能
-- `fix:` 错误修复
-- `docs:` 文档更新
-- `style:` 代码格式
-- `refactor:` 重构
-- `test:` 测试相关
+## ⭐ 如果这个项目对你有帮助，请给个 Star ⭐️
 
 ## 🙏 致谢
 
-- [FastAPI](https://fastapi.tiangolo.com/) - 现代化的 Python Web 框架
+- [Google Gemini](https://deepmind.google/technologies/gemini/) - 强大的AI模型
+- [Render](https://render.com) - 优秀的免费部署平台
+- [FastAPI](https://fastapi.tiangolo.com/) - 现代Python Web框架
 - [Streamlit](https://streamlit.io/) - 快速构建数据应用
-- [Render](https://render.com/) - 简单的云部署平台
-- [Google Gemini](https://ai.google.dev/) - 强大的AI模型
-

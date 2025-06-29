@@ -37,8 +37,8 @@ def keep_alive_task():
 
 
 def start_keep_alive_scheduler():
-    """启动保活调度器（仅在Streamlit Cloud环境）"""
-    # 只在Streamlit Cloud环境启用保活
+    """启动保活调度器（仅在Render环境）"""
+    # 只在Render环境启用保活
     if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
         # 设置每14分钟执行一次
         schedule.every(14).minutes.do(keep_alive_task)
