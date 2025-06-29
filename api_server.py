@@ -120,9 +120,27 @@ class ChatCompletionRequest(BaseModel):
 
 # 内存缓存用于RPM/TPM限制
 class RateLimitCache:
-    def __init__(self):
-        self.cache: Dict[str, Dict[str, List[tuple]]] = {}  # 改为按模型缓存
+    def __init__(self, max_entries: int = 10000):
+        self.cache: Dict[str, Dict[str, List[tuple]]] = {}
+        self.max_entries = max_entries
         self.lock = asyncio.Lock()
+
+    async def cleanup_expired(self, window_seconds: int = 60):
+        """定期清理过期缓存"""
+        current_time = time.time()
+        cutoff_time = current_time - window_seconds
+
+        async with self.lock:
+            for model_name in list(self.cache.keys()):
+                if model_name in self.cache:
+                    self.cache[model_name]['requests'] = [
+                        (t, v) for t, v in self.cache[model_name]['requests']
+                        if t > cutoff_time
+                    ]
+                    self.cache[model_name]['tokens'] = [
+                        (t, v) for t, v in self.cache[model_name]['tokens']
+                        if t > cutoff_time
+                    ]
 
     async def add_usage(self, model_name: str, requests: int = 1, tokens: int = 0):
         async with self.lock:
@@ -633,9 +651,8 @@ async def stream_gemini_response(
         openai_request: ChatCompletionRequest,
         key_info: Dict,
         model_name: str
-) -> AsyncGenerator[bytes, None]:  # 修改返回类型为 bytes
+) -> AsyncGenerator[bytes, None]:
     """处理Gemini的流式响应"""
-    # 🔥 关键修复：添加 alt=sse 参数，这是官方文档要求的
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse"
     timeout = float(db.get_config('request_timeout', '60'))
     max_retries = int(db.get_config('max_retries', '3'))
@@ -669,7 +686,7 @@ async def stream_gemini_response(
                     logger.info(f"✅ Stream response started, status: {response.status_code}")
 
                     try:
-                        # 🔥 按照官方文档的SSE格式处理
+                        # 按照官方文档的SSE格式处理
                         async for line in response.aiter_lines():
                             processed_lines += 1
 
@@ -680,9 +697,8 @@ async def stream_gemini_response(
                             if processed_lines <= 5:  # 只记录前几行
                                 logger.debug(f"📝 Stream line {processed_lines}: {line[:100]}...")
 
-                            # 官方SSE格式：每行以 "data: " 开头
                             if line.startswith("data: "):
-                                json_str = line[6:]  # 去掉 "data: " 前缀
+                                json_str = line[6:]
 
                                 # 检查结束标志
                                 if json_str.strip() == "[DONE]":
@@ -1112,7 +1128,7 @@ async def list_models():
     return {"object": "list", "data": model_list}
 
 
-# 🔥 管理端点
+# 管理端点
 @app.get("/admin/models/{model_name}")
 async def get_model_config(model_name: str):
     """获取指定模型的配置"""
