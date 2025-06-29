@@ -27,8 +27,8 @@
 ### 为什么需要轮询？
 
 **单个 Gemini API Key 限制：**
-- gemini-2.5-flash：500 RPDD  
-- gemini-2.5-pro：100 RPDD
+- gemini-2.5-flash：500 RPD  
+- gemini-2.5-pro：100 RPD
 
 ### 轮询策略
 
