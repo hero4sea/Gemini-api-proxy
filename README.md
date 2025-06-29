@@ -1,6 +1,6 @@
 # Gemini API 轮询代理服务
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)[![QQ群](https://img.shields.io/badge/QQ群-1055274821-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
 
 一个专为**Gemini多Key轮询**设计的 Gemini API 代理服务，通过智能轮询多个 API Key 突破单Key限制，提供 OpenAI 兼容接口和完整的管理界面。无需服务器，一键免费部署到 Render 平台，立即获得公网访问地址。
 
@@ -162,6 +162,14 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 ## 📡 使用 API
 
 配置完成后，你就可以使用 OpenAI SDK 访问轮询代理了。系统会自动在多个 Gemini Key 之间进行轮询，提供更高的请求限制和稳定性。
+
+### 💬 加入交流群
+
+遇到问题或想要交流经验？欢迎加入我们的QQ群：
+
+[![QQ群：1055274821](https://img.shields.io/badge/QQ群-1055274821-blue?style=for-the-badge&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
+
+**QQ群号：1055274821**
 
 ### 轮询效果展示
 
