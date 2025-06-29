@@ -5,13 +5,15 @@ import requests
 import json
 import os
 import time
+import threading
 from datetime import datetime
 from typing import Dict, Any, Optional
+import schedule
 
 # --- 页面配置 ---
 st.set_page_config(
-    page_title="Gemini API 网关",
-    page_icon="⚡",
+    page_title="Gemini API 轮询",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -19,8 +21,47 @@ st.set_page_config(
 # --- API配置 ---
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
+# 检测是否在Streamlit Cloud上运行
 if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
+
+
+# --- 保活机制 ---
+def keep_alive_task():
+    """保活任务，每14分钟执行一次"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/wake", timeout=10)
+        if response.status_code == 200:
+            print(f"[{datetime.now()}] Keep-alive ping sent successfully")
+    except Exception as e:
+        print(f"[{datetime.now()}] Keep-alive ping failed: {e}")
+
+
+def start_keep_alive_scheduler():
+    """启动保活调度器（仅在Streamlit Cloud环境）"""
+    # 只在Streamlit Cloud环境启用保活
+    if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
+        # 设置每14分钟执行一次
+        schedule.every(14).minutes.do(keep_alive_task)
+
+        # 立即执行一次
+        keep_alive_task()
+
+        # 在后台线程中运行调度器
+        def run_scheduler():
+            while True:
+                schedule.run_pending()
+                time.sleep(60)  # 每分钟检查一次
+
+        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+        scheduler_thread.start()
+        print(f"[{datetime.now()}] Keep-alive scheduler started")
+
+
+# 初始化保活机制
+if 'keep_alive_started' not in st.session_state:
+    st.session_state.keep_alive_started = True
+    start_keep_alive_scheduler()
 
 
 # --- API调用函数 ---
@@ -99,24 +140,30 @@ def get_cached_model_config(model_name: str):
     return call_api(f'/admin/models/{model_name}')
 
 
-# --- 自定义CSS样式 - 极简高级设计 ---
+@st.cache_data(ttl=60)
+def get_cached_metrics():
+    """获取缓存的系统指标"""
+    return call_api('/metrics')
+
+
+# --- 自定义CSS样式 ---
 st.markdown("""
 <style>
-    /* 全局字体优化 */
+    /* 全局字体 */
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
 
-    /* 优化整体布局 */
+    /* 整体布局 */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
         max-width: 1320px;
     }
 
-    /* 度量卡片 - 极简风格 */
+    /* 度量卡片 */
     [data-testid="metric-container"] {
         background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
         padding: 1.5rem;
@@ -132,7 +179,7 @@ st.markdown("""
         border-color: #d1d5db;
     }
 
-    /* 按钮样式 - 更精致 */
+    /* 按钮样式 */
     .stButton > button {
         border-radius: 8px;
         font-weight: 500;
@@ -151,7 +198,7 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
-    /* 删除按钮特殊样式 */
+    /* 删除按钮 */
     .delete-button > button {
         background: #ef4444;
         color: white;
@@ -161,7 +208,7 @@ st.markdown("""
         background: #dc2626;
     }
 
-    /* 输入框样式 - 更精致 */
+    /* 输入框样式 */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
@@ -183,7 +230,7 @@ st.markdown("""
         outline: none;
     }
 
-    /* 标签页样式 - 更现代 */
+    /* 标签页样式 */
     .stTabs [data-testid="stTabBar"] {
         gap: 3rem;
         border-bottom: 1px solid #e5e7eb;
@@ -206,7 +253,7 @@ st.markdown("""
         border-bottom-color: #6366f1;
     }
 
-    /* 侧边栏样式 - 更精致 */
+    /* 侧边栏样式 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
         border-right: 1px solid #e5e7eb;
@@ -218,20 +265,20 @@ st.markdown("""
         color: #4b5563;
     }
 
-    /* 成功/错误消息样式 - 更精致 */
+    /* 成功/错误消息样式 */
     .stAlert {
         border-radius: 8px;
         font-size: 0.875rem;
         padding: 0.875rem 1rem;
     }
 
-    /* 图表优化 */
+    /* 图表容器 */
     .js-plotly-plot .plotly {
         border-radius: 8px;
         overflow: hidden;
     }
 
-    /* 表格样式优化 */
+    /* 表格样式 */
     .stDataFrame {
         border-radius: 8px;
         overflow: hidden;
@@ -245,14 +292,13 @@ st.markdown("""
         border-top: 1px solid #e5e7eb;
     }
 
-    /* 标题样式优化 */
+    /* 标题样式 */
     h1, h2, h3, h4, h5, h6 {
         color: #1f2937;
         font-weight: 600;
         letter-spacing: -0.01em;
     }
 
-    /* 移除多余的padding */
     .css-1d391kg {
         padding-top: 1rem;
     }
@@ -261,7 +307,7 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown("### Gemini API 网关")
+    st.markdown("### Gemini API 轮询")
     st.markdown("---")
 
     page = st.radio(
@@ -290,7 +336,9 @@ with st.sidebar:
         with st.expander("详细信息"):
             st.text(f"地址: {API_BASE_URL}")
             st.text(f"状态: {health.get('status', 'unknown')}")
-            st.text(f"运行时间: {health.get('uptime_seconds', 0)}秒")
+            st.text(f"运行时间: {health.get('uptime_seconds', 0) // 3600:.1f}小时")
+            st.text(f"可用密钥: {health.get('available_keys', 0)}")
+            st.text(f"环境: {health.get('environment', 'unknown')}")
     else:
         st.error("服务离线")
         st.info("点击'唤醒'按钮激活服务")
@@ -312,7 +360,7 @@ with st.sidebar:
 # --- 主页面内容 ---
 if page == "控制台":
     st.title("服务控制台")
-    st.markdown("监控 API 网关性能和使用指标")
+    st.markdown("监控 API 轮询使用指标")
 
     # 刷新按钮
     col1, col2 = st.columns([10, 1])
@@ -324,6 +372,7 @@ if page == "控制台":
     # 获取统计数据
     stats_data = get_cached_stats()
     status_data = get_cached_status()
+    metrics_data = get_cached_metrics()
 
     if not stats_data or not status_data:
         st.error("无法获取服务数据")
@@ -370,16 +419,36 @@ if page == "控制台":
         st.metric("运行时间", f"{uptime_hours:.1f}小时")
 
     with col2:
+        # 使用真实的内存数据
         memory_mb = status_data.get('memory_usage_mb', 0)
         st.metric("内存使用", f"{memory_mb:.1f}MB")
 
     with col3:
+        # 使用真实的CPU数据
         cpu_percent = status_data.get('cpu_percent', 0)
         st.metric("CPU使用", f"{cpu_percent:.1f}%")
 
     with col4:
+        # 使用真实的请求计数
         total_requests = status_data.get('total_requests', 0)
         st.metric("总请求数", f"{total_requests:,}")
+
+    # 如果有metrics数据，显示额外信息
+    if metrics_data:
+        st.markdown("### 详细指标")
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            db_size = metrics_data.get('database_size_mb', 0)
+            st.metric("数据库大小", f"{db_size:.2f}MB")
+
+        with col2:
+            active_conn = metrics_data.get('active_connections', 0)
+            st.metric("活跃连接", active_conn)
+
+        with col3:
+            keep_alive = status_data.get('keep_alive_active', False)
+            st.metric("保活状态", "激活" if keep_alive else "未激活")
 
     # 使用率分析
     st.markdown("## 使用率分析")
@@ -901,8 +970,11 @@ elif page == "系统设置":
 
         with col1:
             st.markdown("#### 服务信息")
-            st.metric("Python版本", status_data.get('python_version', 'Unknown').split()[0])
-            st.metric("服务版本", status_data.get('version', '1.0.0'))
+            python_version = status_data.get('python_version', 'Unknown')
+            if python_version != 'Unknown':
+                python_version = python_version.split()[0]
+            st.metric("Python版本", python_version)
+            st.metric("服务版本", status_data.get('version', '1.0'))
             st.metric("保持唤醒", "激活" if status_data.get('keep_alive_active', False) else "未激活")
 
         with col2:
@@ -912,6 +984,9 @@ elif page == "系统设置":
                 st.markdown(f"• {model}")
 
         st.markdown("### 系统指标")
+
+        # 获取实时系统指标
+        metrics_data = get_cached_metrics()
 
         col1, col2, col3 = st.columns(3)
 
@@ -928,13 +1003,26 @@ elif page == "系统设置":
             uptime_hours = uptime / 3600
             st.metric("运行时间", f"{uptime_hours:.1f} 小时")
 
+        # 如果有额外的metrics数据，显示更多信息
+        if metrics_data:
+            st.markdown("### 详细指标")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                db_size = metrics_data.get('database_size_mb', 0)
+                st.metric("数据库大小", f"{db_size:.2f} MB")
+
+            with col2:
+                req_count = metrics_data.get('requests_count', 0)
+                st.metric("请求总数", f"{req_count:,}")
+
 # --- 页脚 ---
 st.markdown(
     f"""
     <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
         Gemini API 轮询 | 
-        <a href='{API_BASE_URL}/docs' target='_blank' style='color: #9ca3af;'>API文档</a> | 
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #9ca3af;'>健康检查</a> | 
+        <a href='{API_BASE_URL}/docs' target='_blank' style='color: #9ca3af;'>API文档</a> | 
         <span style='color: #9ca3af;'>端点: {API_BASE_URL}</span>
     </div>
     """,
