@@ -13,7 +13,7 @@ import schedule
 # --- 页面配置 ---
 st.set_page_config(
     page_title="Gemini API 代理服务",
-    page_icon="⚡",
+    page_icon="🌠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -417,7 +417,7 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown("### Gemini API 代理服务")
+    st.markdown("### Gemini API 轮询服务")
     st.markdown("---")
 
     page = st.radio(
@@ -633,7 +633,7 @@ elif page == "密钥管理":
     # 全局刷新按钮
     col1, col2 = st.columns([10, 1])
     with col2:
-        if st.button("刷新", help="刷新数据", key="refresh_keys"):
+        if st.button("↻", help="刷新数据", key="refresh_keys"):
             st.cache_data.clear()
             st.rerun()
 
