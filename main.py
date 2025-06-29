@@ -21,7 +21,6 @@ st.set_page_config(
 # --- API配置 ---
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
-# 检测是否在Streamlit Cloud上运行
 if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
 
@@ -140,12 +139,6 @@ def get_cached_model_config(model_name: str):
     return call_api(f'/admin/models/{model_name}')
 
 
-@st.cache_data(ttl=60)
-def get_cached_metrics():
-    """获取缓存的系统指标"""
-    return call_api('/metrics')
-
-
 # --- 自定义CSS样式 ---
 st.markdown("""
 <style>
@@ -198,7 +191,7 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
-    /* 删除按钮 */
+    /* 按钮 */
     .delete-button > button {
         background: #ef4444;
         color: white;
@@ -272,7 +265,7 @@ st.markdown("""
         padding: 0.875rem 1rem;
     }
 
-    /* 图表容器 */
+    /* 图表 */
     .js-plotly-plot .plotly {
         border-radius: 8px;
         overflow: hidden;
@@ -336,9 +329,7 @@ with st.sidebar:
         with st.expander("详细信息"):
             st.text(f"地址: {API_BASE_URL}")
             st.text(f"状态: {health.get('status', 'unknown')}")
-            st.text(f"运行时间: {health.get('uptime_seconds', 0) // 3600:.1f}小时")
-            st.text(f"可用密钥: {health.get('available_keys', 0)}")
-            st.text(f"环境: {health.get('environment', 'unknown')}")
+            st.text(f"运行时间: {health.get('uptime_seconds', 0)}秒")
     else:
         st.error("服务离线")
         st.info("点击'唤醒'按钮激活服务")
@@ -372,7 +363,6 @@ if page == "控制台":
     # 获取统计数据
     stats_data = get_cached_stats()
     status_data = get_cached_status()
-    metrics_data = get_cached_metrics()
 
     if not stats_data or not status_data:
         st.error("无法获取服务数据")
@@ -411,7 +401,7 @@ if page == "控制台":
 
     # 系统状态
     st.markdown("## 系统状态")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         uptime = status_data.get('uptime_seconds', 0)
@@ -419,36 +409,12 @@ if page == "控制台":
         st.metric("运行时间", f"{uptime_hours:.1f}小时")
 
     with col2:
-        # 使用真实的内存数据
         memory_mb = status_data.get('memory_usage_mb', 0)
         st.metric("内存使用", f"{memory_mb:.1f}MB")
 
     with col3:
-        # 使用真实的CPU数据
         cpu_percent = status_data.get('cpu_percent', 0)
         st.metric("CPU使用", f"{cpu_percent:.1f}%")
-
-    with col4:
-        # 使用真实的请求计数
-        total_requests = status_data.get('total_requests', 0)
-        st.metric("总请求数", f"{total_requests:,}")
-
-    # 如果有metrics数据，显示额外信息
-    if metrics_data:
-        st.markdown("### 详细指标")
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            db_size = metrics_data.get('database_size_mb', 0)
-            st.metric("数据库大小", f"{db_size:.2f}MB")
-
-        with col2:
-            active_conn = metrics_data.get('active_connections', 0)
-            st.metric("活跃连接", active_conn)
-
-        with col3:
-            keep_alive = status_data.get('keep_alive_active', False)
-            st.metric("保活状态", "激活" if keep_alive else "未激活")
 
     # 使用率分析
     st.markdown("## 使用率分析")
@@ -970,10 +936,7 @@ elif page == "系统设置":
 
         with col1:
             st.markdown("#### 服务信息")
-            python_version = status_data.get('python_version', 'Unknown')
-            if python_version != 'Unknown':
-                python_version = python_version.split()[0]
-            st.metric("Python版本", python_version)
+            st.metric("Python版本", status_data.get('python_version', 'Unknown').split()[0])
             st.metric("服务版本", status_data.get('version', '1.0'))
             st.metric("保持唤醒", "激活" if status_data.get('keep_alive_active', False) else "未激活")
 
@@ -984,9 +947,6 @@ elif page == "系统设置":
                 st.markdown(f"• {model}")
 
         st.markdown("### 系统指标")
-
-        # 获取实时系统指标
-        metrics_data = get_cached_metrics()
 
         col1, col2, col3 = st.columns(3)
 
@@ -1003,26 +963,12 @@ elif page == "系统设置":
             uptime_hours = uptime / 3600
             st.metric("运行时间", f"{uptime_hours:.1f} 小时")
 
-        # 如果有额外的metrics数据，显示更多信息
-        if metrics_data:
-            st.markdown("### 详细指标")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                db_size = metrics_data.get('database_size_mb', 0)
-                st.metric("数据库大小", f"{db_size:.2f} MB")
-
-            with col2:
-                req_count = metrics_data.get('requests_count', 0)
-                st.metric("请求总数", f"{req_count:,}")
-
 # --- 页脚 ---
 st.markdown(
     f"""
     <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
         Gemini API 轮询 | 
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #9ca3af;'>健康检查</a> | 
-        <a href='{API_BASE_URL}/docs' target='_blank' style='color: #9ca3af;'>API文档</a> | 
         <span style='color: #9ca3af;'>端点: {API_BASE_URL}</span>
     </div>
     """,
