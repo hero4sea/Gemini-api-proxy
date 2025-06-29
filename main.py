@@ -399,23 +399,6 @@ if page == "控制台":
         thinking_status = "已启用" if status_data.get('thinking_enabled', False) else "已禁用"
         st.metric("思考功能", thinking_status)
 
-    # 系统状态
-    st.markdown("## 系统状态")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        uptime = status_data.get('uptime_seconds', 0)
-        uptime_hours = uptime / 3600
-        st.metric("运行时间", f"{uptime_hours:.1f}小时")
-
-    with col2:
-        memory_mb = status_data.get('memory_usage_mb', 0)
-        st.metric("内存使用", f"{memory_mb:.1f}MB")
-
-    with col3:
-        cpu_percent = status_data.get('cpu_percent', 0)
-        st.metric("CPU使用", f"{cpu_percent:.1f}%")
-
     # 使用率分析
     st.markdown("## 使用率分析")
 
