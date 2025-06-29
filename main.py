@@ -359,6 +359,7 @@ st.markdown("""
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 500;
+        margin-bottom: 0.5rem;
     }
 
     .status-active {
@@ -369,6 +370,47 @@ st.markdown("""
     .status-inactive {
         background: #fee2e2;
         color: #991b1b;
+    }
+
+    /* 垂直布局容器 */
+    .vertical-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    /* 状态操作区域 */
+    .status-action-area {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+    }
+
+    /* 状态操作区域中的按钮 */
+    .status-action-area + div [data-testid="stButton"] > button {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    /* 密钥容器改进 */
+    .key-item-container {
+        background: #fafbfc;
+        border: 1px solid #e1e5e9;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0.75rem 0;
+        transition: all 0.2s ease;
+    }
+
+    .key-item-container:hover {
+        background: #f6f8fa;
+        border-color: #d0d7de;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -640,7 +682,10 @@ elif page == "密钥管理":
                 # 显示密钥列表
                 for i, key_info in enumerate(gemini_keys):
                     with st.container():
-                        col1, col2, col3, col4, col5 = st.columns([1, 4, 1, 1, 1])
+                        # 添加密钥项容器
+                        st.markdown('<div class="key-item-container">', unsafe_allow_html=True)
+
+                        col1, col2, col3, col4 = st.columns([1, 4, 1.5, 1])
 
                         with col1:
                             st.markdown(f"**#{key_info['id']}**")
@@ -656,6 +701,10 @@ elif page == "密钥管理":
                                 st.caption(f"创建于: {created_date}")
 
                         with col3:
+                            # 状态操作区域，使用垂直布局
+                            st.markdown('<div class="status-action-area">', unsafe_allow_html=True)
+
+                            # 状态显示
                             if key_info['status'] == 1:
                                 st.markdown('<div class="status-indicator status-active">激活</div>',
                                             unsafe_allow_html=True)
@@ -663,7 +712,8 @@ elif page == "密钥管理":
                                 st.markdown('<div class="status-indicator status-inactive">禁用</div>',
                                             unsafe_allow_html=True)
 
-                        with col4:
+                            st.markdown('</div>', unsafe_allow_html=True)
+
                             # 状态切换按钮
                             toggle_text = "禁用" if key_info['status'] == 1 else "激活"
                             if st.button(toggle_text, key=f"toggle_gemini_{key_info['id']}", use_container_width=True):
@@ -675,7 +725,7 @@ elif page == "密钥管理":
                                 else:
                                     st.error("状态更新失败")
 
-                        with col5:
+                        with col4:
                             # 删除按钮，使用确认对话框
                             delete_key_id = f"delete_gemini_{key_info['id']}"
                             if delete_key_id not in st.session_state:
@@ -708,8 +758,8 @@ elif page == "密钥管理":
                                     st.session_state[delete_key_id] = True
                                     st.rerun()
 
-                        if i < len(gemini_keys) - 1:
-                            st.markdown("---")
+                        # 关闭密钥项容器
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # 统计信息
                 with st.expander("统计信息", expanded=False):
@@ -787,7 +837,10 @@ print(response.choices[0].message.content)
                 # 显示用户密钥列表
                 for i, key_info in enumerate(user_keys):
                     with st.container():
-                        col1, col2, col3, col4, col5 = st.columns([1, 3, 2, 1, 1])
+                        # 添加密钥项容器
+                        st.markdown('<div class="key-item-container">', unsafe_allow_html=True)
+
+                        col1, col2, col3, col4 = st.columns([1, 3, 2, 1])
 
                         with col1:
                             st.markdown(f"**#{key_info['id']}**")
@@ -807,6 +860,9 @@ print(response.choices[0].message.content)
                                 st.caption(f"创建于: {created_date}")
 
                         with col3:
+                            # 状态操作区域，使用垂直布局
+                            st.markdown('<div class="status-action-area">', unsafe_allow_html=True)
+
                             # 显示最后使用时间
                             if key_info.get('last_used'):
                                 last_used = key_info['last_used'][:16] if len(key_info['last_used']) > 16 else key_info[
@@ -815,7 +871,7 @@ print(response.choices[0].message.content)
                             else:
                                 st.caption("从未使用")
 
-                        with col4:
+                            # 状态显示
                             if key_info['status'] == 1:
                                 st.markdown('<div class="status-indicator status-active">激活</div>',
                                             unsafe_allow_html=True)
@@ -823,7 +879,9 @@ print(response.choices[0].message.content)
                                 st.markdown('<div class="status-indicator status-inactive">停用</div>',
                                             unsafe_allow_html=True)
 
-                            # 切换状态按钮
+                            st.markdown('</div>', unsafe_allow_html=True)
+
+                            # 在状态下方放置切换按钮
                             toggle_text = "停用" if key_info['status'] == 1 else "激活"
                             if st.button(toggle_text, key=f"toggle_user_{key_info['id']}", use_container_width=True):
                                 if toggle_key_status('user', key_info['id']):
@@ -834,7 +892,7 @@ print(response.choices[0].message.content)
                                 else:
                                     st.error("状态更新失败")
 
-                        with col5:
+                        with col4:
                             # 删除按钮，使用确认对话框
                             delete_key_id = f"delete_user_{key_info['id']}"
                             if delete_key_id not in st.session_state:
@@ -867,8 +925,8 @@ print(response.choices[0].message.content)
                                     st.session_state[delete_key_id] = True
                                     st.rerun()
 
-                        if i < len(user_keys) - 1:
-                            st.markdown("---")
+                        # 关闭密钥项容器
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # 统计信息
                 with st.expander("统计信息", expanded=False):
