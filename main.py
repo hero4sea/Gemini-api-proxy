@@ -6,6 +6,7 @@ import json
 import os
 import time
 import threading
+import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 import schedule
@@ -18,6 +19,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- 日志配置 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # --- API配置 ---
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
@@ -25,42 +33,145 @@ if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
 
 
-# --- 保活机制 ---
-def keep_alive_task():
-    """保活任务，每14分钟执行一次"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/wake", timeout=10)
-        if response.status_code == 200:
-            print(f"[{datetime.now()}] Keep-alive ping sent successfully")
-    except Exception as e:
-        print(f"[{datetime.now()}] Keep-alive ping failed: {e}")
+# --- 改进的保活机制 ---
+class KeepAliveManager:
+    def __init__(self):
+        self.scheduler_thread = None
+        self.is_running = False
+        self.render_url = os.getenv('RENDER_EXTERNAL_URL')
+        self.backend_url = API_BASE_URL
 
+    def keep_alive_backend(self):
+        """保活后端API服务"""
+        try:
+            response = requests.get(f"{self.backend_url}/wake", timeout=10)
+            if response.status_code == 200:
+                logger.info("Backend keep-alive ping sent successfully")
+                return True
+        except Exception as e:
+            logger.warning(f"Backend keep-alive ping failed: {e}")
+            return False
 
-def start_keep_alive_scheduler():
-    """启动保活调度器（仅在Render环境）"""
-    # 只在Render环境启用保活
-    if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
-        # 设置每14分钟执行一次
-        schedule.every(14).minutes.do(keep_alive_task)
+    def keep_alive_frontend(self):
+        """保活前端服务（如果在Render环境）"""
+        if not self.render_url:
+            return True
 
-        # 立即执行一次
-        keep_alive_task()
+        try:
+            # 向自己发送请求保活
+            response = requests.get(f"{self.render_url}/", timeout=10)
+            if response.status_code == 200:
+                logger.info("Frontend keep-alive ping sent successfully")
+                return True
+        except Exception as e:
+            logger.warning(f"Frontend keep-alive ping failed: {e}")
+            return False
 
-        # 在后台线程中运行调度器
-        def run_scheduler():
-            while True:
+    def combined_keep_alive_task(self):
+        """组合保活任务"""
+        logger.info("Executing keep-alive tasks...")
+
+        # 保活后端
+        backend_success = self.keep_alive_backend()
+
+        # 保活前端（仅在Render环境）
+        frontend_success = True
+        if self.render_url:
+            frontend_success = self.keep_alive_frontend()
+
+        # 记录结果
+        if backend_success and frontend_success:
+            logger.info("✅ Keep-alive tasks completed successfully")
+        else:
+            logger.warning(f"⚠️ Keep-alive partial failure - Backend: {backend_success}, Frontend: {frontend_success}")
+
+    def run_scheduler_loop(self):
+        """调度器循环（运行在后台线程）"""
+        while self.is_running:
+            try:
                 schedule.run_pending()
                 time.sleep(60)  # 每分钟检查一次
+            except Exception as e:
+                logger.error(f"Scheduler loop error: {e}")
+                time.sleep(60)
 
-        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-        scheduler_thread.start()
-        print(f"[{datetime.now()}] Keep-alive scheduler started")
+    def start_keep_alive_scheduler(self):
+        """启动保活调度器"""
+        # 检测是否为Render环境或需要保活的环境
+        need_keepalive = (
+                self.render_url or  # Render环境
+                'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', '') or  # Streamlit Cloud
+                os.getenv('ENABLE_KEEPALIVE', '').lower() == 'true'  # 手动启用
+        )
+
+        if not need_keepalive:
+            logger.info("Keep-alive not needed in current environment")
+            return False
+
+        if self.is_running:
+            logger.warning("Keep-alive scheduler already running")
+            return False
+
+        try:
+            # 设置每14分钟执行一次（在15分钟睡眠前保持唤醒）
+            schedule.every(14).minutes.do(self.combined_keep_alive_task)
+
+            # 立即执行一次
+            self.combined_keep_alive_task()
+
+            # 启动后台线程
+            self.is_running = True
+            self.scheduler_thread = threading.Thread(
+                target=self.run_scheduler_loop,
+                daemon=True,
+                name="KeepAliveScheduler"
+            )
+            self.scheduler_thread.start()
+
+            logger.info("🔄 Keep-alive scheduler started (14min interval)")
+
+            # 记录环境信息
+            if self.render_url:
+                logger.info(f"📡 Render URL detected: {self.render_url}")
+            logger.info(f"🎯 Backend URL: {self.backend_url}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to start keep-alive scheduler: {e}")
+            self.is_running = False
+            return False
+
+    def stop_scheduler(self):
+        """停止调度器"""
+        if self.is_running:
+            self.is_running = False
+            schedule.clear()  # 清除所有定时任务
+            logger.info("Keep-alive scheduler stopped")
+
+    def get_status(self):
+        """获取保活状态"""
+        return {
+            'running': self.is_running,
+            'render_url': self.render_url,
+            'backend_url': self.backend_url,
+            'thread_alive': self.scheduler_thread.is_alive() if self.scheduler_thread else False,
+            'scheduled_jobs': len(schedule.jobs)
+        }
 
 
-# 初始化保活机制
+# 全局保活管理器
+if 'keep_alive_manager' not in st.session_state:
+    st.session_state.keep_alive_manager = KeepAliveManager()
+
+# 启动保活机制（只启动一次）
 if 'keep_alive_started' not in st.session_state:
     st.session_state.keep_alive_started = True
-    start_keep_alive_scheduler()
+    success = st.session_state.keep_alive_manager.start_keep_alive_scheduler()
+    if success:
+        logger.info("🚀 Keep-alive system initialized")
+    else:
+        logger.info("ℹ️ Keep-alive system not started (not needed or failed)")
 
 
 # --- API调用函数 ---
@@ -453,6 +564,22 @@ with st.sidebar:
 
     st.markdown("---")
 
+    # 保活状态显示
+    st.markdown("#### 保活状态")
+    keep_alive_status = st.session_state.keep_alive_manager.get_status()
+
+    if keep_alive_status['running']:
+        st.success("保活激活")
+        with st.expander("保活详情"):
+            st.text(f"调度任务: {keep_alive_status['scheduled_jobs']}")
+            st.text(f"线程状态: {'运行中' if keep_alive_status['thread_alive'] else '已停止'}")
+            if keep_alive_status['render_url']:
+                st.text(f"Render环境: 是")
+            else:
+                st.text(f"本地环境: 是")
+    else:
+        st.info("保活未启用")
+
     # 快速统计
     st.markdown("#### 系统概览")
     status_data = get_cached_status()
@@ -697,7 +824,7 @@ elif page == "密钥管理":
                             # 显示创建时间
                             if 'created_at' in key_info:
                                 created_date = key_info['created_at'][:10] if len(key_info['created_at']) > 10 else \
-                                key_info['created_at']
+                                    key_info['created_at']
                                 st.caption(f"创建于: {created_date}")
 
                         with col3:
@@ -856,7 +983,7 @@ print(response.choices[0].message.content)
                             # 显示创建时间
                             if 'created_at' in key_info:
                                 created_date = key_info['created_at'][:10] if len(key_info['created_at']) > 10 else \
-                                key_info['created_at']
+                                    key_info['created_at']
                                 st.caption(f"创建于: {created_date}")
 
                         with col3:
@@ -1046,7 +1173,7 @@ elif page == "系统设置":
         st.error("无法获取配置数据")
         st.stop()
 
-    tab1, tab2, tab3 = st.tabs(["思考模式", "提示词注入", "系统信息"])
+    tab1, tab2, tab3, tab4 = st.tabs(["思考模式", "提示词注入", "保活管理", "系统信息"])
 
     with tab1:
         st.markdown("### 思考模式配置")
@@ -1211,6 +1338,91 @@ elif page == "系统设置":
                 st.metric("内容预览", content_preview if content_preview else "无")
 
     with tab3:
+        st.markdown("### 保活管理")
+        st.markdown("监控和管理服务保活机制，防止Render等平台的服务休眠。")
+
+        # 获取保活状态
+        keep_alive_status = st.session_state.keep_alive_manager.get_status()
+
+        # 状态显示
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            status_text = "运行中" if keep_alive_status['running'] else "已停止"
+            status_color = "normal" if keep_alive_status['running'] else "inverse"
+            st.metric("保活状态", status_text)
+
+        with col2:
+            thread_status = "活跃" if keep_alive_status['thread_alive'] else "停止"
+            st.metric("后台线程", thread_status)
+
+        with col3:
+            st.metric("调度任务数", keep_alive_status['scheduled_jobs'])
+
+        # 详细信息
+        with st.expander("详细信息", expanded=True):
+            st.markdown("#### 环境检测")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if keep_alive_status['render_url']:
+                    st.success(f"✅ Render环境")
+                    st.text(f"URL: {keep_alive_status['render_url']}")
+                else:
+                    st.info("ℹ️ 本地环境")
+
+            with col2:
+                st.text(f"后端地址: {keep_alive_status['backend_url']}")
+
+                # 手动保活测试
+                if st.button("🔄 立即执行保活", help="手动触发一次保活测试"):
+                    with st.spinner("执行保活任务..."):
+                        st.session_state.keep_alive_manager.combined_keep_alive_task()
+                    st.success("保活任务执行完成！")
+
+        # 保活控制
+        st.markdown("#### 保活控制")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if not keep_alive_status['running']:
+                if st.button("🚀 启动保活", type="primary", use_container_width=True):
+                    success = st.session_state.keep_alive_manager.start_keep_alive_scheduler()
+                    if success:
+                        st.success("保活服务已启动！")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("启动失败！")
+
+        with col2:
+            if keep_alive_status['running']:
+                if st.button("🛑 停止保活", type="secondary", use_container_width=True):
+                    st.session_state.keep_alive_manager.stop_scheduler()
+                    st.success("保活服务已停止！")
+                    time.sleep(1)
+                    st.rerun()
+
+        # 保活说明
+        with st.expander("保活机制说明"):
+            st.markdown("""
+            **保活机制工作原理：**
+
+            1. **自动检测环境**：检测是否运行在Render等需要保活的平台
+            2. **定时任务**：每14分钟自动执行保活任务（避免15分钟休眠）
+            3. **双重保活**：
+               - 前端保活：向前端服务发送请求
+               - 后端保活：向后端API发送请求
+            4. **智能重试**：失败时自动重试，确保服务稳定
+
+            **适用场景：**
+            - ✅ Render免费层部署
+            - ✅ Streamlit Cloud部署  
+            - ✅ 其他有休眠机制的平台
+            - ❌ 本地开发环境（自动跳过）
+            """)
+
+    with tab4:
         st.markdown("### 系统信息")
 
         col1, col2 = st.columns(2)
@@ -1243,6 +1455,23 @@ elif page == "系统设置":
             uptime = status_data.get('uptime_seconds', 0)
             uptime_hours = uptime / 3600
             st.metric("运行时间", f"{uptime_hours:.1f} 小时")
+
+        # 保活状态集成显示
+        st.markdown("### 保活集成状态")
+        keep_alive_info = st.session_state.keep_alive_manager.get_status()
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            frontend_status = "运行中" if keep_alive_info['running'] else "已停止"
+            st.metric("前端保活", frontend_status)
+
+        with col2:
+            backend_status = "激活" if status_data.get('keep_alive_active', False) else "未激活"
+            st.metric("后端保活", backend_status)
+
+        with col3:
+            total_jobs = keep_alive_info['scheduled_jobs'] + (1 if status_data.get('keep_alive_active', False) else 0)
+            st.metric("总保活任务", total_jobs)
 
 # --- 页脚 ---
 st.markdown(
