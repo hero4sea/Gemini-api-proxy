@@ -1456,23 +1456,6 @@ elif page == "系统设置":
             uptime_hours = uptime / 3600
             st.metric("运行时间", f"{uptime_hours:.1f} 小时")
 
-        # 保活状态集成显示
-        st.markdown("### 保活集成状态")
-        keep_alive_info = st.session_state.keep_alive_manager.get_status()
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            frontend_status = "运行中" if keep_alive_info['running'] else "已停止"
-            st.metric("前端保活", frontend_status)
-
-        with col2:
-            backend_status = "激活" if status_data.get('keep_alive_active', False) else "未激活"
-            st.metric("后端保活", backend_status)
-
-        with col3:
-            total_jobs = keep_alive_info['scheduled_jobs'] + (1 if status_data.get('keep_alive_active', False) else 0)
-            st.metric("总保活任务", total_jobs)
-
 # --- 页脚 ---
 st.markdown(
     f"""
