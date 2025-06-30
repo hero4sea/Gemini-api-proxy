@@ -672,7 +672,8 @@ async def stream_gemini_response(
                         error_text = await response.aread()
                         error_msg = error_text.decode() if error_text else "Unknown error"
                         logger.error(f"Stream request failed with status {response.status_code}: {error_msg}")
-                        yield f"data: {json.dumps({'error': {'message': error_msg, 'type': 'api_error', 'code': response.status_code}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                        yield f"data: {json.dumps({'error': {'message': error_msg, 'type': 'api_error', 'code': response.status_code}}, ensure_ascii=False)}\n\n".encode(
+                            'utf-8')
                         yield "data: [DONE]\n\n".encode('utf-8')
                         return
 
@@ -746,7 +747,8 @@ async def stream_gemini_response(
                                                             "finish_reason": None
                                                         }]
                                                     }
-                                                    yield f"data: {json.dumps(thinking_header, ensure_ascii=False)}\n\n".encode('utf-8')
+                                                    yield f"data: {json.dumps(thinking_header, ensure_ascii=False)}\n\n".encode(
+                                                        'utf-8')
                                                     thinking_sent = True
                                                     logger.debug("Sent thinking header")
                                                 elif not is_thought and thinking_sent:
@@ -761,7 +763,8 @@ async def stream_gemini_response(
                                                             "finish_reason": None
                                                         }]
                                                     }
-                                                    yield f"data: {json.dumps(response_header, ensure_ascii=False)}\n\n".encode('utf-8')
+                                                    yield f"data: {json.dumps(response_header, ensure_ascii=False)}\n\n".encode(
+                                                        'utf-8')
                                                     thinking_sent = False
                                                     logger.debug("Sent response header")
 
@@ -777,7 +780,8 @@ async def stream_gemini_response(
                                                         "finish_reason": None
                                                     }]
                                                 }
-                                                yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n".encode('utf-8')
+                                                yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n".encode(
+                                                    'utf-8')
 
                                         # 检查是否结束
                                         finish_reason = candidate.get("finishReason")
@@ -793,7 +797,8 @@ async def stream_gemini_response(
                                                     "finish_reason": map_finish_reason(finish_reason)
                                                 }]
                                             }
-                                            yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode('utf-8')
+                                            yield f"data: {json.dumps(finish_chunk, ensure_ascii=False)}\n\n".encode(
+                                                'utf-8')
                                             yield "data: [DONE]\n\n".encode('utf-8')
 
                                             logger.info(
@@ -882,7 +887,8 @@ async def stream_gemini_response(
 
                             except Exception as e:
                                 logger.error(f"Fallback request failed: {e}")
-                                yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                                yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode(
+                                    'utf-8')
 
                         # 记录使用量
                         await rate_limiter.add_usage(model_name, 1, total_tokens)
@@ -892,22 +898,26 @@ async def stream_gemini_response(
                     except (httpx.ReadError, httpx.RemoteProtocolError) as e:
                         logger.warning(f"Stream connection error (attempt {attempt + 1}): {str(e)}")
                         if attempt < max_retries - 1:
-                            yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                            yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
+                                'utf-8')
                             await asyncio.sleep(1)
                             continue
                         else:
-                            yield f"data: {json.dumps({'error': {'message': 'Stream connection failed after retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                            yield f"data: {json.dumps({'error': {'message': 'Stream connection failed after retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
+                                'utf-8')
                             yield "data: [DONE]\n\n".encode('utf-8')
                             return
 
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             logger.warning(f"Connection error (attempt {attempt + 1}): {str(e)}")
             if attempt < max_retries - 1:
-                yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
+                    'utf-8')
                 await asyncio.sleep(2 ** attempt)
                 continue
             else:
-                yield f"data: {json.dumps({'error': {'message': 'Connection failed after all retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps({'error': {'message': 'Connection failed after all retries', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
+                    'utf-8')
                 yield "data: [DONE]\n\n".encode('utf-8')
                 return
         except Exception as e:
@@ -916,7 +926,8 @@ async def stream_gemini_response(
                 await asyncio.sleep(1)
                 continue
             else:
-                yield f"data: {json.dumps({'error': {'message': 'Unexpected error occurred', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps({'error': {'message': 'Unexpected error occurred', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode(
+                    'utf-8')
                 yield "data: [DONE]\n\n".encode('utf-8')
                 return
 
@@ -1000,6 +1011,70 @@ async def get_metrics():
         "uptime_seconds": int(time.time() - start_time),
         "requests_count": request_count,
         "database_size_mb": os.path.getsize(db.db_path) / 1024 / 1024 if os.path.exists(db.db_path) else 0
+    }
+
+
+@app.get("/v1")
+async def api_v1_info():
+    """v1 API 信息端点 - 提供 API 版本信息和可用端点"""
+    available_keys = len(db.get_available_gemini_keys())
+    supported_models = db.get_supported_models()
+    thinking_config = db.get_thinking_config()
+
+    # 获取当前服务的基础URL
+    render_url = os.getenv('RENDER_EXTERNAL_URL')
+    base_url = render_url if render_url else 'https://your-service.onrender.com'
+
+    return {
+        "service": "Gemini API Proxy",
+        "version": "1.0.0",
+        "api_version": "v1",
+        "compatibility": "OpenAI API v1",
+        "description": "A high-performance proxy for Gemini API with OpenAI compatibility and multi-key polling",
+        "status": "operational",
+        "base_url": base_url,
+        "features": [
+            "Multi-key polling & load balancing",
+            "OpenAI API compatibility",
+            "Rate limiting & usage analytics",
+            "Thinking mode support",
+            "Streaming responses",
+            "Automatic failover",
+            "Real-time monitoring"
+        ],
+        "endpoints": {
+            "chat_completions": "/v1/chat/completions",
+            "models": "/v1/models",
+            "api_info": "/v1",
+            "health": "/health",
+            "status": "/status",
+            "admin": "/admin/*",
+            "docs": "/docs"
+        },
+        "supported_models": supported_models,
+        "service_status": {
+            "active_gemini_keys": available_keys,
+            "thinking_enabled": thinking_config.get('enabled', False),
+            "thinking_budget": thinking_config.get('budget', -1),
+            "uptime_seconds": int(time.time() - start_time),
+            "total_requests": request_count
+        },
+        "documentation": {
+            "openapi_json": "/openapi.json",
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "github": "https://github.com/your-repo/gemini-api-proxy"
+        },
+        "example_usage": {
+            "curl": f"curl -X POST '{base_url}/v1/chat/completions' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{{\n    \"model\": \"gemini-2.5-flash\",\n    \"messages\": [{{\"role\": \"user\", \"content\": \"Hello!\"}}]\n  }}'",
+            "python": f"import openai\n\nclient = openai.OpenAI(\n    api_key='YOUR_API_KEY',\n    base_url='{base_url}/v1'\n)\n\nresponse = client.chat.completions.create(\n    model='gemini-2.5-flash',\n    messages=[{{'role': 'user', 'content': 'Hello!'}}]\n)",
+            "javascript": f"import OpenAI from 'openai';\n\nconst openai = new OpenAI({{\n  apiKey: 'YOUR_API_KEY',\n  baseURL: '{base_url}/v1'\n}});\n\nconst response = await openai.chat.completions.create({{\n  model: 'gemini-2.5-flash',\n  messages: [{{ role: 'user', content: 'Hello!' }}]\n}});"
+        },
+        "rate_limits": {
+            "info": "Limits scale with number of active Gemini API keys",
+            "check_admin": "/admin/models for current limits"
+        },
+        "timestamp": datetime.now().isoformat()
     }
 
 
