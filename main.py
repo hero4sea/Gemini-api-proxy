@@ -443,37 +443,31 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 500;
         line-height: 1;
-        border: none;
     }
 
     .status-healthy {
         background: #d1fae5;
         color: #065f46;
-        border: none;
     }
 
     .status-unhealthy {
         background: #fee2e2;
         color: #991b1b;
-        border: none;
     }
 
     .status-unknown {
         background: #fef3c7;
         color: #92400e;
-        border: none;
     }
 
     .status-active {
         background: #dbeafe;
         color: #1e40af;
-        border: none;
     }
 
     .status-inactive {
         background: #f3f4f6;
         color: #6b7280;
-        border: none;
     }
 
     /* 输入框样式 */
@@ -682,12 +676,78 @@ st.markdown("""
         color: #374151;
     }
 
-    /* 修复所有信息框的边框问题 */
-    .info-box {
+    /* ==================== 修复 Streamlit 消息组件边框问题 ==================== */
+
+    /* 修复所有 Streamlit Alert 组件的边框 */
+    [data-testid="stAlert"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 修复具体的消息类型 */
+    [data-testid="stAlert"][kind="info"] {
+        border: none !important;
+        background: #dbeafe !important;
+        color: #1e40af !important;
+    }
+
+    [data-testid="stAlert"][kind="success"] {
+        border: none !important;
+        background: #d1fae5 !important;
+        color: #065f46 !important;
+    }
+
+    [data-testid="stAlert"][kind="warning"] {
+        border: none !important;
+        background: #fef3c7 !important;
+        color: #92400e !important;
+    }
+
+    [data-testid="stAlert"][kind="error"] {
+        border: none !important;
+        background: #fee2e2 !important;
+        color: #991b1b !important;
+    }
+
+    /* 修复 Alert 内部元素 */
+    [data-testid="stAlert"] > div {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 修复可能的子元素 */
+    [data-testid="stAlert"] * {
         border: none !important;
     }
 
-    /* 修复气泡框边框 */
+    /* 如果还有其他消息框组件 */
+    [data-testid="stSuccess"],
+    [data-testid="stInfo"], 
+    [data-testid="stWarning"],
+    [data-testid="stError"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 修复任何可能的边框样式 */
+    .stAlert, 
+    .st-alert,
+    div[role="alert"] {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 强制移除所有可能的边框 */
+    .stAlert *,
+    .st-alert *,
+    [data-testid="stAlert"] *,
+    div[role="alert"] * {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* 修复气泡框边框（针对内联样式） */
     div[style*="background: #dbeafe"],
     div[style*="background: #d1fae5"],
     div[style*="background: #fee2e2"],
@@ -1191,9 +1251,9 @@ elif page == "模型配置":
         st.warning("暂无可用模型")
         st.stop()
 
-    # 修复：添加 border: none 到内联样式
+    # 使用内联样式移除黑色边框
     st.markdown(
-        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem;">'
         '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
         '</div>',
         unsafe_allow_html=True
@@ -1276,14 +1336,7 @@ elif page == "系统设置":
 
     with tab1:
         st.markdown("#### 思考模式配置")
-
-        # 修复：信息框添加 border: none
-        st.markdown(
-            '<div style="background: #f0f9ff; color: #0c4a6e; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
-            '启用推理功能以提高复杂查询的响应质量'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown("启用推理功能以提高复杂查询的响应质量")
 
         thinking_config = stats_data.get('thinking_config', {})
 
@@ -1336,14 +1389,7 @@ elif page == "系统设置":
 
     with tab2:
         st.markdown("#### 提示词注入")
-
-        # 修复：信息框添加 border: none
-        st.markdown(
-            '<div style="background: #fefbf3; color: #92400e; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
-            '为所有请求自动添加自定义指令'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown("为所有请求自动添加自定义指令")
 
         inject_config = stats_data.get('inject_config', {})
 
@@ -1389,14 +1435,7 @@ elif page == "系统设置":
 
     with tab3:
         st.markdown("#### 负载均衡策略")
-
-        # 修复：信息框添加 border: none
-        st.markdown(
-            '<div style="background: #f0fdf4; color: #166534; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
-            '优化 API Key 选择策略'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown("优化 API Key 选择策略")
 
         # 获取当前策略
         all_configs = call_api('/admin/config')
@@ -1429,26 +1468,14 @@ elif page == "系统设置":
                 index=list(strategy_options.keys()).index(current_strategy)
             )
 
-            st.markdown(
-                f'<div style="background: #f9fafb; color: #374151; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; border: none;">'
-                f'{strategy_descriptions[strategy]}'
-                '</div>',
-                unsafe_allow_html=True
-            )
+            st.info(strategy_descriptions[strategy])
 
             if st.form_submit_button("保存策略", type="primary", use_container_width=True):
                 st.success(f"策略已更新为: {strategy_options[strategy]}")
 
     with tab4:
         st.markdown("#### 保活管理")
-
-        # 修复：信息框添加 border: none
-        st.markdown(
-            '<div style="background: #fef2f2; color: #991b1b; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
-            '防止服务休眠，适用于免费托管环境'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown("防止服务休眠")
 
         keep_alive_status = st.session_state.keep_alive_manager.get_status()
 
@@ -1502,7 +1529,7 @@ elif page == "系统设置":
 # --- 页脚 ---
 st.markdown(
     f"""
-    <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb; border: none;'>
+    <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #6b7280; text-decoration: none;'>健康检查</a> · 
         <span style='color: #9ca3af;'>{API_BASE_URL}</span> ·
         <span style='color: #9ca3af;'>v1.1</span>
