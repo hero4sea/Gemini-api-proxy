@@ -2,8 +2,6 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-[![QQ群](https://img.shields.io/badge/QQ群-1055274821-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
-
 一个专为**Gemini多Key轮询**设计的 Gemini API 代理服务，通过智能轮询多个 API Key 突破单Key限制，提供 OpenAI 兼容接口和完整的管理界面。无需服务器，一键免费部署到 Render 平台，立即获得公网访问地址。
 
 > 🔥 **核心价值：N个Key = N倍限制！** 
@@ -285,9 +283,13 @@ streamlit run main.py
 
 ## 未来优化方向
 API Key 加密存储 - 当前明文存储存在一定安全风险
+
 数据持久化方案 - 解决 Render 重启丢失数据问题
+
 自动 Key 健康检测 - 检查到 Key 连续三天失效自动移至移除区
+
 优化 Key 使用策略 - 自适应负载均衡，选择最优配置
+
 **确保部署保证简单与免费的特性**
 
 ## 📄 许可证
