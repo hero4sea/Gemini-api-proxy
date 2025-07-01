@@ -68,11 +68,6 @@ envVarGroups:
       - key: LC_ALL
         value: en_US.UTF-8
 
-# 预览环境配置（PR预览）
-previews:
-  generation: automatic  # 自动为PR创建预览环境
-  expireAfterDays: 7     # 7天后自动清理
-
 # 可选：数据库配置（如果需要PostgreSQL替代SQLite）
 # databases:
 #   - name: gemini-proxy-db
