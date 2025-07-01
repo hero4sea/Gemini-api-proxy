@@ -189,6 +189,56 @@ async def keep_alive():
         logger.warning(f"Keep-alive ping failed: {e}")
 
 
+# 健康检测功能
+async def check_gemini_key_health(api_key: str, timeout: int = 10) -> Dict[str, Any]:
+    """检测单个Gemini Key的健康状态"""
+    test_request = {
+        "contents": [{"role": "user", "parts": [{"text": "Test"}]}],
+        "generationConfig": {"maxOutputTokens": 1}
+    }
+
+    start_time = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                json=test_request,
+                headers={"x-goog-api-key": api_key}
+            )
+
+        response_time = time.time() - start_time
+
+        if response.status_code == 200:
+            return {
+                "healthy": True,
+                "response_time": response_time,
+                "status_code": response.status_code,
+                "error": None
+            }
+        else:
+            return {
+                "healthy": False,
+                "response_time": response_time,
+                "status_code": response.status_code,
+                "error": f"HTTP {response.status_code}"
+            }
+
+    except asyncio.TimeoutError:
+        return {
+            "healthy": False,
+            "response_time": timeout,
+            "status_code": None,
+            "error": "Timeout"
+        }
+    except Exception as e:
+        return {
+            "healthy": False,
+            "response_time": time.time() - start_time,
+            "status_code": None,
+            "error": str(e)
+        }
+
+
 # 全局变量
 db = Database()
 rate_limiter = RateLimitCache()
@@ -540,7 +590,7 @@ def map_finish_reason(gemini_reason: str) -> str:
 
 
 async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
-    """选择可用的Gemini Key并检查模型限制"""
+    """自适应选择可用的Gemini Key并检查模型限制"""
     available_keys = db.get_available_gemini_keys()
 
     if not available_keys:
@@ -574,17 +624,38 @@ async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
             f"Model {model_name} has reached daily request limit: {day_usage['requests']}/{model_config['total_rpd_limit']}")
         return None
 
-    # 负载均衡策略选择Key
-    strategy = db.get_config('load_balance_strategy', 'least_used')
+    # 自适应策略选择Key
+    strategy = db.get_config('load_balance_strategy', 'adaptive')
 
     if strategy == 'round_robin':
         # 简单轮询，选择第一个可用的
         selected_key = available_keys[0]
-    else:
-        # least_used策略，选择最少使用的Key（基于Key ID的使用分布）
+    elif strategy == 'least_used':
+        # 选择使用量最少的Key（基于Key ID的使用分布）
         selected_key = available_keys[0]
+    else:  # adaptive strategy
+        # 自适应策略：综合考虑成功率、响应时间、使用率
+        best_key = None
+        best_score = -1
 
-    logger.info(f"Selected API key #{selected_key['id']} for model {model_name}")
+        for key_info in available_keys:
+            # 计算综合得分
+            success_rate = key_info.get('success_rate', 1.0)
+            avg_response_time = key_info.get('avg_response_time', 0.0)
+
+            # 响应时间得分（越低越好，转换为0-1分数）
+            time_score = max(0, 1.0 - (avg_response_time / 10.0))  # 假设10秒为最差响应时间
+
+            # 综合得分：成功率权重0.7，响应时间权重0.3
+            score = success_rate * 0.7 + time_score * 0.3
+
+            if score > best_score:
+                best_score = score
+                best_key = key_info
+
+        selected_key = best_key if best_key else available_keys[0]
+
+    logger.info(f"Selected API key #{selected_key['id']} for model {model_name} (strategy: {strategy})")
 
     # 返回选中的Key和模型配置
     return {
@@ -595,14 +666,16 @@ async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
 
 async def make_gemini_request_with_retry(
         gemini_key: str,
+        key_id: int,
         gemini_request: Dict,
         model_name: str,
         max_retries: int = 3
 ) -> Dict:
-    """带重试的Gemini API请求"""
+    """带重试的Gemini API请求，记录性能指标"""
     timeout = float(db.get_config('request_timeout', '60'))
 
     for attempt in range(max_retries):
+        start_time = time.time()
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
@@ -613,9 +686,15 @@ async def make_gemini_request_with_retry(
                     headers={"x-goog-api-key": gemini_key}
                 )
 
+                response_time = time.time() - start_time
+
                 if response.status_code == 200:
+                    # 记录成功的性能指标
+                    db.update_key_performance(key_id, True, response_time)
                     return response.json()
                 else:
+                    # 记录失败的性能指标
+                    db.update_key_performance(key_id, False, response_time)
                     error_detail = response.json() if response.content else {"error": {"message": "Unknown error"}}
                     if attempt == max_retries - 1:  # 最后一次尝试
                         raise HTTPException(
@@ -628,6 +707,8 @@ async def make_gemini_request_with_retry(
                         continue
 
         except httpx.TimeoutException as e:
+            response_time = time.time() - start_time
+            db.update_key_performance(key_id, False, response_time)
             if attempt == max_retries - 1:
                 raise HTTPException(status_code=504, detail="Request timeout")
             else:
@@ -635,6 +716,8 @@ async def make_gemini_request_with_retry(
                 await asyncio.sleep(2 ** attempt)
                 continue
         except Exception as e:
+            response_time = time.time() - start_time
+            db.update_key_performance(key_id, False, response_time)
             if attempt == max_retries - 1:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
@@ -647,17 +730,20 @@ async def make_gemini_request_with_retry(
 
 async def stream_gemini_response(
         gemini_key: str,
+        key_id: int,
         gemini_request: Dict,
         openai_request: ChatCompletionRequest,
         key_info: Dict,
         model_name: str
 ) -> AsyncGenerator[bytes, None]:
-    """处理Gemini的流式响应"""
+    """处理Gemini的流式响应，记录性能指标"""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse"
     timeout = float(db.get_config('request_timeout', '60'))
     max_retries = int(db.get_config('max_retries', '3'))
 
     logger.info(f"Starting stream request to: {url}")
+
+    start_time = time.time()
 
     for attempt in range(max_retries):
         try:
@@ -669,6 +755,10 @@ async def stream_gemini_response(
                         headers={"x-goog-api-key": gemini_key}
                 ) as response:
                     if response.status_code != 200:
+                        # 记录失败
+                        response_time = time.time() - start_time
+                        db.update_key_performance(key_id, False, response_time)
+
                         error_text = await response.aread()
                         error_msg = error_text.decode() if error_text else "Unknown error"
                         logger.error(f"Stream request failed with status {response.status_code}: {error_msg}")
@@ -804,7 +894,9 @@ async def stream_gemini_response(
                                             logger.info(
                                                 f"Stream completed with finish_reason: {finish_reason}, tokens: {total_tokens}")
 
-                                            # 记录使用量
+                                            # 记录成功的使用量和性能指标
+                                            response_time = time.time() - start_time
+                                            db.update_key_performance(key_id, True, response_time)
                                             await rate_limiter.add_usage(model_name, 1, total_tokens)
                                             return
 
@@ -839,13 +931,17 @@ async def stream_gemini_response(
                             logger.info(
                                 f"Stream ended naturally, processed {processed_lines} lines, tokens: {total_tokens}")
 
+                            # 记录成功的性能指标
+                            response_time = time.time() - start_time
+                            db.update_key_performance(key_id, True, response_time)
+
                         # 如果确实没有收到任何内容，才回退
                         if not has_content:
                             logger.warning(
                                 f"Stream response had no content after processing {processed_lines} lines, falling back to non-stream")
                             try:
                                 fallback_response = await make_gemini_request_with_retry(
-                                    gemini_key, gemini_request, model_name, 1
+                                    gemini_key, key_id, gemini_request, model_name, 1
                                 )
 
                                 thoughts, content = extract_thoughts_and_content(fallback_response)
@@ -887,6 +983,8 @@ async def stream_gemini_response(
 
                             except Exception as e:
                                 logger.error(f"Fallback request failed: {e}")
+                                response_time = time.time() - start_time
+                                db.update_key_performance(key_id, False, response_time)
                                 yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode(
                                     'utf-8')
 
@@ -897,6 +995,8 @@ async def stream_gemini_response(
 
                     except (httpx.ReadError, httpx.RemoteProtocolError) as e:
                         logger.warning(f"Stream connection error (attempt {attempt + 1}): {str(e)}")
+                        response_time = time.time() - start_time
+                        db.update_key_performance(key_id, False, response_time)
                         if attempt < max_retries - 1:
                             yield f"data: {json.dumps({'error': {'message': 'Connection interrupted, retrying...', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
                                 'utf-8')
@@ -910,6 +1010,8 @@ async def stream_gemini_response(
 
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             logger.warning(f"Connection error (attempt {attempt + 1}): {str(e)}")
+            response_time = time.time() - start_time
+            db.update_key_performance(key_id, False, response_time)
             if attempt < max_retries - 1:
                 yield f"data: {json.dumps({'error': {'message': f'Connection error, retrying... (attempt {attempt + 1})', 'type': 'connection_error'}}, ensure_ascii=False)}\n\n".encode(
                     'utf-8')
@@ -922,6 +1024,8 @@ async def stream_gemini_response(
                 return
         except Exception as e:
             logger.error(f"Unexpected error in stream (attempt {attempt + 1}): {str(e)}")
+            response_time = time.time() - start_time
+            db.update_key_performance(key_id, False, response_time)
             if attempt < max_retries - 1:
                 await asyncio.sleep(1)
                 continue
@@ -1040,7 +1144,9 @@ async def api_v1_info():
             "Thinking mode support",
             "Streaming responses",
             "Automatic failover",
-            "Real-time monitoring"
+            "Real-time monitoring",
+            "Health checking",
+            "Adaptive load balancing"
         ],
         "endpoints": {
             "chat_completions": "/v1/chat/completions",
@@ -1071,7 +1177,7 @@ async def api_v1_info():
             "javascript": f"import OpenAI from 'openai';\n\nconst openai = new OpenAI({{\n  apiKey: 'YOUR_API_KEY',\n  baseURL: '{base_url}/v1'\n}});\n\nconst response = await openai.chat.completions.create({{\n  model: 'gemini-2.5-flash',\n  messages: [{{ role: 'user', content: 'Hello!' }}]\n}});"
         },
         "rate_limits": {
-            "info": "Limits scale with number of active Gemini API keys",
+            "info": "Limits scale with number of healthy Gemini API keys",
             "check_admin": "/admin/models for current limits"
         },
         "timestamp": datetime.now().isoformat()
@@ -1139,6 +1245,7 @@ async def chat_completions(
             return StreamingResponse(
                 stream_gemini_response(
                     gemini_key_info['key'],
+                    gemini_key_info['id'],
                     gemini_request,
                     request,
                     gemini_key_info,
@@ -1150,6 +1257,7 @@ async def chat_completions(
             # 非流式响应
             gemini_response = await make_gemini_request_with_retry(
                 gemini_key_info['key'],
+                gemini_key_info['id'],
                 gemini_request,
                 actual_model_name,
                 int(db.get_config('max_retries', '3'))
@@ -1201,6 +1309,79 @@ async def list_models():
         })
 
     return {"object": "list", "data": model_list}
+
+
+# 健康检测相关端点
+@app.post("/admin/health/check-all")
+async def check_all_keys_health():
+    """一键检测所有Gemini Keys的健康状态"""
+    try:
+        all_keys = db.get_all_gemini_keys()
+        active_keys = [key for key in all_keys if key['status'] == 1]
+
+        if not active_keys:
+            return {
+                "success": True,
+                "message": "No active keys to check",
+                "results": []
+            }
+
+        results = []
+        healthy_count = 0
+
+        # 并发检测所有keys
+        tasks = []
+        for key_info in active_keys:
+            task = check_gemini_key_health(key_info['key'])
+            tasks.append((key_info['id'], task))
+
+        # 等待所有检测完成
+        for key_id, task in tasks:
+            health_result = await task
+
+            # 更新数据库中的健康状态
+            db.update_key_performance(
+                key_id,
+                health_result['healthy'],
+                health_result['response_time']
+            )
+
+            if health_result['healthy']:
+                healthy_count += 1
+
+            results.append({
+                "key_id": key_id,
+                "healthy": health_result['healthy'],
+                "response_time": health_result['response_time'],
+                "error": health_result['error']
+            })
+
+        return {
+            "success": True,
+            "message": f"Health check completed: {healthy_count}/{len(active_keys)} keys healthy",
+            "total_checked": len(active_keys),
+            "healthy_count": healthy_count,
+            "unhealthy_count": len(active_keys) - healthy_count,
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/health/summary")
+async def get_health_summary():
+    """获取健康状态汇总"""
+    try:
+        summary = db.get_keys_health_summary()
+        return {
+            "success": True,
+            "summary": summary
+        }
+    except Exception as e:
+        logger.error(f"Failed to get health summary: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 密钥管理端点
@@ -1485,15 +1666,19 @@ async def get_all_config():
 @app.get("/admin/stats")
 async def get_admin_stats():
     """获取管理统计"""
+    health_summary = db.get_keys_health_summary()
+
     return {
         "gemini_keys": len(db.get_all_gemini_keys()),
         "active_gemini_keys": len(db.get_available_gemini_keys()),
+        "healthy_gemini_keys": health_summary['healthy'],
         "user_keys": len(db.get_all_user_keys()),
         "active_user_keys": len([k for k in db.get_all_user_keys() if k['status'] == 1]),
         "supported_models": db.get_supported_models(),
         "usage_stats": db.get_all_usage_stats(),
         "thinking_config": db.get_thinking_config(),
-        "inject_config": db.get_inject_prompt_config()
+        "inject_config": db.get_inject_prompt_config(),
+        "health_summary": health_summary
     }
 
 

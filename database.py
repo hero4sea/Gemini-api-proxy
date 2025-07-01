@@ -55,12 +55,19 @@ class Database:
                 )
             ''')
 
-            # Gemini Keys表
+            # Gemini Keys表 - 增加健康状态字段
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS gemini_keys (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     key TEXT UNIQUE NOT NULL,
                     status INTEGER DEFAULT 1,
+                    health_status TEXT DEFAULT 'unknown',
+                    consecutive_failures INTEGER DEFAULT 0,
+                    last_check_time TIMESTAMP,
+                    success_rate REAL DEFAULT 1.0,
+                    avg_response_time REAL DEFAULT 0.0,
+                    total_requests INTEGER DEFAULT 0,
+                    successful_requests INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -114,6 +121,7 @@ class Database:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_logs(timestamp)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_model ON usage_logs(model_name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_gemini_key_status ON gemini_keys(status)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_gemini_key_health ON gemini_keys(health_status)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(key)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_model_configs_name ON model_configs(model_name)')
 
@@ -126,7 +134,27 @@ class Database:
             conn.commit()
 
     def _migrate_database(self, cursor):
-        """迁移旧的数据库结构"""
+        """迁移旧的数据库结构并添加新字段"""
+        # 检查gemini_keys表是否有新字段
+        cursor.execute("PRAGMA table_info(gemini_keys)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        # 添加健康检测相关字段
+        if 'health_status' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN health_status TEXT DEFAULT 'unknown'")
+        if 'consecutive_failures' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN consecutive_failures INTEGER DEFAULT 0")
+        if 'last_check_time' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN last_check_time TIMESTAMP")
+        if 'success_rate' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN success_rate REAL DEFAULT 1.0")
+        if 'avg_response_time' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN avg_response_time REAL DEFAULT 0.0")
+        if 'total_requests' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN total_requests INTEGER DEFAULT 0")
+        if 'successful_requests' not in columns:
+            cursor.execute("ALTER TABLE gemini_keys ADD COLUMN successful_requests INTEGER DEFAULT 0")
+
         # 检查model_configs表结构
         cursor.execute("PRAGMA table_info(model_configs)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -177,7 +205,11 @@ class Database:
             ('default_model_name', 'gemini-2.5-flash', '默认模型名称'),
             ('max_retries', '3', 'API请求最大重试次数'),
             ('request_timeout', '60', 'API请求超时时间（秒）'),
-            ('load_balance_strategy', 'least_used', '负载均衡策略: least_used, round_robin'),
+            ('load_balance_strategy', 'adaptive', '负载均衡策略: least_used, round_robin, adaptive'),
+            # 健康检测配置
+            ('health_check_enabled', 'true', '是否启用健康检测'),
+            ('health_check_interval', '300', '健康检测间隔（秒）'),
+            ('failure_threshold', '3', '连续失败阈值'),
             # 思考功能配置
             ('thinking_enabled', 'true', '是否启用思考功能'),
             ('thinking_budget', '-1', '思考预算（token数）：-1=自动，0=禁用，1-32768=固定预算'),
@@ -300,13 +332,13 @@ class Database:
 
             config = dict(row)
 
-            # 获取可用的API key数量
-            available_keys_count = len(self.get_available_gemini_keys())
+            # 获取健康的API key数量
+            healthy_keys_count = len(self.get_healthy_gemini_keys())
 
             # 计算总限制
-            config['total_rpm_limit'] = config['single_api_rpm_limit'] * available_keys_count
-            config['total_tpm_limit'] = config['single_api_tpm_limit'] * available_keys_count
-            config['total_rpd_limit'] = config['single_api_rpd_limit'] * available_keys_count
+            config['total_rpm_limit'] = config['single_api_rpm_limit'] * healthy_keys_count
+            config['total_tpm_limit'] = config['single_api_tpm_limit'] * healthy_keys_count
+            config['total_rpd_limit'] = config['single_api_rpd_limit'] * healthy_keys_count
 
             # 为了兼容原有代码，保留旧字段名
             config['rpm_limit'] = config['total_rpm_limit']
@@ -322,14 +354,14 @@ class Database:
             cursor.execute('SELECT * FROM model_configs ORDER BY model_name')
             configs = [dict(row) for row in cursor.fetchall()]
 
-            # 获取可用的API key数量
-            available_keys_count = len(self.get_available_gemini_keys())
+            # 获取健康的API key数量
+            healthy_keys_count = len(self.get_healthy_gemini_keys())
 
             # 为每个配置添加总限制
             for config in configs:
-                config['total_rpm_limit'] = config['single_api_rpm_limit'] * available_keys_count
-                config['total_tpm_limit'] = config['single_api_tpm_limit'] * available_keys_count
-                config['total_rpd_limit'] = config['single_api_rpd_limit'] * available_keys_count
+                config['total_rpm_limit'] = config['single_api_rpm_limit'] * healthy_keys_count
+                config['total_tpm_limit'] = config['single_api_tpm_limit'] * healthy_keys_count
+                config['total_rpd_limit'] = config['single_api_rpd_limit'] * healthy_keys_count
 
                 # 为了兼容原有代码，保留旧字段名
                 config['rpm_limit'] = config['total_rpm_limit']
@@ -365,7 +397,7 @@ class Database:
         """检查模型是否支持思考功能"""
         return '2.5' in model_name
 
-    # Gemini Key管理
+    # Gemini Key管理 - 增强版
     def add_gemini_key(self, key: str) -> bool:
         """添加Gemini Key"""
         try:
@@ -382,7 +414,9 @@ class Database:
 
     def update_gemini_key(self, key_id: int, **kwargs):
         """更新Gemini Key"""
-        allowed_fields = ['status']
+        allowed_fields = ['status', 'health_status', 'consecutive_failures',
+                          'last_check_time', 'success_rate', 'avg_response_time',
+                          'total_requests', 'successful_requests']
         fields = []
         values = []
 
@@ -415,17 +449,28 @@ class Database:
         """获取所有Gemini Keys"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM gemini_keys ORDER BY id ASC")
+            cursor.execute("SELECT * FROM gemini_keys ORDER BY success_rate DESC, avg_response_time ASC, id ASC")
             return [dict(row) for row in cursor.fetchall()]
 
     def get_available_gemini_keys(self) -> List[Dict]:
-        """获取可用的Gemini Keys"""
+        """获取可用的Gemini Keys（状态为激活且健康的）"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT * FROM gemini_keys 
-                WHERE status = 1 
-                ORDER BY id ASC
+                WHERE status = 1 AND health_status != 'unhealthy'
+                ORDER BY success_rate DESC, avg_response_time ASC, id ASC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_healthy_gemini_keys(self) -> List[Dict]:
+        """获取健康的Gemini Keys"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM gemini_keys 
+                WHERE status = 1 AND health_status = 'healthy'
+                ORDER BY success_rate DESC, avg_response_time ASC, id ASC
             ''')
             return [dict(row) for row in cursor.fetchall()]
 
@@ -449,6 +494,58 @@ class Database:
             cursor.execute('SELECT * FROM gemini_keys WHERE id = ?', (key_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
+
+    def update_key_performance(self, key_id: int, success: bool, response_time: float = 0.0):
+        """更新Key性能指标"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 获取当前统计
+            cursor.execute('''
+                SELECT total_requests, successful_requests, avg_response_time, consecutive_failures
+                FROM gemini_keys WHERE id = ?
+            ''', (key_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                return False
+
+            total_requests = row['total_requests'] + 1
+            successful_requests = row['successful_requests'] + (1 if success else 0)
+            success_rate = successful_requests / total_requests if total_requests > 0 else 0.0
+
+            # 计算平均响应时间（简单移动平均）
+            current_avg = row['avg_response_time']
+            if current_avg == 0:
+                new_avg = response_time
+            else:
+                # 使用滑动平均，权重为0.1
+                new_avg = current_avg * 0.9 + response_time * 0.1
+
+            # 更新连续失败次数
+            if success:
+                consecutive_failures = 0
+                health_status = 'healthy'
+            else:
+                consecutive_failures = row['consecutive_failures'] + 1
+                failure_threshold = int(self.get_config('failure_threshold', '3'))
+                if consecutive_failures >= failure_threshold:
+                    health_status = 'unhealthy'
+                else:
+                    health_status = 'unknown'
+
+            # 更新数据库
+            cursor.execute('''
+                UPDATE gemini_keys 
+                SET total_requests = ?, successful_requests = ?, success_rate = ?,
+                    avg_response_time = ?, consecutive_failures = ?, health_status = ?,
+                    last_check_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (total_requests, successful_requests, success_rate, new_avg,
+                  consecutive_failures, health_status, key_id))
+
+            conn.commit()
+            return True
 
     def get_thinking_models(self) -> List[str]:
         """获取支持思考功能的模型列表"""
@@ -749,3 +846,42 @@ class Database:
             'environment': 'render' if os.getenv('RENDER_EXTERNAL_URL') else 'local',
             'stats': self.get_database_stats()
         }
+
+    # 健康检测相关方法
+    def get_keys_health_summary(self) -> Dict:
+        """获取Keys健康状态汇总"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT 
+                    health_status,
+                    COUNT(*) as count
+                FROM gemini_keys 
+                WHERE status = 1
+                GROUP BY health_status
+            ''')
+
+            health_counts = {row['health_status']: row['count'] for row in cursor.fetchall()}
+
+            return {
+                'healthy': health_counts.get('healthy', 0),
+                'unhealthy': health_counts.get('unhealthy', 0),
+                'unknown': health_counts.get('unknown', 0),
+                'total_active': sum(health_counts.values())
+            }
+
+    def mark_keys_for_health_check(self) -> List[Dict]:
+        """标记需要健康检查的Keys"""
+        health_check_interval = int(self.get_config('health_check_interval', '300'))  # 5分钟
+        cutoff_time = datetime.now() - timedelta(seconds=health_check_interval)
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM gemini_keys 
+                WHERE status = 1 
+                AND (last_check_time IS NULL OR last_check_time < ?)
+                ORDER BY last_check_time ASC NULLS FIRST
+            ''', (cutoff_time,))
+
+            return [dict(row) for row in cursor.fetchall()]

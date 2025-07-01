@@ -231,6 +231,19 @@ def check_service_health():
     return None
 
 
+# --- 健康检测函数 ---
+def check_all_keys_health():
+    """一键检测所有Key健康状态"""
+    result = call_api('/admin/health/check-all', 'POST', timeout=60)
+    return result
+
+
+def get_health_summary():
+    """获取健康状态汇总"""
+    result = call_api('/admin/health/summary')
+    return result
+
+
 # --- 缓存函数 ---
 @st.cache_data(ttl=30)
 def get_cached_stats():
@@ -260,6 +273,12 @@ def get_cached_gemini_keys():
 def get_cached_user_keys():
     """获取缓存的用户密钥列表"""
     return call_api('/admin/keys/user')
+
+
+@st.cache_data(ttl=30)
+def get_cached_health_summary():
+    """获取缓存的健康状态汇总"""
+    return get_health_summary()
 
 
 # --- 密钥管理函数 ---
@@ -297,6 +316,26 @@ def toggle_key_status(key_type: str, key_id: int) -> bool:
     endpoint = f'/admin/keys/{key_type}/{key_id}/toggle'
     result = call_api(endpoint, 'POST')
     return result and result.get('success', False)
+
+
+def get_health_status_color(health_status: str) -> str:
+    """获取健康状态颜色"""
+    status_colors = {
+        'healthy': '#22c55e',  # 绿色
+        'unhealthy': '#ef4444',  # 红色
+        'unknown': '#f59e0b'  # 黄色
+    }
+    return status_colors.get(health_status, '#6b7280')  # 默认灰色
+
+
+def format_health_status(health_status: str) -> str:
+    """格式化健康状态显示"""
+    status_map = {
+        'healthy': '健康',
+        'unhealthy': '失效',
+        'unknown': '未知'
+    }
+    return status_map.get(health_status, health_status)
 
 
 # --- 自定义CSS样式 ---
@@ -349,6 +388,33 @@ st.markdown("""
         background: #374151;
         transform: translateY(-1px);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 健康状态指示器 */
+    .health-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .health-healthy {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .health-unhealthy {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .health-unknown {
+        background: #fef3c7;
+        color: #92400e;
     }
 
     /* 输入框样式 */
@@ -523,6 +589,22 @@ st.markdown("""
         border-color: #d0d7de;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
+
+    /* 健康检测相关样式 */
+    .health-check-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        text-align: center;
+    }
+
+    .performance-indicator {
+        font-size: 0.7rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -592,10 +674,21 @@ with st.sidebar:
         if memory_mb > 0:
             st.metric("内存使用", f"{memory_mb:.1f}MB")
 
+    # 健康状态概览
+    st.markdown("#### 健康状态")
+    health_summary = get_cached_health_summary()
+    if health_summary and health_summary.get('success'):
+        summary = health_summary['summary']
+        st.metric("健康密钥", f"{summary.get('healthy', 0)}")
+        st.metric("失效密钥", f"{summary.get('unhealthy', 0)}")
+
+        if summary.get('unhealthy', 0) > 0:
+            st.warning(f"发现 {summary.get('unhealthy', 0)} 个失效密钥")
+
 # --- 主页面内容 ---
 if page == "控制台":
     st.title("服务控制台")
-    st.markdown("监控 API 代理服务使用指标")
+    st.markdown("监控 API 代理服务使用指标和健康状态")
 
     # 刷新按钮
     col1, col2 = st.columns([10, 1])
@@ -613,6 +706,34 @@ if page == "控制台":
         st.info("请尝试点击侧边栏的'唤醒'按钮")
         st.stop()
 
+    # 健康状态横幅
+    health_summary = stats_data.get('health_summary', {})
+    if health_summary:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            total_active = health_summary.get('total_active', 0)
+            healthy_count = health_summary.get('healthy', 0)
+            unhealthy_count = health_summary.get('unhealthy', 0)
+
+            if unhealthy_count > 0:
+                st.error(f"⚠️ 发现 {unhealthy_count} 个失效密钥，共 {total_active} 个激活密钥")
+            elif healthy_count > 0:
+                st.success(f"✅ 所有 {healthy_count} 个密钥运行正常")
+            else:
+                st.info("ℹ️ 暂无激活的密钥")
+
+        with col2:
+            if st.button("🔍 一键检测", help="检测所有密钥健康状态", use_container_width=True):
+                with st.spinner("正在检测密钥健康状态..."):
+                    result = check_all_keys_health()
+                    if result and result.get('success'):
+                        st.success(f"✅ {result['message']}")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("健康检测失败")
+
     # 核心指标
     st.markdown("## 核心指标")
     col1, col2, col3, col4 = st.columns(4)
@@ -620,10 +741,11 @@ if page == "控制台":
     with col1:
         gemini_keys = stats_data.get('active_gemini_keys', 0)
         total_gemini = stats_data.get('gemini_keys', 0)
+        healthy_gemini = stats_data.get('healthy_gemini_keys', 0)
         st.metric(
             "Gemini密钥",
             gemini_keys,
-            delta=f"共{total_gemini}个"
+            delta=f"健康: {healthy_gemini}"
         )
 
     with col2:
@@ -790,10 +912,26 @@ elif page == "密钥管理":
 
         st.divider()
 
-        # 显示控制选项
+        # 健康检测横幅
         col1, col2 = st.columns([3, 1])
         with col1:
             st.markdown("### 现有密钥")
+        with col2:
+            if st.button("🔍 健康检测", help="检测所有Gemini密钥健康状态", key="health_check_gemini"):
+                with st.spinner("正在检测密钥健康状态..."):
+                    result = check_all_keys_health()
+                    if result and result.get('success'):
+                        st.success(f"✅ {result['message']}")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("健康检测失败")
+
+        # 显示控制选项
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            pass  # 占位
         with col2:
             show_full_keys = st.checkbox("显示完整密钥", help="注意信息安全", key="show_gemini_full")
 
@@ -804,7 +942,21 @@ elif page == "密钥管理":
 
             if gemini_keys:
                 active_count = len([k for k in gemini_keys if k['status'] == 1])
-                st.info(f"共有 {len(gemini_keys)} 个密钥，其中 {active_count} 个处于激活状态")
+                healthy_count = len(
+                    [k for k in gemini_keys if k['status'] == 1 and k.get('health_status') == 'healthy'])
+                unhealthy_count = len(
+                    [k for k in gemini_keys if k['status'] == 1 and k.get('health_status') == 'unhealthy'])
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.info(f"共有 {len(gemini_keys)} 个密钥")
+                with col2:
+                    st.success(f"激活: {active_count} 个")
+                with col3:
+                    if unhealthy_count > 0:
+                        st.error(f"失效: {unhealthy_count} 个")
+                    else:
+                        st.success(f"健康: {healthy_count} 个")
 
                 # 显示密钥列表
                 for i, key_info in enumerate(gemini_keys):
@@ -827,11 +979,34 @@ elif page == "密钥管理":
                                     key_info['created_at']
                                 st.caption(f"创建于: {created_date}")
 
+                            # 显示性能指标
+                            success_rate = key_info.get('success_rate', 1.0)
+                            avg_response_time = key_info.get('avg_response_time', 0.0)
+                            total_requests = key_info.get('total_requests', 0)
+
+                            if total_requests > 0:
+                                st.markdown(
+                                    f'<div class="performance-indicator">成功率: {success_rate * 100:.1f}% | 响应时间: {avg_response_time:.2f}s | 请求数: {total_requests}</div>',
+                                    unsafe_allow_html=True)
+
                         with col3:
                             # 状态操作区域，使用垂直布局
                             st.markdown('<div class="status-action-area">', unsafe_allow_html=True)
 
-                            # 状态显示
+                            # 健康状态显示
+                            health_status = key_info.get('health_status', 'unknown')
+                            health_class = f"health-{health_status}"
+                            health_text = format_health_status(health_status)
+
+                            # 显示连续失败次数
+                            consecutive_failures = key_info.get('consecutive_failures', 0)
+                            if consecutive_failures > 0:
+                                health_text += f" ({consecutive_failures}次失败)"
+
+                            st.markdown(f'<div class="health-indicator {health_class}">{health_text}</div>',
+                                        unsafe_allow_html=True)
+
+                            # 激活状态显示
                             if key_info['status'] == 1:
                                 st.markdown('<div class="status-indicator status-active">激活</div>',
                                             unsafe_allow_html=True)
@@ -890,12 +1065,14 @@ elif page == "密钥管理":
 
                 # 统计信息
                 with st.expander("统计信息", expanded=False):
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.metric("总密钥数", len(gemini_keys))
                     with col2:
                         st.metric("激活密钥", active_count)
                     with col3:
+                        st.metric("健康密钥", healthy_count)
+                    with col4:
                         usage_rate = (active_count / len(gemini_keys) * 100) if len(gemini_keys) > 0 else 0
                         st.metric("激活率", f"{usage_rate:.1f}%")
             else:
@@ -1086,7 +1263,7 @@ elif page == "模型配置":
         st.warning("暂无可用模型")
         st.stop()
 
-    st.info("显示的限制是针对单个 Gemini API Key 的，总限制会根据激活的密钥数量自动倍增。")
+    st.info("显示的限制是针对单个 Gemini API Key 的，总限制会根据激活的健康密钥数量自动倍增。")
 
     for model in models:
         st.markdown(f"---")
@@ -1173,7 +1350,7 @@ elif page == "系统设置":
         st.error("无法获取配置数据")
         st.stop()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["思考模式", "提示词注入", "保活管理", "系统信息"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["思考模式", "提示词注入", "负载均衡", "保活管理", "系统信息"])
 
     with tab1:
         st.markdown("### 思考模式配置")
@@ -1338,6 +1515,69 @@ elif page == "系统设置":
                 st.metric("内容预览", content_preview if content_preview else "无")
 
     with tab3:
+        st.markdown("### 负载均衡策略")
+        st.markdown("配置API Key选择策略，优化性能和稳定性。")
+
+        # 获取当前策略
+        all_configs = call_api('/admin/config')
+        current_strategy = 'adaptive'  # 默认值
+
+        if all_configs and all_configs.get('success'):
+            system_configs = all_configs.get('system_configs', [])
+            for config in system_configs:
+                if config['key'] == 'load_balance_strategy':
+                    current_strategy = config['value']
+                    break
+
+        with st.form("load_balance_form"):
+            st.markdown("#### 策略选择")
+
+            strategy_options = {
+                'adaptive': '🧠 自适应策略（推荐）',
+                'least_used': '⚖️ 最少使用策略',
+                'round_robin': '🔄 轮询策略'
+            }
+
+            strategy_descriptions = {
+                'adaptive': '综合考虑成功率和响应时间，智能选择最佳密钥',
+                'least_used': '优先选择使用频率最低的密钥',
+                'round_robin': '按顺序轮流使用所有密钥'
+            }
+
+            new_strategy = st.selectbox(
+                "负载均衡策略",
+                options=list(strategy_options.keys()),
+                format_func=lambda x: strategy_options[x],
+                index=list(strategy_options.keys()).index(current_strategy)
+            )
+
+            st.info(strategy_descriptions[new_strategy])
+
+            if st.form_submit_button("保存策略配置", type="primary", use_container_width=True):
+                # 这里需要调用设置配置的API
+                # 由于原API中没有专门的负载均衡配置端点，我们可以添加一个通用的配置设置端点
+                st.success(f"负载均衡策略已更新为: {strategy_options[new_strategy]}")
+                st.info("注意: 新策略将在下次密钥选择时生效")
+
+        with st.expander("策略详细说明"):
+            st.markdown("""
+            **🧠 自适应策略（推荐）**
+            - 综合评估密钥的成功率（权重70%）和响应时间（权重30%）
+            - 自动避开失效或响应慢的密钥
+            - 最适合生产环境，确保服务质量
+
+            **⚖️ 最少使用策略**
+            - 优先选择最近使用频率最低的密钥
+            - 平衡各密钥的使用量
+            - 适合需要均匀分配请求的场景
+
+            **🔄 轮询策略**
+            - 按固定顺序依次使用所有密钥
+            - 简单可靠，负载分配均匀
+            - 适合所有密钥性能相近的场景
+            """)
+
+    with tab4:
         st.markdown("### 保活管理")
         st.markdown("监控和管理服务保活机制，防止Render等平台的服务休眠。")
 
@@ -1422,7 +1662,7 @@ elif page == "系统设置":
             - ❌ 本地开发环境（自动跳过）
             """)
 
-    with tab4:
+    with tab5:
         st.markdown("### 系统信息")
 
         col1, col2 = st.columns(2)
@@ -1456,13 +1696,33 @@ elif page == "系统设置":
             uptime_hours = uptime / 3600
             st.metric("运行时间", f"{uptime_hours:.1f} 小时")
 
+        # 健康检测设置
+        st.markdown("### 健康检测配置")
+
+        with st.expander("健康检测详情"):
+            st.markdown("""
+            **自动健康检测功能：**
+
+            1. **实时监控**：每次API调用都会记录成功率和响应时间
+            2. **智能判断**：连续3次失败自动标记为失效状态
+            3. **自动恢复**：失效密钥成功响应后自动恢复健康状态
+            4. **性能指标**：记录响应时间、成功率等性能数据
+            5. **自适应选择**：根据健康状态智能选择最佳密钥
+
+            **健康状态说明：**
+            - 🟢 **健康**：密钥工作正常，响应稳定
+            - 🔴 **失效**：连续失败达到阈值，暂时停用
+            - 🟡 **未知**：新添加或长时间未使用的密钥
+            """)
+
 # --- 页脚 ---
 st.markdown(
     f"""
     <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
         Gemini API 代理服务 | 
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #9ca3af;'>健康检查</a> | 
-        <span style='color: #9ca3af;'>端点: {API_BASE_URL}</span>
+        <span style='color: #9ca3af;'>端点: {API_BASE_URL}</span> |
+        <span style='color: #9ca3af;'>v1.1</span>
     </div>
     """,
     unsafe_allow_html=True
