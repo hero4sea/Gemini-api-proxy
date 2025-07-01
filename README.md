@@ -4,20 +4,14 @@
 
 一个专为**Gemini多Key轮询**设计的 Gemini API 代理服务，通过智能轮询多个 API Key 突破单Key限制，提供 OpenAI 兼容接口和完整的管理界面。无需服务器，一键免费部署到 Render 平台，立即获得公网访问地址。
 
-> 🔥 **核心价值：N个Key = N倍限制！** 
-> 
-> 单个gemini-2.5-pro限制100RPM？轮询10个Key瞬间变成1000RPM！  
-> 告别API限制，享受丝滑AI体验！
 
 ## ✨ 核心特性
 
 - 🔄 **智能轮询**：多个 Gemini API Key 自动轮询，突破单Key请求限制
-- 📈 **倍增额度**：N个Key = N倍请求限制，告别额度不够的烦恼  
 - 🛡️ **高可用性**：单个Key失效不影响服务，自动故障转移
 - ⚖️ **负载均衡**：支持轮询(round-robin)和最少使用(least-used)策略
 - 🚀 **一键部署**：Fork 仓库后直接在 Render 部署，10分钟获得公网地址
 - 💰 **完全免费**：使用 Render 免费层，无需支付内网穿透或映射服务器费用
-- 🎯 **OpenAI 兼容**：完全兼容 OpenAI SDK，无需修改现有代码
 - 📊 **可视化管理**：Streamlit 构建的直观管理界面
 - ⚡ **高性能**：FastAPI + 异步处理，支持流式响应
 - 🔐 **安全可靠**：用户密钥管理、使用统计、速率限制
@@ -157,8 +151,6 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 遇到问题或想要交流经验？欢迎加入我们的QQ群：
 
 [![QQ群：1055274821](https://img.shields.io/badge/QQ群-1055274821-blue?style=for-the-badge&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
-
-**QQ群号：1055274821**
 
 ## 🎛️ 管理功能
 
