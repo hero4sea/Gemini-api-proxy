@@ -76,10 +76,8 @@ Start Command: python run_server.py
 ```
 
 5. 选择 **"Free"** 实例类型
-6. 在 **Environment Variables** 中添加：
-   - `PYTHONUNBUFFERED` = `1`
-   - `PYTHONDONTWRITEBYTECODE` = `1`
-7. 点击 **"Create Web Service"**
+
+6. 点击 **"Create Web Service"**
 
 #### 2.3 获取后端地址
 部署完成后，你会获得一个类似 `https://your-service-name.onrender.com` 的地址。
