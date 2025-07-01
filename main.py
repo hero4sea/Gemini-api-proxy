@@ -682,45 +682,18 @@ st.markdown("""
         color: #374151;
     }
 
-    /* 信息提示框样式 */
+    /* 修复所有信息框的边框问题 */
     .info-box {
-        background: #dbeafe;
-        color: #1e40af;
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-        border: none;
+        border: none !important;
     }
 
-    .warning-box {
-        background: #fef3c7;
-        color: #92400e;
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-        border: none;
-    }
-
-    .success-box {
-        background: #d1fae5;
-        color: #065f46;
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-        border: none;
-    }
-
-    .error-box {
-        background: #fee2e2;
-        color: #991b1b;
-        padding: 0.75rem 1rem;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-        border: none;
+    /* 修复气泡框边框 */
+    div[style*="background: #dbeafe"],
+    div[style*="background: #d1fae5"],
+    div[style*="background: #fee2e2"],
+    div[style*="background: #fef3c7"],
+    div[style*="background: #f3f4f6"] {
+        border: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1029,11 +1002,14 @@ elif page == "密钥管理":
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">共 {len(gemini_keys)} 个密钥</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">共 {len(gemini_keys)} 个密钥</div>',
+                                unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">激活 {active_count} 个</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">激活 {active_count} 个</div>',
+                                unsafe_allow_html=True)
                 with col3:
-                    st.markdown(f'<div style="color: #10b981; font-weight: 500;">正常 {healthy_count} 个</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #10b981; font-weight: 500;">正常 {healthy_count} 个</div>',
+                                unsafe_allow_html=True)
 
                 # 密钥列表
                 for key_info in gemini_keys:
@@ -1144,7 +1120,9 @@ response = client.chat.completions.create(
 
             if user_keys:
                 active_count = len([k for k in user_keys if k['status'] == 1])
-                st.markdown(f'<div style="color: #6b7280; font-weight: 500; margin-bottom: 1rem;">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="color: #6b7280; font-weight: 500; margin-bottom: 1rem;">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>',
+                    unsafe_allow_html=True)
 
                 for key_info in user_keys:
                     with st.container():
@@ -1213,9 +1191,9 @@ elif page == "模型配置":
         st.warning("暂无可用模型")
         st.stop()
 
-    # 使用新的CSS类替代内联样式
+    # 修复：添加 border: none 到内联样式
     st.markdown(
-        '<div class="info-box">'
+        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
         '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
         '</div>',
         unsafe_allow_html=True
@@ -1298,7 +1276,14 @@ elif page == "系统设置":
 
     with tab1:
         st.markdown("#### 思考模式配置")
-        st.markdown("启用推理功能以提高复杂查询的响应质量")
+
+        # 修复：信息框添加 border: none
+        st.markdown(
+            '<div style="background: #f0f9ff; color: #0c4a6e; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+            '启用推理功能以提高复杂查询的响应质量'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
         thinking_config = stats_data.get('thinking_config', {})
 
@@ -1351,7 +1336,14 @@ elif page == "系统设置":
 
     with tab2:
         st.markdown("#### 提示词注入")
-        st.markdown("为所有请求自动添加自定义指令")
+
+        # 修复：信息框添加 border: none
+        st.markdown(
+            '<div style="background: #fefbf3; color: #92400e; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+            '为所有请求自动添加自定义指令'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
         inject_config = stats_data.get('inject_config', {})
 
@@ -1397,7 +1389,14 @@ elif page == "系统设置":
 
     with tab3:
         st.markdown("#### 负载均衡策略")
-        st.markdown("优化 API Key 选择策略")
+
+        # 修复：信息框添加 border: none
+        st.markdown(
+            '<div style="background: #f0fdf4; color: #166534; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+            '优化 API Key 选择策略'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
         # 获取当前策略
         all_configs = call_api('/admin/config')
@@ -1430,14 +1429,26 @@ elif page == "系统设置":
                 index=list(strategy_options.keys()).index(current_strategy)
             )
 
-            st.info(strategy_descriptions[strategy])
+            st.markdown(
+                f'<div style="background: #f9fafb; color: #374151; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; border: none;">'
+                f'{strategy_descriptions[strategy]}'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
             if st.form_submit_button("保存策略", type="primary", use_container_width=True):
                 st.success(f"策略已更新为: {strategy_options[strategy]}")
 
     with tab4:
         st.markdown("#### 保活管理")
-        st.markdown("防止服务休眠")
+
+        # 修复：信息框添加 border: none
+        st.markdown(
+            '<div style="background: #fef2f2; color: #991b1b; padding: 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+            '防止服务休眠，适用于免费托管环境'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
         keep_alive_status = st.session_state.keep_alive_manager.get_status()
 
@@ -1491,7 +1502,7 @@ elif page == "系统设置":
 # --- 页脚 ---
 st.markdown(
     f"""
-    <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
+    <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb; border: none;'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #6b7280; text-decoration: none;'>健康检查</a> · 
         <span style='color: #9ca3af;'>{API_BASE_URL}</span> ·
         <span style='color: #9ca3af;'>v1.1</span>
