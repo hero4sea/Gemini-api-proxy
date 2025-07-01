@@ -33,7 +33,7 @@ if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
 
 
-# --- 改进的保活机制 ---
+# --- 保活机制 ---
 class KeepAliveManager:
     def __init__(self):
         self.scheduler_thread = None
@@ -822,11 +822,11 @@ if page == "控制台":
 
             model_config_data = get_cached_model_config(model)
             if not model_config_data:
-                rpm_limit = 1000 if 'flash' in model else 100
-                rpd_limit = 50000 if 'flash' in model else 10000
+                rpm_limit = 10 if 'flash' in model else 5
+                rpd_limit = 250 if 'flash' in model else 100
             else:
-                rpm_limit = model_config_data.get('total_rpm_limit', 1000)
-                rpd_limit = model_config_data.get('total_rpd_limit', 50000)
+                rpm_limit = model_config_data.get('total_rpm_limit', 10)
+                rpd_limit = model_config_data.get('total_rpd_limit', 250)
 
             rpm_used = stats['minute']['requests']
             rpm_percent = (rpm_used / rpm_limit * 100) if rpm_limit > 0 else 0
@@ -982,11 +982,11 @@ elif page == "密钥管理":
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.info(f"共 {len(gemini_keys)} 个密钥")
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">共 {len(gemini_keys)} 个密钥</div>', unsafe_allow_html=True)
                 with col2:
-                    st.info(f"激活 {active_count} 个")
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">激活 {active_count} 个</div>', unsafe_allow_html=True)
                 with col3:
-                    st.info(f"正常 {healthy_count} 个")
+                    st.markdown(f'<div style="color: #10b981; font-weight: 500;">正常 {healthy_count} 个</div>', unsafe_allow_html=True)
 
                 # 密钥列表
                 for key_info in gemini_keys:
@@ -1097,7 +1097,7 @@ response = client.chat.completions.create(
 
             if user_keys:
                 active_count = len([k for k in user_keys if k['status'] == 1])
-                st.info(f"共 {len(user_keys)} 个密钥，{active_count} 个激活")
+                st.markdown(f'<div style="color: #6b7280; font-weight: 500; margin-bottom: 1rem;">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>', unsafe_allow_html=True)
 
                 for key_info in user_keys:
                     with st.container():
@@ -1166,7 +1166,13 @@ elif page == "模型配置":
         st.warning("暂无可用模型")
         st.stop()
 
-    st.info("显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增")
+    # 使用内联样式移除黑色边框
+    st.markdown(
+        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem;">'
+        '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     for model in models:
         st.markdown(f"### {model}")
@@ -1183,7 +1189,7 @@ elif page == "模型配置":
                 rpm = st.number_input(
                     "RPM (每分钟请求)",
                     min_value=1,
-                    value=current_config.get('single_api_rpm_limit', 1000),
+                    value=current_config.get('single_api_rpm_limit', 10 if 'flash' in model else 5),
                     key=f"rpm_{model}"
                 )
 
@@ -1191,7 +1197,7 @@ elif page == "模型配置":
                 rpd = st.number_input(
                     "RPD (每日请求)",
                     min_value=1,
-                    value=current_config.get('single_api_rpd_limit', 50000),
+                    value=current_config.get('single_api_rpd_limit', 250 if 'flash' in model else 100),
                     key=f"rpd_{model}"
                 )
 
@@ -1199,7 +1205,7 @@ elif page == "模型配置":
                 tpm = st.number_input(
                     "TPM (每分钟令牌)",
                     min_value=1000,
-                    value=current_config.get('single_api_tpm_limit', 2000000),
+                    value=current_config.get('single_api_tpm_limit', 250000),
                     key=f"tpm_{model}"
                 )
 

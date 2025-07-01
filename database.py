@@ -229,8 +229,8 @@ class Database:
     def _init_model_configs(self, cursor):
         """初始化模型配置（单个API限制）"""
         default_models = [
-            ('gemini-2.5-flash', 1000, 2000000, 50000),  # 单API: RPM, TPM, RPD
-            ('gemini-2.5-pro', 100, 1000000, 10000),  # 单API: RPM, TPM, RPD
+            ('gemini-2.5-flash', 10, 250000, 250),  # 单API: RPM, TPM, RPD
+            ('gemini-2.5-pro', 5, 250000, 100),  # 单API: RPM, TPM, RPD
         ]
 
         for model_name, rpm, tpm, rpd in default_models:
