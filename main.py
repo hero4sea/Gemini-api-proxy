@@ -1056,9 +1056,9 @@ elif page == "密钥管理":
 
             if gemini_keys:
                 # 统计信息
-                active_count = len([k for k in gemini_keys if k['status'] == 1])
+                active_count = len([k for k in gemini_keys if k.get('status') == 1])
                 healthy_count = len(
-                    [k for k in gemini_keys if k['status'] == 1 and k.get('health_status') == 'healthy'])
+                    [k for k in gemini_keys if k.get('status') == 1 and k.get('health_status') == 'healthy'])
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -1071,61 +1071,99 @@ elif page == "密钥管理":
                     st.markdown(f'<div style="color: #10b981; font-weight: 500;">正常 {healthy_count} 个</div>',
                                 unsafe_allow_html=True)
 
-                # 密钥列表
+                valid_keys = []
+                invalid_count = 0
+
                 for key_info in gemini_keys:
-                    with st.container():
-                        st.markdown('<div class="key-container">', unsafe_allow_html=True)
+                    # 验证数据完整性
+                    if (isinstance(key_info, dict) and
+                            'id' in key_info and
+                            'key' in key_info and
+                            'status' in key_info and
+                            key_info['id'] is not None and
+                            key_info['key'] is not None):
+                        valid_keys.append(key_info)
+                    else:
+                        invalid_count += 1
 
-                        col1, col2, col3, col4 = st.columns([1, 4, 1.5, 1])
+                # 如果有无效数据，给出提示
+                if invalid_count > 0:
+                    st.warning(f"发现 {invalid_count} 个数据不完整的密钥，已跳过显示")
 
-                        with col1:
-                            st.markdown(f"**#{key_info['id']}**")
+                # 渲染有效的密钥
+                for key_info in valid_keys:
+                    try:
+                        with st.container():
+                            st.markdown('<div class="key-container">', unsafe_allow_html=True)
 
-                        with col2:
-                            masked_key = mask_key(key_info['key'], show_full_keys)
-                            st.code(masked_key, language=None)
+                            col1, col2, col3, col4 = st.columns([1, 4, 1.5, 1])
 
-                            # 性能指标
-                            if key_info.get('total_requests', 0) > 0:
-                                success_rate = key_info.get('success_rate', 1.0)
-                                avg_response = key_info.get('avg_response_time', 0.0)
-                                st.caption(
-                                    f"成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {key_info['total_requests']}")
+                            with col1:
+                                key_id = key_info.get('id', 'N/A')
+                                st.markdown(f"**#{key_id}**")
 
-                        with col3:
-                            # 健康状态
-                            health_status = key_info.get('health_status', 'unknown')
-                            status_text = format_health_status(health_status)
-                            status_class = f"status-{health_status}"
-                            st.markdown(f'<div class="status-badge {status_class}">{status_text}</div>',
-                                        unsafe_allow_html=True)
+                            with col2:
+                                key_value = key_info.get('key', '')
+                                if key_value:
+                                    masked_key = mask_key(key_value, show_full_keys)
+                                    st.code(masked_key, language=None)
 
-                            # 激活状态
-                            if key_info['status'] == 1:
-                                st.markdown('<div class="status-badge status-active">激活</div>',
+                                    # 性能指标
+                                    total_requests = key_info.get('total_requests', 0)
+                                    if total_requests > 0:
+                                        success_rate = key_info.get('success_rate', 1.0)
+                                        avg_response = key_info.get('avg_response_time', 0.0)
+                                        st.caption(
+                                            f"成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {total_requests}")
+
+                            with col3:
+                                # 健康状态
+                                health_status = key_info.get('health_status', 'unknown')
+                                status_text = format_health_status(health_status)
+                                status_class = f"status-{health_status}"
+                                st.markdown(f'<div class="status-badge {status_class}">{status_text}</div>',
                                             unsafe_allow_html=True)
-                            else:
-                                st.markdown('<div class="status-badge status-inactive">禁用</div>',
-                                            unsafe_allow_html=True)
 
-                        with col4:
-                            # 操作按钮
-                            toggle_text = "禁用" if key_info['status'] == 1 else "激活"
-                            if st.button(toggle_text, key=f"toggle_g_{key_info['id']}", use_container_width=True):
-                                if toggle_key_status('gemini', key_info['id']):
-                                    st.success("状态已更新")
-                                    st.cache_data.clear()
-                                    time.sleep(1)
-                                    st.rerun()
+                                # 激活状态
+                                status = key_info.get('status', 0)
+                                if status == 1:
+                                    st.markdown('<div class="status-badge status-active">激活</div>',
+                                                unsafe_allow_html=True)
+                                else:
+                                    st.markdown('<div class="status-badge status-inactive">禁用</div>',
+                                                unsafe_allow_html=True)
 
-                            if st.button("删除", key=f"del_g_{key_info['id']}", use_container_width=True):
-                                if delete_key('gemini', key_info['id']):
-                                    st.success("删除成功")
-                                    st.cache_data.clear()
-                                    time.sleep(1)
-                                    st.rerun()
+                            with col4:
+                                # 操作按钮
+                                key_id = key_info.get('id')
+                                status = key_info.get('status', 0)
 
-                        st.markdown('</div>', unsafe_allow_html=True)
+                                if key_id is not None:
+                                    toggle_text = "禁用" if status == 1 else "激活"
+                                    if st.button(toggle_text, key=f"toggle_g_{key_id}", use_container_width=True):
+                                        if toggle_key_status('gemini', key_id):
+                                            st.success("状态已更新")
+                                            st.cache_data.clear()
+                                            time.sleep(1)
+                                            st.rerun()
+
+                                    if st.button("删除", key=f"del_g_{key_id}", use_container_width=True):
+                                        if delete_key('gemini', key_id):
+                                            st.success("删除成功")
+                                            st.cache_data.clear()
+                                            time.sleep(1)
+                                            st.rerun()
+
+                            st.markdown('</div>', unsafe_allow_html=True)
+
+                    except Exception as e:
+                        # 异常时显示错误信息而不是空白
+                        st.error(f"渲染密钥 #{key_info.get('id', '?')} 时出错: {str(e)}")
+
+                # 如果没有有效密钥
+                if not valid_keys:
+                    st.warning("所有密钥数据都不完整，请检查数据源")
+
             else:
                 st.info("暂无密钥，请添加第一个 Gemini API 密钥")
         else:
