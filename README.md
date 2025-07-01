@@ -2,6 +2,8 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
+[![QQ群](https://img.shields.io/badge/QQ群-1055274821-blue?style=flat-square&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
+
 一个专为**Gemini多Key轮询**设计的 Gemini API 代理服务，通过智能轮询多个 API Key 突破单Key限制，提供 OpenAI 兼容接口和完整的管理界面。无需服务器，一键免费部署到 Render 平台，立即获得公网访问地址。
 
 > 🔥 **核心价值：N个Key = N倍限制！** 
@@ -22,89 +24,80 @@
 - ⚡ **高性能**：FastAPI + 异步处理，支持流式响应
 - 🔐 **安全可靠**：用户密钥管理、使用统计、速率限制
 
-## 🔄 轮询优势
-
-### 为什么需要轮询？
-
-**单个 Gemini API Key 限制：**
-- gemini-2.5-flash：500 RPDD  
-- gemini-2.5-pro：100 RPDD
-
-### 轮询策略
-
-- **🔄 Round Robin（轮询）**：按顺序循环使用每个Key，平均分配负载
-- **📊 Least Used（最少使用）**：优先使用使用量最少的Key，智能负载均衡
-
-### 实际效果示例
-
-```
-单Key场景：
-❌ 请求100次/分钟 → 超出限制，请求失败
-
-3Key轮询场景：  
-✅ 请求300次/分钟 → 每个Key承担1000次，完全OK
-✅ 某个Key失效 → 自动使用其他2个Key，服务不中断
-```
-
 ## 🎯 快速开始
 
 ### 1. Fork 本仓库
 
 点击页面右上角的 **Fork** 按钮，将本项目复制到你的 GitHub 账户下。
 
-### 2. 部署后端 API 服务
+### 2. 一键部署前后端服务
 
 #### 2.1 创建 Render 账户
 1. 访问 [Render.com](https://render.com)
 2. 使用 GitHub 账户登录（推荐）或邮箱注册
 3. **需要MasterCard或VisaCard验证身份！但完全免费**
 
-#### 2.2 部署后端服务
-1. 在 Render 控制台点击 **"New +"** → **"Web Service"**
-2. 选择 **"Build and deploy from a Git repository"**
-3. 连接你的 GitHub 账户，选择刚刚 Fork 的仓库
-4. 配置服务参数：
+#### 2.2 一键部署 Blueprint
+1. 在 Render 控制台点击 **"New +"** → **"Blueprint"**
+2. 选择 **"Connect a repository"**
+3. 找到你刚刚 Fork 的 `gemini-api-proxy` 仓库，点击 **"Connect"**
+4. 配置 Blueprint 参数：
 
 ```yaml
-Name: gemini-api-proxy
-Environment: Python 3
+Name: gemini-api-services  # 自定义Blueprint名称
 Branch: main
-Build Command: pip install -r requirements.txt
-Start Command: python run_server.py
 ```
 
-5. 选择 **"Free"** 实例类型
+5. Render 会自动识别 `render.yaml` 文件并显示将要创建的服务：
+   - ✅ **gemini-api-proxy** (后端API服务)
+   - ✅ **gemini-proxy-admin** (前端管理界面)
 
-7. 点击 **"Create Web Service"**
+6. 点击 **"Apply"** 开始部署
 
-#### 2.3 获取后端地址
-部署完成后，你会获得一个类似 `https://your-service-name.onrender.com` 的地址。
+#### 2.3 等待部署完成
+- ⏱️ **首次部署时间**：约5-10分钟
+- 📊 **部署进度**：可在Dashboard中实时查看两个服务的构建状态
+- ✅ **完成标志**：两个服务都显示绿色的"Live"状态
 
-**重要：请保存这个地址，前端配置时需要用到！**
+### 3. 配置服务连接
 
-### 3. 部署前端管理界面
+由于Render免费层的限制，需要手动配置前后端连接：
 
-#### 3.1 创建前端服务
-1. 再次点击 **"New +"** → **"Web Service"**
-2. 选择相同的 GitHub 仓库
-3. 配置前端服务参数：
+#### 3.1 获取后端地址
+1. 在Render Dashboard中找到 **gemini-api-proxy** 服务
+2. 复制其完整URL，格式类似：`https://gemini-api-proxy-xxx.onrender.com`
 
-```yaml
-Name: gemini-proxy-admin
-Environment: Python 3
-Branch: main
-Build Command: pip install -r requirements.txt
-Start Command: streamlit run main.py --server.port $PORT --server.address 0.0.0.0
-```
+#### 3.2 配置前端环境变量
+1. 点击进入 **gemini-proxy-admin** 服务
+2. 转到 **"Environment"** 标签页
+3. 添加环境变量：
+   ```
+   Key: API_BASE_URL
+   Value: https://gemini-api-proxy-xxx.onrender.com
+   ```
+4. 点击 **"Save Changes"**
+5. 前端会自动重新部署（约2-3分钟）
 
-4. 选择 **"Free"** 实例类型
-5. 在 **Environment Variables** 中添加：
-   - `API_BASE_URL` = `你的后端地址`（上一步获得的地址）
-   - `PYTHONUNBUFFERED` = `1`
-6. 点击 **"Create Web Service"**
+#### 3.3 访问管理界面
+访问 `https://gemini-proxy-admin-xxx.onrender.com`
 
-#### 3.2 访问管理界面
-前端部署完成后，你会获得另一个地址，这就是你的管理界面地址。
+你将看到 Streamlit 管理界面，现在可以开始配置 API 密钥了！
+
+---
+
+## ⚠️ 常见问题
+
+**Q: 为什么不能完全自动连接前后端？**
+A: Render免费层的Blueprint功能在服务引用方面有限制，无法自动构建完整的HTTPS URL。
+
+**Q: 如果前端无法连接后端怎么办？**
+A: 检查以下几点：
+1. 后端服务是否正常运行（访问/health端点）
+2. API_BASE_URL环境变量是否设置正确
+3. URL格式是否包含https://前缀
+
+**Q: 可以自定义服务名称吗？**
+A: 可以！修改render.yaml中的name字段，然后重新同步Blueprint。
 
 ## 🔧 配置指南
 
@@ -148,7 +141,7 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 2. 点击 **"生成新密钥"**，输入密钥名称
 3. **立即保存生成的密钥**（格式：`sk-...`），它不会再次显示
 
-### 3. 配置思考模式
+### 4. 配置思考模式
 
 1. 进入 **"系统设置"** → **"思考模式"** 页面
 2. 启用思考模式以获得更好的推理能力
@@ -161,101 +154,13 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 
 配置完成后，你就可以使用 OpenAI SDK 访问轮询代理了。系统会自动在多个 Gemini Key 之间进行轮询，提供更高的请求限制和稳定性。
 
-### 轮询效果展示
+### 💬 加入交流群
 
-```python
-# 假设你配置了5个Key，每个Key限制100 RPM
-# 轮询后总限制 = 5 × 1000 = 500 RPM
+遇到问题或想要交流经验？欢迎加入我们的QQ群：
 
-import openai
-import asyncio
-import time
+[![QQ群：1055274821](https://img.shields.io/badge/QQ群-1055274821-blue?style=for-the-badge&logo=tencent-qq)](https://qm.qq.com/cgi-bin/qm/qr?k=&jump_from=webapi&authKey=&join_group=1055274821)
 
-client = openai.OpenAI(
-    api_key="sk-key",  # 你生成的用户密钥
-    base_url="https://your-service-name.onrender.com/v1"  # 你的后端地址
-)
-
-# 高并发测试 - 轮询自动分配负载
-async def test_polling_performance():
-    tasks = []
-    start_time = time.time()
-    
-    # 同时发送100个请求
-    for i in range(100):
-        task = asyncio.create_task(
-            client.chat.completions.create(
-                model="gemini-2.5-flash",
-                messages=[{"role": "user", "content": f"请求 #{i}"}]
-            )
-        )
-        tasks.append(task)
-    
-    # 等待所有请求完成
-    responses = await asyncio.gather(*tasks)
-    end_time = time.time()
-    
-    print(f"✅ 100个并发请求完成，耗时：{end_time - start_time:.2f}秒")
-    print(f"🔄 系统自动在{len(responses)}个Key之间轮询分配")
-
-# 运行测试
-# asyncio.run(test_polling_performance())
-```
-
-### Python 示例
-
-```python
-import openai
-
-client = openai.OpenAI(
-    api_key="sk-your-user-key",  # 你生成的用户密钥
-    base_url="https://your-service-name.onrender.com/v1"  # 你的后端地址
-)
-
-response = client.chat.completions.create(
-    model="gemini-2.5-flash",
-    messages=[
-        {"role": "user", "content": "你好！"}
-    ]
-)
-
-print(response.choices[0].message.content)
-```
-
-### Node.js 示例
-
-```javascript
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: 'sk-your-user-key',
-  baseURL: 'https://your-service-name.onrender.com/v1',
-});
-
-const response = await openai.chat.completions.create({
-  model: 'gemini-2.5-flash',
-  messages: [{ role: 'user', content: '你好！' }],
-});
-
-console.log(response.choices[0].message.content);
-```
-
-### cURL 示例
-
-```bash
-curl -X POST "https://your-service-name.onrender.com/v1/chat/completions" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-your-user-key" \
-  -d '{
-    "model": "gemini-2.5-flash",
-    "messages": [{"role": "user", "content": "你好！"}]
-  }'
-```
-
-**💡 轮询优势：**
-- 🚀 **线性扩展**：N个Key = N倍限制，突破单Key瓶颈
-- 🛡️ **高可用性**：单Key失效不影响整体服务
-- ⚖️ **负载均衡**：请求均匀分配，避免单点过载
+**QQ群号：1055274821**
 
 ## 🎛️ 管理功能
 
@@ -302,7 +207,7 @@ curl -X POST "https://your-service-name.onrender.com/v1/chat/completions" \
 - 🔄 **自动重启**：系统可能随时重启服务
 
 ### 保活机制
-本项目内置保活功能，每14分钟自动发送请求保持服务活跃，减少休眠时间。
+本项目内置保活功能，每14分钟自动发送请求保持服务活跃，从而阻止休眠限制。
 
 ## 🌐 自定义域名（可选）
 
@@ -321,23 +226,6 @@ Render 免费层支持自定义域名：
 | `API_BASE_URL` | 后端API地址 | - |
 | `PORT` | 服务端口 | 自动分配 |
 | `PYTHONUNBUFFERED` | Python输出缓冲 | 1 |
-
-### render.yaml 配置
-
-```yaml
-services:
-  - type: web
-    name: gemini-api-proxy
-    env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python run_server.py
-    healthCheckPath: /health
-    
-    envVars:
-      - key: PYTHONUNBUFFERED
-        value: "1"
-```
 
 ## 🚨 注意事项
 
@@ -415,6 +303,8 @@ streamlit run main.py
 
 
 ## ⭐ 如果这个项目对你有帮助，请给个 Star ⭐️
+
+推一推另一个好玩的App！https://github.com/Arain119/ChatApp ，超强的角色扮演能力~
 
 ## 🙏 致谢
 
