@@ -438,12 +438,14 @@ st.markdown("""
     .status-badge {
         display: inline-flex;
         align-items: center;
-        padding: 0.25rem 0.75rem;
+        justify-content: center;
+        padding: 0.375rem 0.875rem;
         border-radius: 9999px;
         font-size: 0.75rem;
         font-weight: 500;
         line-height: 1;
         white-space: nowrap;
+        min-width: 3rem;
     }
 
     .status-healthy {
@@ -518,7 +520,7 @@ st.markdown("""
 
     /* 侧边栏样式 */
     section[data-testid="stSidebar"] {
-        background: #f8fafc;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
         border-right: 1px solid #e5e7eb;
     }
 
@@ -528,31 +530,33 @@ st.markdown("""
 
     /* 侧边栏导航样式优化 */
     section[data-testid="stSidebar"] .stRadio {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e5e7eb;
+        background: transparent;
+        padding: 0;
     }
 
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.25rem;
+        gap: 0.5rem;
     }
 
     section[data-testid="stSidebar"] .stRadio > label {
-        font-size: 0.875rem;
+        font-size: 0.9375rem;
         font-weight: 500;
-        color: #374151;
-        padding: 0.75rem 1rem;
-        border-radius: 8px;
+        color: #4b5563;
+        padding: 0.875rem 1.25rem;
+        border-radius: 10px;
         cursor: pointer;
         transition: all 0.2s ease;
         display: block;
         margin: 0;
+        position: relative;
+        border: 1px solid transparent;
     }
 
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: #f3f4f6;
+        background: rgba(99, 102, 241, 0.05);
+        color: #6366f1;
+        border-color: rgba(99, 102, 241, 0.1);
+        transform: translateX(4px);
     }
 
     section[data-testid="stSidebar"] .stRadio > div > label > div:first-child {
@@ -562,9 +566,15 @@ st.markdown("""
     }
 
     section[data-testid="stSidebar"] .stRadio > div > label[data-selected="true"] {
-        background: #eef2ff;
-        color: #4f46e5;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
         font-weight: 600;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    }
+
+    section[data-testid="stSidebar"] .stRadio > div > label[data-selected="true"]:hover {
+        transform: translateX(0);
+        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
     }
 
     /* 成功/错误消息样式 */
@@ -639,12 +649,14 @@ st.markdown("""
     .key-actions {
         display: flex;
         gap: 0.5rem;
+        margin-left: auto;
     }
 
-    .key-actions button {
+    .key-actions .stButton > button {
         padding: 0.5rem 1rem !important;
         font-size: 0.75rem !important;
         min-width: 4rem;
+        border-radius: 6px !important;
     }
 
     .key-meta {
@@ -702,20 +714,38 @@ st.markdown("""
 
     /* 侧边栏标题 */
     .sidebar-title {
-        font-size: 1.25rem;
-        font-weight: 700;
+        font-size: 1.75rem;
+        font-weight: 800;
         color: #111827;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         text-align: center;
+        letter-spacing: -0.025em;
     }
 
     /* 侧边栏服务状态卡片 */
-    .service-status-card {
-        background: #ffffff;
-        border-radius: 8px;
+    .sidebar-section {
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
         padding: 1rem;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
+        backdrop-filter: blur(10px);
+    }
+
+    /* 侧边栏按钮样式 */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: #ffffff;
+        color: #374151;
         border: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        height: 2.25rem;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     /* Alert 样式修复 */
@@ -754,13 +784,37 @@ st.markdown("""
         border: none !important;
         border-top: 1px solid #e5e7eb !important;
     }
+
+    /* 密钥管理容器样式 - 整合卡片布局 */
+    div[data-testid="stHorizontalBlock"]:has(div.key-id) {
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 12px !important;
+        padding: 1.25rem !important;
+        margin: 0.75rem 0 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(div.key-id):hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        border-color: #d1d5db !important;
+        transform: translateY(-1px);
+    }
+
+    /* 密钥卡片内的按钮样式 */
+    div[data-testid="stHorizontalBlock"]:has(div.key-id) .stButton > button {
+        height: 2rem !important;
+        padding: 0 0.875rem !important;
+        font-size: 0.75rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown('<h2 class="sidebar-title">🌟 Gemini 轮询</h2>', unsafe_allow_html=True)
-    st.markdown('<hr style="margin: 0.5rem 0;">', unsafe_allow_html=True)
+    st.markdown('<h1 class="sidebar-title">🌟 Gemini 轮询</h1>', unsafe_allow_html=True)
+    st.markdown('<hr style="margin: 0.5rem 0 1rem 0;">', unsafe_allow_html=True)
 
     page = st.radio(
         "导航",
@@ -768,9 +822,10 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    st.markdown('<hr style="margin: 1rem 0;">', unsafe_allow_html=True)
+    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
 
     # 服务状态
+    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
     st.markdown("##### 服务状态")
 
     col1, col2 = st.columns(2)
@@ -795,8 +850,11 @@ with st.sidebar:
                     unsafe_allow_html=True)
         st.caption("点击'唤醒'按钮激活服务")
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
     # 系统概览
-    st.markdown('<hr style="margin: 1rem 0;">', unsafe_allow_html=True)
+    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
     st.markdown("##### 系统概览")
 
     status_data = get_cached_status()
@@ -814,6 +872,8 @@ with st.sidebar:
         summary = health_summary['summary']
         if summary.get('unhealthy', 0) > 0:
             st.warning(f"发现 {summary.get('unhealthy', 0)} 个异常密钥")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 主页面内容 ---
 if page == "控制台":
@@ -1086,40 +1146,44 @@ elif page == "密钥管理":
                 # 渲染有效的密钥
                 for key_info in valid_keys:
                     try:
-                        # 使用容器
-                        with st.container():
-                            st.markdown(f'''
-                            <div class="key-card">
-                                <div class="key-content">
-                                    <div class="key-id">#{key_info.get('id', 'N/A')}</div>
-                                    <div style="flex: 1;">
-                                        <div class="key-code">{mask_key(key_info.get('key', ''), show_full_keys)}</div>
-                                        <div class="key-meta">
-                                            {f"成功率 {key_info.get('success_rate', 1.0) * 100:.1f}% · 响应时间 {key_info.get('avg_response_time', 0.0):.2f}s · 请求数 {key_info.get('total_requests', 0)}"
-                            if key_info.get('total_requests', 0) > 0 else "尚未使用"}
-                                        </div>
-                                    </div>
-                                    <div class="key-status">
-                                        <span class="status-badge status-{key_info.get('health_status', 'unknown')}">
-                                            {format_health_status(key_info.get('health_status', 'unknown'))}
-                                        </span>
-                                        <span class="status-badge status-{'active' if key_info.get('status', 0) == 1 else 'inactive'}">
-                                            {'激活' if key_info.get('status', 0) == 1 else '禁用'}
-                                        </span>
-                                    </div>
-                                    <div class="key-actions">
-                                        <!-- 按钮占位 -->
+                        # 创建一个容器来包含整个密钥卡片
+                        container = st.container()
+                        with container:
+                            # 使用列布局来实现卡片内的元素
+                            col1, col2, col3, col4, col5, col6 = st.columns([0.5, 3.5, 0.9, 0.9, 0.8, 0.8])
+
+                            with col1:
+                                st.markdown(f'<div class="key-id">#{key_info.get("id", "N/A")}</div>',
+                                            unsafe_allow_html=True)
+
+                            with col2:
+                                st.markdown(f'''
+                                <div>
+                                    <div class="key-code">{mask_key(key_info.get('key', ''), show_full_keys)}</div>
+                                    <div class="key-meta">
+                                        {f"成功率 {key_info.get('success_rate', 1.0) * 100:.1f}% · 响应时间 {key_info.get('avg_response_time', 0.0):.2f}s · 请求数 {key_info.get('total_requests', 0)}"
+                                if key_info.get('total_requests', 0) > 0 else "尚未使用"}
                                     </div>
                                 </div>
-                            </div>
-                            ''', unsafe_allow_html=True)
+                                ''', unsafe_allow_html=True)
 
-                            # 在卡片内部添加按钮
-                            col1, col2, col3, col4, col5 = st.columns([1, 3, 1.5, 0.75, 0.75])
+                            with col3:
+                                st.markdown(f'''
+                                <span class="status-badge status-{key_info.get('health_status', 'unknown')}">
+                                    {format_health_status(key_info.get('health_status', 'unknown'))}
+                                </span>
+                                ''', unsafe_allow_html=True)
+
                             with col4:
+                                st.markdown(f'''
+                                <span class="status-badge status-{'active' if key_info.get('status', 0) == 1 else 'inactive'}">
+                                    {'激活' if key_info.get('status', 0) == 1 else '禁用'}
+                                </span>
+                                ''', unsafe_allow_html=True)
+
+                            with col5:
                                 key_id = key_info.get('id')
                                 status = key_info.get('status', 0)
-
                                 if key_id is not None:
                                     toggle_text = "禁用" if status == 1 else "激活"
                                     if st.button(toggle_text, key=f"toggle_g_{key_id}", use_container_width=True):
@@ -1129,7 +1193,7 @@ elif page == "密钥管理":
                                             time.sleep(1)
                                             st.rerun()
 
-                            with col5:
+                            with col6:
                                 if key_id is not None:
                                     if st.button("删除", key=f"del_g_{key_id}", use_container_width=True):
                                         if delete_key('gemini', key_id):
@@ -1205,33 +1269,32 @@ response = client.chat.completions.create(
                     unsafe_allow_html=True)
 
                 for key_info in user_keys:
-                    with st.container():
-                        # 用户密钥使用相同的卡片样式
-                        st.markdown(f'''
-                        <div class="key-card">
-                            <div class="key-content">
-                                <div class="key-id">#{key_info['id']}</div>
-                                <div style="flex: 1;">
-                                    <div class="key-code">{mask_key(key_info['key'], show_full_user_keys)}</div>
-                                    <div class="key-meta">
-                                        {f"名称: {key_info['name']}" if key_info.get('name') else "未命名"} · 
-                                        {f"最后使用: {key_info['last_used'][:16]}" if key_info.get('last_used') else "从未使用"}
-                                    </div>
-                                </div>
-                                <div class="key-status">
-                                    <span class="status-badge status-{'active' if key_info['status'] == 1 else 'inactive'}">
-                                        {'激活' if key_info['status'] == 1 else '停用'}
-                                    </span>
-                                </div>
-                                <div class="key-actions">
-                                    <!-- 按钮占位 -->
+                    container = st.container()
+                    with container:
+                        # 使用列布局来实现卡片内的元素
+                        col1, col2, col3, col4, col5 = st.columns([0.5, 3.5, 0.9, 0.8, 0.8])
+
+                        with col1:
+                            st.markdown(f'<div class="key-id">#{key_info["id"]}</div>', unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f'''
+                            <div>
+                                <div class="key-code">{mask_key(key_info['key'], show_full_user_keys)}</div>
+                                <div class="key-meta">
+                                    {f"名称: {key_info['name']}" if key_info.get('name') else "未命名"} · 
+                                    {f"最后使用: {key_info['last_used'][:16]}" if key_info.get('last_used') else "从未使用"}
                                 </div>
                             </div>
-                        </div>
-                        ''', unsafe_allow_html=True)
+                            ''', unsafe_allow_html=True)
 
-                        # 在卡片内部添加按钮
-                        col1, col2, col3, col4, col5 = st.columns([1, 3, 1, 0.75, 0.75])
+                        with col3:
+                            st.markdown(f'''
+                            <span class="status-badge status-{'active' if key_info['status'] == 1 else 'inactive'}">
+                                {'激活' if key_info['status'] == 1 else '停用'}
+                            </span>
+                            ''', unsafe_allow_html=True)
+
                         with col4:
                             toggle_text = "停用" if key_info['status'] == 1 else "激活"
                             if st.button(toggle_text, key=f"toggle_u_{key_info['id']}", use_container_width=True):
@@ -1549,7 +1612,7 @@ st.markdown(
     <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: #6b7280; text-decoration: none;'>健康检查</a> · 
         <span style='color: #9ca3af;'>{API_BASE_URL}</span> ·
-        <span style='color: #9ca3af;'>v1.2</span>
+        <span style='color: #9ca3af;'>v1.3</span>
     </div>
     """,
     unsafe_allow_html=True
