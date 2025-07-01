@@ -283,6 +283,13 @@ python run_server.py
 streamlit run main.py
 ```
 
+## 未来优化方向
+API Key 加密存储 - 当前明文存储存在一定安全风险
+数据持久化方案 - 解决 Render 重启丢失数据问题
+自动 Key 健康检测 - 检查到 Key 连续三天失效自动移至移除区
+优化 Key 使用策略 - 自适应负载均衡，选择最优配置
+**确保部署保证简单与免费的特性**
+
 ## 📄 许可证
 
 本项目采用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 许可证。
