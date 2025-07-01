@@ -676,15 +676,12 @@ st.markdown("""
         color: #374151;
     }
 
-    /* ==================== 修复 Streamlit 消息组件边框问题 ==================== */
-
-    /* 修复所有 Streamlit Alert 组件的边框 */
     [data-testid="stAlert"] {
         border: none !important;
         box-shadow: none !important;
     }
 
-    /* 修复具体的消息类型 */
+    /* 具体的消息类型 */
     [data-testid="stAlert"][kind="info"] {
         border: none !important;
         background: #dbeafe !important;
@@ -709,18 +706,17 @@ st.markdown("""
         color: #991b1b !important;
     }
 
-    /* 修复 Alert 内部元素 */
+    /* Alert 内部元素 */
     [data-testid="stAlert"] > div {
         border: none !important;
         box-shadow: none !important;
     }
 
-    /* 修复可能的子元素 */
     [data-testid="stAlert"] * {
         border: none !important;
     }
 
-    /* 如果还有其他消息框组件 */
+    /* 其他消息框组件 */
     [data-testid="stSuccess"],
     [data-testid="stInfo"], 
     [data-testid="stWarning"],
@@ -729,7 +725,6 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* 修复任何可能的边框样式 */
     .stAlert, 
     .st-alert,
     div[role="alert"] {
@@ -737,7 +732,6 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* 强制移除所有可能的边框 */
     .stAlert *,
     .st-alert *,
     [data-testid="stAlert"] *,
@@ -747,7 +741,7 @@ st.markdown("""
         outline: none !important;
     }
 
-    /* 修复气泡框边框（针对内联样式） */
+    /* 气泡框边框 */
     div[style*="background: #dbeafe"],
     div[style*="background: #d1fae5"],
     div[style*="background: #fee2e2"],
@@ -1110,11 +1104,14 @@ elif page == "密钥管理":
 
                                     # 性能指标
                                     total_requests = key_info.get('total_requests', 0)
+                                    success_rate = key_info.get('success_rate', 1.0)
+                                    avg_response = key_info.get('avg_response_time', 0.0)
+
                                     if total_requests > 0:
-                                        success_rate = key_info.get('success_rate', 1.0)
-                                        avg_response = key_info.get('avg_response_time', 0.0)
                                         st.caption(
                                             f"成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {total_requests}")
+                                    else:
+                                        st.caption("尚未使用")
 
                             with col3:
                                 # 健康状态
