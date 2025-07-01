@@ -680,7 +680,7 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown("## GEMINI API PROXY")
+    st.markdown("## Gemini 轮询")
     st.markdown('<hr style="margin: 1rem 0;">', unsafe_allow_html=True)
 
     page = st.radio(
@@ -1168,7 +1168,7 @@ elif page == "模型配置":
 
     # 使用内联样式移除黑色边框
     st.markdown(
-        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem;">'
+        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
         '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
         '</div>',
         unsafe_allow_html=True
@@ -1275,8 +1275,8 @@ elif page == "系统设置":
                     "禁用": 0,
                     "低 (4k)": 4096,
                     "中 (8k)": 8192,
-                    "高 (24k)": 24576,
-                    "最高 (32k)": 32768
+                    "flash最大思考预算 (24k)": 24576,
+                    "pro最大思考预算 (32k)": 32768
                 }
 
                 current_budget = thinking_config.get('budget', -1)
