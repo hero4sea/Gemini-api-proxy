@@ -443,31 +443,37 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 500;
         line-height: 1;
+        border: none;
     }
 
     .status-healthy {
         background: #d1fae5;
         color: #065f46;
+        border: none;
     }
 
     .status-unhealthy {
         background: #fee2e2;
         color: #991b1b;
+        border: none;
     }
 
     .status-unknown {
         background: #fef3c7;
         color: #92400e;
+        border: none;
     }
 
     .status-active {
         background: #dbeafe;
         color: #1e40af;
+        border: none;
     }
 
     .status-inactive {
         background: #f3f4f6;
         color: #6b7280;
+        border: none;
     }
 
     /* 输入框样式 */
@@ -674,6 +680,47 @@ st.markdown("""
         background: #f9fafb;
         border-color: #d1d5db;
         color: #374151;
+    }
+
+    /* 信息提示框样式 */
+    .info-box {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        border: none;
+    }
+
+    .warning-box {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        border: none;
+    }
+
+    .success-box {
+        background: #d1fae5;
+        color: #065f46;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        border: none;
+    }
+
+    .error-box {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        border: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1166,9 +1213,9 @@ elif page == "模型配置":
         st.warning("暂无可用模型")
         st.stop()
 
-    # 使用内联样式移除黑色边框
+    # 使用新的CSS类替代内联样式
     st.markdown(
-        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem; border: none;">'
+        '<div class="info-box">'
         '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
         '</div>',
         unsafe_allow_html=True
