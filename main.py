@@ -1101,17 +1101,26 @@ elif page == "密钥管理":
                                 if key_value:
                                     masked_key = mask_key(key_value, show_full_keys)
                                     st.code(masked_key, language=None)
+                                else:
+                                    st.code("密钥数据缺失", language=None)
 
-                                    # 性能指标
-                                    total_requests = key_info.get('total_requests', 0)
-                                    success_rate = key_info.get('success_rate', 1.0)
-                                    avg_response = key_info.get('avg_response_time', 0.0)
+                                # 性能指标 - 使用 markdown 替代 caption 避免空白
+                                total_requests = key_info.get('total_requests', 0)
+                                success_rate = key_info.get('success_rate', 1.0)
+                                avg_response = key_info.get('avg_response_time', 0.0)
 
-                                    if total_requests > 0:
-                                        st.caption(
-                                            f"成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {total_requests}")
-                                    else:
-                                        st.caption("尚未使用")
+                                if total_requests > 0:
+                                    st.markdown(
+                                        f'<p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">'
+                                        f'成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {total_requests}'
+                                        f'</p>',
+                                        unsafe_allow_html=True
+                                    )
+                                else:
+                                    st.markdown(
+                                        '<p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">尚未使用</p>',
+                                        unsafe_allow_html=True
+                                    )
 
                             with col3:
                                 # 健康状态
@@ -1552,7 +1561,7 @@ elif page == "系统设置":
         with col1:
             st.markdown("##### 服务信息")
             st.text(f"Python: {status_data.get('python_version', 'Unknown').split()[0]}")
-            st.text(f"版本: {status_data.get('version', '1.0.0')}")
+            st.text(f"版本: {status_data.get('version', '1.1.0')}")
             st.text(f"模型: {', '.join(status_data.get('models', []))}")
 
         with col2:
