@@ -553,11 +553,25 @@ st.markdown("""
         border: 1px solid #e5e7eb;
     }
 
+    /* 密钥行样式 - 使用列容器 */
+    div[data-testid="column"] > div:first-child {
+        padding: 0.5rem;
+    }
+
+    /* 文本样式 - 用于性能指标 */
+    .stText {
+        font-size: 0.75rem !important;
+        color: #6b7280 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+    }
+
     /* 分隔线样式 */
     hr {
-        margin: 2rem 0;
-        border: none;
-        border-top: 1px solid #e5e7eb;
+        margin: 1.5rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #e5e7eb !important;
     }
 
     /* 标题样式 */
@@ -587,21 +601,6 @@ st.markdown("""
         margin-bottom: 0.75rem;
     }
 
-    /* 密钥容器样式 */
-    .key-container {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 1.25rem;
-        margin: 0.75rem 0;
-        transition: all 0.2s ease;
-    }
-
-    .key-container:hover {
-        border-color: #d1d5db;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
     /* 信息容器 */
     .info-container {
         background: #f9fafb;
@@ -623,6 +622,7 @@ st.markdown("""
         border-radius: 6px;
         background: #f9fafb;
         border: 1px solid #e5e7eb;
+        margin-bottom: 0.25rem !important;
     }
 
     /* Expander样式 */
@@ -1087,80 +1087,60 @@ elif page == "密钥管理":
                 # 渲染有效的密钥
                 for key_info in valid_keys:
                     try:
-                        with st.container():
-                            st.markdown('<div class="key-container">', unsafe_allow_html=True)
+                        # 使用自定义HTML包装整个密钥项
+                        key_html = f"""
+                        <div class="key-container" style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.25rem; margin: 0.75rem 0;">
+                            <div style="display: grid; grid-template-columns: 1fr 4fr 1.5fr 1fr; gap: 1rem; align-items: start;">
+                                <div>
+                                    <strong>#{key_info.get('id', 'N/A')}</strong>
+                                </div>
+                                <div>
+                                    <code style="background: #f3f4f6; padding: 0.5rem; border-radius: 4px; display: block; font-family: monospace;">
+                                        {mask_key(key_info.get('key', ''), show_full_keys)}
+                                    </code>
+                                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
+                                        {f"成功率 {key_info.get('success_rate', 1.0) * 100:.1f}% · 响应时间 {key_info.get('avg_response_time', 0.0):.2f}s · 请求数 {key_info.get('total_requests', 0)}"
+                        if key_info.get('total_requests', 0) > 0 else "尚未使用"}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="status-badge status-{key_info.get('health_status', 'unknown')}" style="display: inline-block; margin-bottom: 0.5rem;">
+                                        {format_health_status(key_info.get('health_status', 'unknown'))}
+                                    </span>
+                                    <span class="status-badge status-{'active' if key_info.get('status', 0) == 1 else 'inactive'}" style="display: block;">
+                                        {'激活' if key_info.get('status', 0) == 1 else '禁用'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <!-- 按钮占位 -->
+                                </div>
+                            </div>
+                        </div>
+                        """
 
-                            col1, col2, col3, col4 = st.columns([1, 4, 1.5, 1])
+                        st.markdown(key_html, unsafe_allow_html=True)
 
-                            with col1:
-                                key_id = key_info.get('id', 'N/A')
-                                st.markdown(f"**#{key_id}**")
+                        # 单独处理按钮（因为按钮必须是Streamlit组件）
+                        col1, col2, col3, col4 = st.columns([1, 4, 1.5, 1])
+                        with col4:
+                            key_id = key_info.get('id')
+                            status = key_info.get('status', 0)
 
-                            with col2:
-                                key_value = key_info.get('key', '')
-                                if key_value:
-                                    masked_key = mask_key(key_value, show_full_keys)
-                                    st.code(masked_key, language=None)
-                                else:
-                                    st.code("密钥数据缺失", language=None)
+                            if key_id is not None:
+                                toggle_text = "禁用" if status == 1 else "激活"
+                                if st.button(toggle_text, key=f"toggle_g_{key_id}", use_container_width=True):
+                                    if toggle_key_status('gemini', key_id):
+                                        st.success("状态已更新")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
 
-                                # 性能指标 - 使用 markdown 替代 caption 避免空白
-                                total_requests = key_info.get('total_requests', 0)
-                                success_rate = key_info.get('success_rate', 1.0)
-                                avg_response = key_info.get('avg_response_time', 0.0)
-
-                                if total_requests > 0:
-                                    st.markdown(
-                                        f'<p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">'
-                                        f'成功率 {success_rate * 100:.1f}% · 响应时间 {avg_response:.2f}s · 请求数 {total_requests}'
-                                        f'</p>',
-                                        unsafe_allow_html=True
-                                    )
-                                else:
-                                    st.markdown(
-                                        '<p style="font-size: 0.75rem; color: #6b7280; margin: 0.25rem 0 0 0;">尚未使用</p>',
-                                        unsafe_allow_html=True
-                                    )
-
-                            with col3:
-                                # 健康状态
-                                health_status = key_info.get('health_status', 'unknown')
-                                status_text = format_health_status(health_status)
-                                status_class = f"status-{health_status}"
-                                st.markdown(f'<div class="status-badge {status_class}">{status_text}</div>',
-                                            unsafe_allow_html=True)
-
-                                # 激活状态
-                                status = key_info.get('status', 0)
-                                if status == 1:
-                                    st.markdown('<div class="status-badge status-active">激活</div>',
-                                                unsafe_allow_html=True)
-                                else:
-                                    st.markdown('<div class="status-badge status-inactive">禁用</div>',
-                                                unsafe_allow_html=True)
-
-                            with col4:
-                                # 操作按钮
-                                key_id = key_info.get('id')
-                                status = key_info.get('status', 0)
-
-                                if key_id is not None:
-                                    toggle_text = "禁用" if status == 1 else "激活"
-                                    if st.button(toggle_text, key=f"toggle_g_{key_id}", use_container_width=True):
-                                        if toggle_key_status('gemini', key_id):
-                                            st.success("状态已更新")
-                                            st.cache_data.clear()
-                                            time.sleep(1)
-                                            st.rerun()
-
-                                    if st.button("删除", key=f"del_g_{key_id}", use_container_width=True):
-                                        if delete_key('gemini', key_id):
-                                            st.success("删除成功")
-                                            st.cache_data.clear()
-                                            time.sleep(1)
-                                            st.rerun()
-
-                            st.markdown('</div>', unsafe_allow_html=True)
+                                if st.button("删除", key=f"del_g_{key_id}", use_container_width=True):
+                                    if delete_key('gemini', key_id):
+                                        st.success("删除成功")
+                                        st.cache_data.clear()
+                                        time.sleep(1)
+                                        st.rerun()
 
                     except Exception as e:
                         # 异常时显示错误信息而不是空白
@@ -1561,7 +1541,7 @@ elif page == "系统设置":
         with col1:
             st.markdown("##### 服务信息")
             st.text(f"Python: {status_data.get('python_version', 'Unknown').split()[0]}")
-            st.text(f"版本: {status_data.get('version', '1.1.0')}")
+            st.text(f"版本: {status_data.get('version', '1.0.0')}")
             st.text(f"模型: {', '.join(status_data.get('models', []))}")
 
         with col2:
