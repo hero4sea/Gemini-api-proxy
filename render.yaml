@@ -1,0 +1,37 @@
+services:
+  # 1. Backend API Service
+  - type: web
+    name: gemini-api-proxy
+    env: python
+    plan: free
+    region: oregon # 美国西海岸，大陆网络友好
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run_server.py
+    healthCheckPath: /health # 用于健康检查
+    autoDeploy: true # 建议开启，当代码推送到main分支时自动部署
+
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+
+  # 2. Frontend Streamlit Service
+  - type: web
+    name: gemini-proxy-admin
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run main.py --server.port $PORT --server.address 0.0.0.0
+    autoDeploy: true
+
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # 自动将后端服务的URL注入到前端
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: gemini-api-proxy # 与上面的后端服务名称匹配
+          property: url # 获取其公开URL
