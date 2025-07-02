@@ -518,32 +518,76 @@ st.markdown("""
         border-bottom-color: #6366f1;
     }
 
+    /* ===== 全新优化的侧边栏样式 ===== */
+
     /* 侧边栏整体容器 */
     section[data-testid="stSidebar"] {
-        background: #fafafa;
+        background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
         border-right: none;
-        box-shadow: 1px 0 0 rgba(0, 0, 0, 0.05);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+        min-height: 100vh;
     }
 
     /* 侧边栏内容区域 */
     section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
-        padding-top: 3rem;
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
+        padding: 2rem 1.5rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
-    /* 侧边栏标题 */
-    .sidebar-title {
-        font-size: 1rem;
+    /* Logo区域 */
+    .sidebar-logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0 0.5rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+
+    .sidebar-logo-icon {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .sidebar-logo-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .sidebar-logo-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: white;
+    }
+
+    .sidebar-logo-subtitle {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* 分割线 */
+    .sidebar-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 1.5rem 0;
+    }
+
+    /* 导航区域标题 */
+    .sidebar-section-title {
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #111827;
-        margin-bottom: 3rem;
-        text-align: left;
-        letter-spacing: -0.01em;
+        color: rgba(255, 255, 255, 0.5);
         text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 0 0.5rem;
+        margin-bottom: 0.75rem;
     }
 
-    /* 导航容器 */
+    /* 导航容器 - 保持原有功能 */
     section[data-testid="stSidebar"] .stRadio {
         background: transparent !important;
         padding: 0 !important;
@@ -552,70 +596,185 @@ st.markdown("""
     }
 
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.25rem !important;
+        gap: 0.375rem !important;
         background: transparent !important;
         padding: 0 !important;
         margin: 0 !important;
     }
 
-    /* 导航项 */
+    /* 导航项样式 */
     section[data-testid="stSidebar"] .stRadio > div > label {
         font-size: 0.875rem !important;
         font-weight: 500 !important;
-        color: #6b7280 !important;
-        padding: 0.75rem 1rem !important;
-        border-radius: 8px !important;
+        color: rgba(255, 255, 255, 0.8) !important;
+        padding: 0.875rem 1rem !important;
+        border-radius: 12px !important;
         cursor: pointer !important;
-        transition: all 0.15s ease !important;
-        display: block !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
         margin: 0 !important;
         position: relative !important;
         border: none !important;
         background: transparent !important;
         width: 100% !important;
         box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    /* 导航项图标 */
+    .nav-icon {
+        font-size: 1.125rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 
     /* 悬停效果 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: rgba(0, 0, 0, 0.03) !important;
-        color: #374151 !important;
-        transform: none !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: white !important;
+        transform: translateX(4px) !important;
     }
 
     /* 选中状态 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
-        background: transparent !important;
-        color: #111827 !important;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%) !important;
+        color: white !important;
         font-weight: 600 !important;
-        box-shadow: none !important;
-        transform: none !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
-    /* 选中状态左边指示条 */
+    /* 选中状态光效 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label::before {
         content: "";
         position: absolute;
         left: 0;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 0;
         width: 3px;
-        height: 1.5rem;
-        background: #111827;
-        border-radius: 0 2px 2px 0;
+        height: 100%;
+        background: linear-gradient(180deg, #6366f1 0%, #a855f7 100%);
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
     }
 
+    /* 选中状态背景光晕 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at left center, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    /* 隐藏radio按钮 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"] {
         display: none !important;
     }
-    section[data-testid="stSidebar"] .element-container {
-        margin: 0 !important;
-        padding: 0 !important;
+
+    /* 状态指示器区域 */
+    .sidebar-status {
+        margin-top: auto;
+        padding-top: 2rem;
     }
 
-    section[data-testid="stSidebar"] hr {
-        display: none !important;
+    .sidebar-status-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
     }
+
+    .sidebar-status-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0.5rem;
+    }
+
+    .sidebar-status-content {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sidebar-status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .sidebar-status-indicator.online {
+        background: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+
+    .sidebar-status-indicator.offline {
+        background: #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+
+    .sidebar-status-text {
+        font-size: 0.875rem;
+        color: white;
+        font-weight: 500;
+    }
+
+    /* 版本信息 */
+    .sidebar-footer {
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 1rem;
+    }
+
+    .sidebar-footer-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0 0.5rem;
+    }
+
+    .sidebar-footer-item {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sidebar-footer-link {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .sidebar-footer-link:hover {
+        color: white;
+    }
+
+    /* 响应式优化 */
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] .stRadio > div > label {
+            padding: 0.75rem !important;
+            font-size: 0.8125rem !important;
+        }
+
+        .nav-icon {
+            font-size: 1rem;
+        }
+
+        .sidebar-logo-title {
+            font-size: 1rem;
+        }
+    }
+
+    /* ===== 以下是原有的其他样式 ===== */
 
     /* 成功/错误消息样式 */
     .stAlert {
@@ -815,15 +974,108 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+# --- 获取服务状态函数 ---
+@st.cache_data(ttl=10)
+def get_service_status():
+    """获取服务状态，用于侧边栏显示"""
+    try:
+        health = check_service_health()
+        stats = get_cached_stats()
+        if health and stats:
+            return {
+                'online': True,
+                'active_keys': stats.get('active_gemini_keys', 0),
+                'healthy_keys': stats.get('healthy_gemini_keys', 0)
+            }
+    except:
+        pass
+    return {'online': False, 'active_keys': 0, 'healthy_keys': 0}
+
+
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown('<h1 class="sidebar-title">Gemini轮询</h1>', unsafe_allow_html=True)
+    # Logo区域
+    st.markdown('''
+    <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">🌠</div>
+        <div class="sidebar-logo-text">
+            <div class="sidebar-logo-title">Gemini Proxy</div>
+            <div class="sidebar-logo-subtitle">多Key智能轮询系统</div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 
-    page = st.radio(
+    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+
+    # 导航标题
+    st.markdown('<div class="sidebar-section-title">主菜单</div>', unsafe_allow_html=True)
+
+    # 创建带图标的导航选项
+    nav_options = {
+        "🏠 控制台": "控制台",
+        "⚙️ 模型配置": "模型配置",
+        "🔑 密钥管理": "密钥管理",
+        "🔧 系统设置": "系统设置"
+    }
+
+    # 使用自定义HTML为导航项添加图标
+    page_display = st.radio(
         "导航",
-        ["控制台", "模型配置", "密钥管理", "系统设置"],
-        label_visibility="collapsed"
+        list(nav_options.keys()),
+        label_visibility="collapsed",
+        key="nav_radio"
     )
+
+    # 转换显示值为实际页面值
+    page = nav_options[page_display]
+
+    # 添加状态指示器
+    st.markdown('<div class="sidebar-status">', unsafe_allow_html=True)
+
+    # 服务状态
+    service_status = get_service_status()
+    status_class = "online" if service_status['online'] else "offline"
+    status_text = "在线" if service_status['online'] else "离线"
+
+    st.markdown(f'''
+    <div class="sidebar-status-card">
+        <div class="sidebar-status-title">服务状态</div>
+        <div class="sidebar-status-content">
+            <div class="sidebar-status-indicator {status_class}"></div>
+            <div class="sidebar-status-text">{status_text}</div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # API密钥状态
+    if service_status['online']:
+        st.markdown(f'''
+        <div class="sidebar-status-card">
+            <div class="sidebar-status-title">API 密钥</div>
+            <div class="sidebar-status-content">
+                <div class="sidebar-status-text">{service_status['healthy_keys']} / {service_status['active_keys']} 正常</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 底部信息
+    st.markdown(f'''
+    <div class="sidebar-footer">
+        <div class="sidebar-footer-content">
+            <div class="sidebar-footer-item">
+                <span>版本 v1.1.0</span>
+            </div>
+            <div class="sidebar-footer-item">
+                <a href="{API_BASE_URL}/docs" target="_blank" class="sidebar-footer-link">API 文档</a>
+                <span>·</span>
+                <a href="https://github.com/your-repo" target="_blank" class="sidebar-footer-link">GitHub</a>
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 
 # --- 主页面内容 ---
 if page == "控制台":
