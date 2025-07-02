@@ -589,12 +589,18 @@ def map_finish_reason(gemini_reason: str) -> str:
     return mapping.get(gemini_reason, "stop")
 
 
-async def select_gemini_key_and_check_limits(model_name: str) -> Optional[Dict]:
-    """自适应选择可用的Gemini Key并检查模型限制"""
+async def select_gemini_key_and_check_limits(model_name: str, excluded_keys: set = None) -> Optional[Dict]:
+    """自适应选择可用的Gemini Key并检查模型限制（支持排除特定key）"""
+    if excluded_keys is None:
+        excluded_keys = set()
+
     available_keys = db.get_available_gemini_keys()
 
+    # 过滤排除的key
+    available_keys = [k for k in available_keys if k['id'] not in excluded_keys]
+
     if not available_keys:
-        logger.warning("No available Gemini keys found")
+        logger.warning("No available Gemini keys found after exclusions")
         return None
 
     # 获取模型配置（已经包含计算的总限制）
@@ -726,6 +732,249 @@ async def make_gemini_request_with_retry(
                 continue
 
     raise HTTPException(status_code=500, detail="Max retries exceeded")
+
+
+# 请求处理函数
+async def make_request_with_failover(
+        gemini_request: Dict,
+        openai_request: ChatCompletionRequest,
+        model_name: str,
+        max_key_attempts: int = None,
+        excluded_keys: set = None
+) -> Dict:
+    """
+    请求处理
+
+    Args:
+        gemini_request: 转换后的Gemini请求
+        openai_request: 原始OpenAI请求
+        model_name: 模型名称
+        max_key_attempts: 最大尝试key数量，默认为所有可用key
+        excluded_keys: 排除的key ID集合
+
+    Returns:
+        成功的Gemini响应
+
+    Raises:
+        HTTPException: 所有key都失败时抛出
+    """
+    if excluded_keys is None:
+        excluded_keys = set()
+
+    # 获取所有可用的key
+    available_keys = db.get_available_gemini_keys()
+
+    # 过滤排除的key
+    available_keys = [k for k in available_keys if k['id'] not in excluded_keys]
+
+    if not available_keys:
+        logger.error("No available keys for failover")
+        raise HTTPException(
+            status_code=503,
+            detail="No available API keys"
+        )
+
+    # 如果没有指定最大尝试次数，就尝试所有可用key
+    if max_key_attempts is None:
+        max_key_attempts = len(available_keys)
+    else:
+        max_key_attempts = min(max_key_attempts, len(available_keys))
+
+    logger.info(f"Starting failover with {max_key_attempts} key attempts for model {model_name}")
+
+    last_error = None
+    failed_keys = []
+
+    for attempt in range(max_key_attempts):
+        try:
+            # 重新选择可用的key（排除已失败的）
+            selection_result = await select_gemini_key_and_check_limits(
+                model_name,
+                excluded_keys=excluded_keys.union(set(failed_keys))
+            )
+
+            if not selection_result:
+                logger.warning(f"No more available keys after {attempt} attempts")
+                break
+
+            key_info = selection_result['key_info']
+            model_config = selection_result['model_config']
+
+            logger.info(f"Attempt {attempt + 1}: Using key #{key_info['id']} for {model_name}")
+
+            try:
+                # 尝试使用当前key发送请求（包含单key重试）
+                response = await make_gemini_request_with_retry(
+                    key_info['key'],
+                    key_info['id'],
+                    gemini_request,
+                    model_name,
+                    max_retries=2  # 每个key内部重试2次
+                )
+
+                # 成功！记录使用统计
+                logger.info(f"✅ Request successful with key #{key_info['id']} on attempt {attempt + 1}")
+
+                # 估算token使用量并记录
+                total_tokens = 0
+                for candidate in response.get("candidates", []):
+                    content = candidate.get("content", {})
+                    parts = content.get("parts", [])
+                    for part in parts:
+                        if "text" in part:
+                            total_tokens += len(part["text"].split())
+
+                # 记录成功的使用统计
+                await rate_limiter.add_usage(model_name, 1, total_tokens)
+
+                return response
+
+            except HTTPException as e:
+                # 记录失败的key
+                failed_keys.append(key_info['id'])
+                last_error = e
+
+                # 更新key性能统计（失败）
+                db.update_key_performance(key_info['id'], False, 0.0)
+
+                # 记录失败统计
+                await rate_limiter.add_usage(model_name, 1, 0)
+
+                logger.warning(f"❌ Key #{key_info['id']} failed with {e.status_code}: {e.detail}")
+
+                # 如果是客户端错误（4xx），可能是请求问题，不再尝试其他key
+                if e.status_code < 500:
+                    logger.warning(f"Client error {e.status_code}, stopping failover")
+                    raise e
+
+                # 服务器错误或超时，继续尝试下一个key
+                continue
+
+        except Exception as e:
+            logger.error(f"Unexpected error during failover attempt {attempt + 1}: {str(e)}")
+            last_error = HTTPException(status_code=500, detail=str(e))
+            continue
+
+    # 所有key都尝试失败了
+    failed_count = len(failed_keys)
+    logger.error(f"❌ All {failed_count} keys failed for {model_name}")
+
+    if last_error:
+        raise last_error
+    else:
+        raise HTTPException(
+            status_code=503,
+            detail=f"All {failed_count} available API keys failed"
+        )
+
+
+# 流式响应处理函数
+async def stream_with_failover(
+        gemini_request: Dict,
+        openai_request: ChatCompletionRequest,
+        model_name: str,
+        max_key_attempts: int = None,
+        excluded_keys: set = None
+) -> AsyncGenerator[bytes, None]:
+    """
+    流式响应处理
+    """
+    if excluded_keys is None:
+        excluded_keys = set()
+
+    available_keys = db.get_available_gemini_keys()
+    available_keys = [k for k in available_keys if k['id'] not in excluded_keys]
+
+    if not available_keys:
+        error_data = {
+            'error': {
+                'message': 'No available API keys',
+                'type': 'service_unavailable',
+                'code': 503
+            }
+        }
+        yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n".encode('utf-8')
+        yield "data: [DONE]\n\n".encode('utf-8')
+        return
+
+    if max_key_attempts is None:
+        max_key_attempts = len(available_keys)
+    else:
+        max_key_attempts = min(max_key_attempts, len(available_keys))
+
+    logger.info(f"Starting stream failover with {max_key_attempts} key attempts for {model_name}")
+
+    failed_keys = []
+
+    for attempt in range(max_key_attempts):
+        try:
+            selection_result = await select_gemini_key_and_check_limits(
+                model_name,
+                excluded_keys=excluded_keys.union(set(failed_keys))
+            )
+
+            if not selection_result:
+                break
+
+            key_info = selection_result['key_info']
+            logger.info(f"Stream attempt {attempt + 1}: Using key #{key_info['id']}")
+
+            # 尝试流式响应
+            success = False
+            try:
+                async for chunk in stream_gemini_response(
+                        key_info['key'],
+                        key_info['id'],
+                        gemini_request,
+                        openai_request,
+                        key_info,
+                        model_name
+                ):
+                    yield chunk
+                    success = True
+
+                # 如果成功开始流式传输，就不再尝试其他key
+                if success:
+                    return
+
+            except Exception as e:
+                failed_keys.append(key_info['id'])
+                logger.warning(f"Stream key #{key_info['id']} failed: {str(e)}")
+
+                # 更新失败统计
+                db.update_key_performance(key_info['id'], False, 0.0)
+
+                # 如果还有其他key可以尝试，继续
+                if attempt < max_key_attempts - 1:
+                    # 发送重试提示（可选）
+                    retry_msg = {
+                        'error': {
+                            'message': f'Key #{key_info["id"]} failed, trying next key...',
+                            'type': 'retry_info',
+                            'retry_attempt': attempt + 1
+                        }
+                    }
+                    yield f"data: {json.dumps(retry_msg, ensure_ascii=False)}\n\n".encode('utf-8')
+                    continue
+                else:
+                    # 最后一次尝试失败
+                    break
+
+        except Exception as e:
+            logger.error(f"Stream failover error on attempt {attempt + 1}: {str(e)}")
+            continue
+
+    # 所有key都失败了
+    error_data = {
+        'error': {
+            'message': f'All {len(failed_keys)} available API keys failed',
+            'type': 'all_keys_failed',
+            'code': 503,
+            'failed_keys': failed_keys
+        }
+    }
+    yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n".encode('utf-8')
+    yield "data: [DONE]\n\n".encode('utf-8')
 
 
 async def stream_gemini_response(
@@ -1043,7 +1292,7 @@ async def root():
     return {
         "service": "Gemini API Proxy",
         "status": "running",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "docs": "/docs",
         "health": "/health"
     }
@@ -1062,7 +1311,7 @@ async def health_check():
         "environment": "render" if os.getenv('RENDER_EXTERNAL_URL') else "local",
         "uptime_seconds": int(uptime),
         "request_count": request_count,
-        "version": "1.0.0"
+        "version": "1.1.0"
     }
 
 
@@ -1087,7 +1336,7 @@ async def get_status():
     return {
         "service": "Gemini API Proxy",
         "status": "running",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "render_url": os.getenv('RENDER_EXTERNAL_URL'),
         "python_version": sys.version,
         "models": db.get_supported_models(),
@@ -1169,7 +1418,7 @@ async def api_v1_info():
             "openapi_json": "/openapi.json",
             "swagger_ui": "/docs",
             "redoc": "/redoc",
-            "github": "https://github.com/your-repo/gemini-api-proxy"
+            "github": "https://github.com/arain119/gemini-api-proxy"
         },
         "example_usage": {
             "curl": f"curl -X POST '{base_url}/v1/chat/completions' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{{\n    \"model\": \"gemini-2.5-flash\",\n    \"messages\": [{{\"role\": \"user\", \"content\": \"Hello!\"}}]\n  }}'",
@@ -1184,6 +1433,7 @@ async def api_v1_info():
     }
 
 
+# chat_completions端点
 @app.post("/v1/chat/completions")
 async def chat_completions(
         request: ChatCompletionRequest,
@@ -1221,49 +1471,31 @@ async def chat_completions(
         # 注入prompt（如果启用）
         request.messages = inject_prompt_to_messages(request.messages)
 
-        # 选择可用的Gemini Key并检查限制
-        selection_result = await select_gemini_key_and_check_limits(actual_model_name)
-
-        if not selection_result:
-            raise HTTPException(
-                status_code=429,
-                detail=f"No available API keys or model {actual_model_name} has reached rate limits."
-            )
-
-        gemini_key_info = selection_result['key_info']
-        model_config = selection_result['model_config']
-
         # 转换请求格式
         gemini_request = openai_to_gemini(request)
 
-        # 记录请求
-        await rate_limiter.add_usage(actual_model_name, 1, 0)
-        db.log_usage(gemini_key_info['id'], user_key['id'], actual_model_name, 1, 0)
-
+        # 故障转移机制
         if request.stream:
-            # 流式响应 - 修改 media_type 添加 charset
+            # 流式响应使用故障转移
             return StreamingResponse(
-                stream_gemini_response(
-                    gemini_key_info['key'],
-                    gemini_key_info['id'],
+                stream_with_failover(
                     gemini_request,
                     request,
-                    gemini_key_info,
-                    actual_model_name
+                    actual_model_name,
+                    max_key_attempts=5  # 最多尝试5个key
                 ),
-                media_type="text/event-stream; charset=utf-8"  # 添加 charset=utf-8
+                media_type="text/event-stream; charset=utf-8"
             )
         else:
-            # 非流式响应
-            gemini_response = await make_gemini_request_with_retry(
-                gemini_key_info['key'],
-                gemini_key_info['id'],
+            # 非流式响应使用故障转移
+            gemini_response = await make_request_with_failover(
                 gemini_request,
+                request,
                 actual_model_name,
-                int(db.get_config('max_retries', '3'))
+                max_key_attempts=5  # 最多尝试5个key
             )
 
-            # 估算token使用量
+            # 计算token使用量
             total_tokens = 0
             for candidate in gemini_response.get("candidates", []):
                 content = candidate.get("content", {})
@@ -1271,10 +1503,6 @@ async def chat_completions(
                 for part in parts:
                     if "text" in part:
                         total_tokens += len(part["text"].split())
-
-            # 记录token使用
-            await rate_limiter.add_usage(actual_model_name, 0, total_tokens)
-            db.log_usage(gemini_key_info['id'], user_key['id'], actual_model_name, 0, total_tokens)
 
             # 转换响应格式
             usage_info = {
@@ -1284,7 +1512,6 @@ async def chat_completions(
             }
 
             openai_response = gemini_to_openai(gemini_response, request, usage_info)
-
             return JSONResponse(content=openai_response)
 
     except HTTPException:
