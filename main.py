@@ -338,7 +338,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 修复后的自定义CSS样式 ---
+# --- 自定义CSS样式 ---
 st.markdown("""
 <style>
     /* 全局字体 */
@@ -518,142 +518,108 @@ st.markdown("""
         border-bottom-color: #6366f1;
     }
 
-    /* === 修复：侧边栏样式 === */
+    /* === 简化侧边栏样式 === */
 
-    /* 侧边栏整体容器 */
+    /* 侧边栏整体容器 - 极简设计 */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-        border-right: 1px solid #e5e7eb;
+        background: #fafafa;
+        border-right: none;
+        box-shadow: 1px 0 0 rgba(0, 0, 0, 0.05);
     }
 
     /* 侧边栏内容区域 */
     section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
-        padding-top: 1rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding-top: 3rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
     }
 
-    /* 修复：侧边栏标题左对齐 */
+    /* 侧边栏标题 - 极简风格 */
     .sidebar-title {
-        font-size: 1.75rem;
-        font-weight: 800;
+        font-size: 1rem;
+        font-weight: 600;
         color: #111827;
-        margin-bottom: 1.5rem;
-        text-align: left !important;  /* 改为左对齐 */
-        letter-spacing: -0.025em;
-        padding-left: 0.25rem;
+        margin-bottom: 3rem;
+        text-align: left;
+        letter-spacing: -0.01em;
+        text-transform: uppercase;
     }
 
-    /* 修复：消除空白气泡 - 重置radio按钮样式 */
+    /* 导航容器 - 移除所有多余样式 */
     section[data-testid="stSidebar"] .stRadio {
         background: transparent !important;
         padding: 0 !important;
         margin: 0 !important;
+        border: none !important;
     }
 
-    /* 修复：radio按钮容器 */
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.5rem !important;
+        gap: 0.25rem !important;
         background: transparent !important;
         padding: 0 !important;
         margin: 0 !important;
     }
 
-    /* 修复：radio选项样式 */
+    /* 导航项 - 极简设计 */
     section[data-testid="stSidebar"] .stRadio > div > label {
-        font-size: 0.9375rem !important;
+        font-size: 0.875rem !important;
         font-weight: 500 !important;
-        color: #4b5563 !important;
-        padding: 0.875rem 1.25rem !important;
-        border-radius: 10px !important;
+        color: #6b7280 !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 8px !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.15s ease !important;
         display: block !important;
-        margin: 0.25rem 0 !important;
+        margin: 0 !important;
         position: relative !important;
-        border: 1px solid transparent !important;
+        border: none !important;
         background: transparent !important;
         width: 100% !important;
         box-sizing: border-box !important;
     }
 
-    /* 悬停效果 */
+    /* 悬停效果 - 微妙的变化 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: rgba(99, 102, 241, 0.05) !important;
-        color: #6366f1 !important;
-        border-color: rgba(99, 102, 241, 0.1) !important;
-        transform: translateX(4px);
+        background: rgba(0, 0, 0, 0.03) !important;
+        color: #374151 !important;
+        transform: none !important;
     }
 
-    /* 选中状态样式 */
-    section[data-testid="stSidebar"] .stRadio > div > label > div[data-testid="stWidgetLabel"] {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-        width: 100% !important;
-    }
-
-    /* 激活状态 */
+    /* 选中状态 - 简洁的指示器 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: white !important;
+        background: transparent !important;
+        color: #111827 !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
-        transform: translateX(0) !important;
+        box-shadow: none !important;
+        transform: none !important;
     }
 
-    /* 隐藏radio按钮本身 */
+    /* 选中状态左边指示条 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 1.5rem;
+        background: #111827;
+        border-radius: 0 2px 2px 0;
+    }
+
+    /* 隐藏radio按钮 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"] {
         display: none !important;
     }
 
-    /* 侧边栏分隔线 */
-    section[data-testid="stSidebar"] hr {
-        margin: 1rem 0 !important;
-        border: none !important;
-        border-top: 1px solid #e5e7eb !important;
-        opacity: 0.6;
-    }
-
-    /* 侧边栏服务状态卡片 */
-    .sidebar-section {
-        background: rgba(255, 255, 255, 0.7) !important;
-        border-radius: 10px !important;
-        padding: 1rem !important;
-        margin: 0.5rem 0 !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-
-    /* 侧边栏按钮样式 */
-    section[data-testid="stSidebar"] .stButton > button {
-        background: #ffffff !important;
-        color: #374151 !important;
-        border: 1px solid #e5e7eb !important;
-        font-size: 0.875rem !important;
-        padding: 0.5rem 0.75rem !important;
-        height: 2.25rem !important;
-        width: 100% !important;
-    }
-
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: #f9fafb !important;
-        border-color: #d1d5db !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
-    }
-
-    /* 修复：消除不必要的内边距和边距 */
+    /* 移除所有不必要的元素和间距 */
     section[data-testid="stSidebar"] .element-container {
         margin: 0 !important;
         padding: 0 !important;
     }
 
-    /* 修复：侧边栏 expander 样式 */
-    section[data-testid="stSidebar"] .streamlit-expanderHeader {
-        background: transparent !important;
-        border: none !important;
-        padding: 0.5rem 0 !important;
+    section[data-testid="stSidebar"] hr {
+        display: none !important;
     }
 
     /* 成功/错误消息样式 */
@@ -856,67 +822,13 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown('<h1 class="sidebar-title">🌟 Gemini 轮询</h1>', unsafe_allow_html=True)
-    st.markdown('<hr style="margin: 0.5rem 0 1rem 0;">', unsafe_allow_html=True)
+    st.markdown('<h1 class="sidebar-title">Gemini Proxy</h1>', unsafe_allow_html=True)
 
     page = st.radio(
         "导航",
         ["控制台", "模型配置", "密钥管理", "系统设置"],
         label_visibility="collapsed"
     )
-
-    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
-
-    # 服务状态
-    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-    st.markdown("##### 服务状态")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("刷新", use_container_width=True, key="refresh_sidebar"):
-            st.cache_data.clear()
-    with col2:
-        if st.button("唤醒", use_container_width=True, key="wake_sidebar"):
-            wake_up_service()
-
-    # 检查服务健康状态
-    health = check_service_health()
-    if health:
-        st.markdown('<div class="status-badge status-healthy" style="margin-top: 0.5rem;">✓ 服务正常</div>',
-                    unsafe_allow_html=True)
-        with st.expander("详细信息", expanded=False):
-            st.text(f"地址: {API_BASE_URL}")
-            st.text(f"状态: {health.get('status', 'unknown')}")
-            st.text(f"运行: {health.get('uptime_seconds', 0) // 3600}小时")
-    else:
-        st.markdown('<div class="status-badge status-unhealthy" style="margin-top: 0.5rem;">✗ 服务离线</div>',
-                    unsafe_allow_html=True)
-        st.caption("点击'唤醒'按钮激活服务")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 系统概览
-    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-    st.markdown("##### 系统概览")
-
-    status_data = get_cached_status()
-    if status_data:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("可用密钥", status_data.get('active_keys', 0))
-        with col2:
-            thinking_enabled = status_data.get('thinking_enabled', False)
-            st.metric("思考模式", "开启" if thinking_enabled else "关闭")
-
-    # 健康状态
-    health_summary = get_cached_health_summary()
-    if health_summary and health_summary.get('success'):
-        summary = health_summary['summary']
-        if summary.get('unhealthy', 0) > 0:
-            st.warning(f"发现 {summary.get('unhealthy', 0)} 个异常密钥")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 主页面内容 ---
 if page == "控制台":
