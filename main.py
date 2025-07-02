@@ -338,675 +338,589 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 高级感CSS样式 ---
+# --- 修复后的自定义CSS样式 ---
 st.markdown("""
 <style>
-    /* === 全局样式 === */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
+    /* 全局字体 */
     html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
 
-    /* === 主容器布局 === */
-    .main .block-container {
-        padding-top: 1rem;
+    /* 整体布局 */
+    .block-container {
+        padding-top: 1.5rem;
         padding-bottom: 2rem;
         max-width: 1440px;
     }
 
-    /* === 高级侧边栏重新设计 === */
-
-    /* 侧边栏整体容器 */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(145deg, #1a1d29 0%, #2d3748 50%, #1a1d29 100%) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-
-    /* 侧边栏背景装饰效果 */
-    section[data-testid="stSidebar"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: 
-            radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 40% 60%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    /* 侧边栏内容区域 */
-    section[data-testid="stSidebar"] > div {
-        position: relative !important;
-        z-index: 1 !important;
-        padding: 0 !important;
-    }
-
-    section[data-testid="stSidebar"] > div > div {
-        padding: 1.5rem 1rem !important;
-    }
-
-    /* === 高级标题设计 === */
-    .sidebar-header {
-        text-align: center;
-        margin-bottom: 2rem;
-        position: relative;
-        padding: 1rem 0;
-    }
-
-    .sidebar-title {
-        font-size: 1.5rem !important;
-        font-weight: 800 !important;
-        background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        text-align: center !important;
-        margin: 0 !important;
-        letter-spacing: -0.5px !important;
-        position: relative !important;
-    }
-
-    .sidebar-subtitle {
-        font-size: 0.75rem !important;
-        color: rgba(255, 255, 255, 0.6) !important;
-        text-align: center !important;
-        margin-top: 0.25rem !important;
-        font-weight: 400 !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    /* === 完全重新设计的导航按钮 === */
-
-    /* 彻底清除所有Streamlit默认样式 */
-    section[data-testid="stSidebar"] .stRadio,
-    section[data-testid="stSidebar"] .stRadio > div,
-    section[data-testid="stSidebar"] .stRadio fieldset,
-    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"],
-    section[data-testid="stSidebar"] .stRadio [data-testid="stWidgetLabel"],
-    section[data-testid="stSidebar"] .stRadio [class*="st-"],
-    section[data-testid="stSidebar"] .stRadio [class*="streamlit"] {
-        all: unset !important;
-        background: none !important;
-        background-color: transparent !important;
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-
-    /* 导航容器 */
-    .nav-container {
-        margin: 1rem 0 2rem 0;
-    }
-
-    .nav-title {
-        font-size: 0.6rem;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.4);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 0.75rem;
-        padding-left: 0.5rem;
-    }
-
-    /* 导航按钮样式 */
-    section[data-testid="stSidebar"] .stRadio label {
-        all: unset !important;
-        display: flex !important;
-        align-items: center !important;
-        width: 100% !important;
-        padding: 0.875rem 1rem !important;
-        margin: 0.25rem 0 !important;
-        border-radius: 12px !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        color: rgba(255, 255, 255, 0.8) !important;
-        font-size: 0.875rem !important;
-        font-weight: 500 !important;
-        cursor: pointer !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        position: relative !important;
-        overflow: hidden !important;
-        backdrop-filter: blur(10px) !important;
-        -webkit-backdrop-filter: blur(10px) !important;
-        box-sizing: border-box !important;
-    }
-
-    /* 导航按钮前的图标空间 */
-    section[data-testid="stSidebar"] .stRadio label::before {
-        content: '';
-        width: 0.375rem;
-        height: 0.375rem;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        margin-right: 0.75rem;
-        transition: all 0.3s ease;
-    }
-
-    /* 悬停效果 */
-    section[data-testid="stSidebar"] .stRadio label:hover {
-        background: rgba(99, 102, 241, 0.15) !important;
-        border-color: rgba(99, 102, 241, 0.3) !important;
-        color: rgba(255, 255, 255, 1) !important;
-        transform: translateX(6px) scale(1.02) !important;
-        box-shadow: 
-            0 8px 25px rgba(99, 102, 241, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-    }
-
-    section[data-testid="stSidebar"] .stRadio label:hover::before {
-        background: #6366f1;
-        box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
-    }
-
-    /* 选中状态 */
-    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25)) !important;
-        border-color: rgba(99, 102, 241, 0.5) !important;
-        color: #ffffff !important;
-        font-weight: 600 !important;
-        box-shadow: 
-            0 12px 30px rgba(99, 102, 241, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-            0 0 0 1px rgba(99, 102, 241, 0.4) !important;
-        transform: translateX(0) !important;
-    }
-
-    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label::before {
-        background: linear-gradient(135deg, #fbbf24, #f59e0b);
-        box-shadow: 
-            0 0 15px rgba(251, 191, 36, 0.8),
-            0 0 30px rgba(251, 191, 36, 0.4);
-    }
-
-    /* 隐藏原生radio按钮 */
-    section[data-testid="stSidebar"] .stRadio input[type="radio"] {
-        position: absolute !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        outline: none !important;
-        left: -9999px !important;
-    }
-
-    /* === 服务状态卡片 === */
-    .sidebar-status-card {
-        background: rgba(255, 255, 255, 0.08) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-radius: 16px !important;
-        padding: 1.25rem !important;
-        margin: 1rem 0 !important;
-        backdrop-filter: blur(15px) !important;
-        -webkit-backdrop-filter: blur(15px) !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-
-    .sidebar-status-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.6), transparent);
-    }
-
-    .status-card-title {
-        font-size: 0.75rem !important;
-        font-weight: 600 !important;
-        color: rgba(255, 255, 255, 0.9) !important;
-        margin-bottom: 0.75rem !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
-
-    .status-badge-premium {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 0.375rem !important;
-        padding: 0.5rem 0.875rem !important;
-        border-radius: 20px !important;
-        font-size: 0.75rem !important;
-        font-weight: 500 !important;
-        margin: 0.25rem 0 !important;
-        border: 1px solid transparent !important;
-        transition: all 0.3s ease !important;
-    }
-
-    .status-badge-premium.healthy {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2)) !important;
-        color: #10b981 !important;
-        border-color: rgba(16, 185, 129, 0.3) !important;
-    }
-
-    .status-badge-premium.offline {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)) !important;
-        color: #ef4444 !important;
-        border-color: rgba(239, 68, 68, 0.3) !important;
-    }
-
-    .status-badge-premium::before {
-        content: '';
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 50%;
-        background: currentColor;
-        box-shadow: 0 0 8px currentColor;
-    }
-
-    /* === 侧边栏按钮 === */
-    section[data-testid="stSidebar"] .stButton > button {
-        width: 100% !important;
-        background: rgba(255, 255, 255, 0.06) !important;
-        color: rgba(255, 255, 255, 0.9) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-radius: 10px !important;
-        padding: 0.625rem 0.875rem !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        backdrop-filter: blur(10px) !important;
-        -webkit-backdrop-filter: blur(10px) !important;
-    }
-
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: rgba(99, 102, 241, 0.15) !important;
-        border-color: rgba(99, 102, 241, 0.3) !important;
-        color: #ffffff !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.2) !important;
-    }
-
-    /* === 分隔线 === */
-    section[data-testid="stSidebar"] hr {
-        border: none !important;
-        height: 1px !important;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent) !important;
-        margin: 1.5rem 0 !important;
-    }
-
-    /* === Expander样式 === */
-    section[data-testid="stSidebar"] .streamlit-expanderHeader {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 8px !important;
-        padding: 0.75rem 1rem !important;
-        color: rgba(255, 255, 255, 0.9) !important;
-        font-weight: 500 !important;
-    }
-
-    /* === 主内容区域样式 === */
-
     /* 度量卡片 */
     [data-testid="metric-container"] {
-        background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-        padding: 1.5rem !important;
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 
-            0 4px 6px rgba(0, 0, 0, 0.05),
-            0 1px 3px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-
-    [data-testid="metric-container"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+        background: #ffffff;
+        padding: 1.25rem 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
     }
 
     [data-testid="metric-container"]:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 
-            0 8px 25px rgba(0, 0, 0, 0.12),
-            0 3px 6px rgba(0, 0, 0, 0.08) !important;
-        border-color: #cbd5e1 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: #d1d5db;
+    }
+
+    /* 度量值样式 */
+    [data-testid="metric-container"] > div:nth-child(1) {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+
+    [data-testid="metric-container"] > div:nth-child(2) {
+        font-size: 1.875rem;
+        font-weight: 600;
+        color: #111827;
+        line-height: 1.2;
+    }
+
+    [data-testid="metric-container"] > div:nth-child(3) {
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
     }
 
     /* 按钮样式 */
     .stButton > button {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-weight: 600 !important;
-        font-size: 0.875rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3) !important;
-        position: relative !important;
-        overflow: hidden !important;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        letter-spacing: 0.01em;
+        background: #111827;
+        color: white;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .stButton > button:hover {
-        transform: translateY(-1px) scale(1.02) !important;
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4) !important;
+        background: #1f2937;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    .stButton > button:active {
-        transform: translateY(0) scale(0.98) !important;
+    /* Primary按钮 */
+    .stButton > button[type="primary"] {
+        background: #6366f1;
+        color: white;
     }
 
-    /* 标签页样式 */
-    .stTabs [data-testid="stTabBar"] {
-        gap: 0 !important;
-        border-bottom: 2px solid #e2e8f0 !important;
-        padding: 0 !important;
-        margin-bottom: 2rem !important;
-        background: #f8fafc !important;
-        border-radius: 12px 12px 0 0 !important;
+    .stButton > button[type="primary"]:hover {
+        background: #4f46e5;
     }
 
-    .stTabs [data-testid="stTabBar"] button {
-        background: transparent !important;
-        border: none !important;
-        border-radius: 12px 12px 0 0 !important;
-        padding: 1rem 2rem !important;
-        color: #64748b !important;
-        font-weight: 500 !important;
-        font-size: 0.875rem !important;
-        transition: all 0.3s ease !important;
-        position: relative !important;
+    /* Secondary按钮 */
+    .stButton > button[type="secondary"] {
+        background: #ffffff;
+        color: #374151;
+        border: 1px solid #e5e7eb;
     }
 
-    .stTabs [data-testid="stTabBar"] button[aria-selected="true"] {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+    .stButton > button[type="secondary"]:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+    }
+
+    /* 健康状态标签 */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1;
+        white-space: nowrap;
+        min-width: 3rem;
+    }
+
+    .status-healthy {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-unhealthy {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-unknown {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-active {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-inactive {
+        background: #f3f4f6;
+        color: #6b7280;
     }
 
     /* 输入框样式 */
     .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
     .stTextArea > div > div > textarea {
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 10px !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 0.875rem !important;
-        transition: all 0.3s ease !important;
-        background: #ffffff !important;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        padding: 0.625rem 0.875rem;
+        background-color: #ffffff;
+        transition: all 0.15s ease;
     }
 
     .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
     .stSelectbox > div > div > select:focus,
     .stTextArea > div > div > textarea:focus {
-        border-color: #6366f1 !important;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
-        outline: none !important;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
     }
 
-    /* 状态标签样式 */
-    .status-badge {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 0.375rem !important;
-        padding: 0.5rem 1rem !important;
-        border-radius: 20px !important;
-        font-size: 0.75rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
+    /* 标签页样式 */
+    .stTabs [data-testid="stTabBar"] {
+        gap: 2rem;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0;
+        margin-bottom: 2rem;
     }
 
-    .status-healthy {
-        background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important;
-        color: #065f46 !important;
-        border: 1px solid #10b981 !important;
+    .stTabs [data-testid="stTabBar"] button {
+        font-weight: 500;
+        color: #6b7280;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid transparent;
+        font-size: 0.875rem;
+        letter-spacing: 0.01em;
+        transition: all 0.2s ease;
     }
 
-    .status-unhealthy {
-        background: linear-gradient(135deg, #fee2e2, #fecaca) !important;
-        color: #991b1b !important;
-        border: 1px solid #ef4444 !important;
+    .stTabs [data-testid="stTabBar"] button[aria-selected="true"] {
+        color: #111827;
+        border-bottom-color: #6366f1;
     }
 
-    .status-unknown {
-        background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
-        color: #92400e !important;
-        border: 1px solid #f59e0b !important;
+    /* === 修复：侧边栏样式 === */
+
+    /* 侧边栏整体容器 */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border-right: 1px solid #e5e7eb;
     }
 
-    .status-active {
-        background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important;
-        color: #1e40af !important;
-        border: 1px solid #3b82f6 !important;
+    /* 侧边栏内容区域 */
+    section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
+        padding-top: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
-    .status-inactive {
-        background: linear-gradient(135deg, #f3f4f6, #e5e7eb) !important;
-        color: #374151 !important;
-        border: 1px solid #9ca3af !important;
+    /* 修复：侧边栏标题左对齐 */
+    .sidebar-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 1.5rem;
+        text-align: left !important;  /* 改为左对齐 */
+        letter-spacing: -0.025em;
+        padding-left: 0.25rem;
     }
 
-    /* 标题样式 */
-    h1 {
-        background: linear-gradient(135deg, #1e293b, #334155) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        font-weight: 800 !important;
-        font-size: 2.25rem !important;
-        letter-spacing: -0.025em !important;
-        margin-bottom: 0.5rem !important;
+    /* 修复：消除空白气泡 - 重置radio按钮样式 */
+    section[data-testid="stSidebar"] .stRadio {
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
-    .page-subtitle {
-        color: #64748b !important;
-        font-size: 1rem !important;
-        font-weight: 400 !important;
-        margin-bottom: 2rem !important;
+    /* 修复：radio按钮容器 */
+    section[data-testid="stSidebar"] .stRadio > div {
+        gap: 0.5rem !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
-    /* 密钥卡片样式 */
-    .key-card {
-        background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 16px !important;
-        padding: 1.5rem !important;
-        margin-bottom: 1rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    /* 修复：radio选项样式 */
+    section[data-testid="stSidebar"] .stRadio > div > label {
+        font-size: 0.9375rem !important;
+        font-weight: 500 !important;
+        color: #4b5563 !important;
+        padding: 0.875rem 1.25rem !important;
+        border-radius: 10px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        display: block !important;
+        margin: 0.25rem 0 !important;
         position: relative !important;
-        overflow: hidden !important;
+        border: 1px solid transparent !important;
+        background: transparent !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
-    .key-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6, #10b981);
+    /* 悬停效果 */
+    section[data-testid="stSidebar"] .stRadio > div > label:hover {
+        background: rgba(99, 102, 241, 0.05) !important;
+        color: #6366f1 !important;
+        border-color: rgba(99, 102, 241, 0.1) !important;
+        transform: translateX(4px);
     }
 
-    .key-card:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12) !important;
-        border-color: #cbd5e1 !important;
+    /* 选中状态样式 */
+    section[data-testid="stSidebar"] .stRadio > div > label > div[data-testid="stWidgetLabel"] {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+
+    /* 激活状态 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
+        transform: translateX(0) !important;
+    }
+
+    /* 隐藏radio按钮本身 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"] {
+        display: none !important;
+    }
+
+    /* 侧边栏分隔线 */
+    section[data-testid="stSidebar"] hr {
+        margin: 1rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #e5e7eb !important;
+        opacity: 0.6;
+    }
+
+    /* 侧边栏服务状态卡片 */
+    .sidebar-section {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border-radius: 10px !important;
+        padding: 1rem !important;
+        margin: 0.5rem 0 !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* 侧边栏按钮样式 */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: #ffffff !important;
+        color: #374151 !important;
+        border: 1px solid #e5e7eb !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.75rem !important;
+        height: 2.25rem !important;
+        width: 100% !important;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: #f9fafb !important;
+        border-color: #d1d5db !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* 修复：消除不必要的内边距和边距 */
+    section[data-testid="stSidebar"] .element-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 修复：侧边栏 expander 样式 */
+    section[data-testid="stSidebar"] .streamlit-expanderHeader {
+        background: transparent !important;
+        border: none !important;
+        padding: 0.5rem 0 !important;
+    }
+
+    /* 成功/错误消息样式 */
+    .stAlert {
+        border-radius: 6px;
+        font-size: 0.875rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid;
+    }
+
+    /* 图表容器 */
+    .js-plotly-plot .plotly {
+        border-radius: 8px;
+        overflow: hidden;
     }
 
     /* 表格样式 */
     .stDataFrame {
-        border-radius: 12px !important;
-        overflow: hidden !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
-        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
     }
 
-    /* Alert样式 */
+    /* 密钥卡片样式 */
+    .key-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .key-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: #d1d5db;
+    }
+
+    .key-content {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .key-id {
+        font-weight: 600;
+        color: #374151;
+        min-width: 3rem;
+    }
+
+    .key-code {
+        flex: 1;
+        background: #f3f4f6;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
+        font-size: 0.875rem;
+        color: #111827;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .key-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 8rem;
+    }
+
+    .key-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: auto;
+    }
+
+    .key-actions .stButton > button {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.75rem !important;
+        min-width: 4rem;
+        border-radius: 6px !important;
+    }
+
+    .key-meta {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    /* 控制台状态对齐 */
+    .health-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .health-status-content {
+        flex: 1;
+    }
+
+    /* 标题样式 */
+    h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.5rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #111827;
+        letter-spacing: -0.02em;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #374151;
+        letter-spacing: -0.01em;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* 页面标题副标题 */
+    .page-subtitle {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 2rem;
+        font-weight: 400;
+    }
+
+    /* Alert 样式修复 */
     [data-testid="stAlert"] {
-        border-radius: 12px !important;
         border: none !important;
-        font-weight: 500 !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: none !important;
     }
 
-    /* 页面底部样式 */
-    .footer {
-        margin-top: 4rem !important;
-        padding: 2rem 0 !important;
-        border-top: 1px solid #e2e8f0 !important;
-        text-align: center !important;
-        color: #64748b !important;
-        font-size: 0.875rem !important;
+    [data-testid="stAlert"][kind="info"] {
+        border: none !important;
+        background: #dbeafe !important;
+        color: #1e40af !important;
     }
 
-    .footer a {
-        color: #6366f1 !important;
-        text-decoration: none !important;
-        font-weight: 500 !important;
-        transition: color 0.3s ease !important;
+    [data-testid="stAlert"][kind="success"] {
+        border: none !important;
+        background: #d1fae5 !important;
+        color: #065f46 !important;
     }
 
-    .footer a:hover {
-        color: #4f46e5 !important;
+    [data-testid="stAlert"][kind="warning"] {
+        border: none !important;
+        background: #fef3c7 !important;
+        color: #92400e !important;
+    }
+
+    [data-testid="stAlert"][kind="error"] {
+        border: none !important;
+        background: #fee2e2 !important;
+        color: #991b1b !important;
+    }
+
+    /* 分隔线样式 */
+    hr {
+        margin: 1.5rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #e5e7eb !important;
+    }
+
+    /* 密钥管理容器样式 - 整合卡片布局 */
+    div[data-testid="stHorizontalBlock"]:has(div.key-id) {
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 12px !important;
+        padding: 1.25rem !important;
+        margin: 0.75rem 0 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(div.key-id):hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        border-color: #d1d5db !important;
+        transform: translateY(-1px);
+    }
+
+    /* 密钥卡片内的按钮样式 */
+    div[data-testid="stHorizontalBlock"]:has(div.key-id) .stButton > button {
+        height: 2rem !important;
+        padding: 0 0.875rem !important;
+        font-size: 0.75rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# --- 侧边栏 ---
+with st.sidebar:
+    st.markdown('<h1 class="sidebar-title">🌟 Gemini 轮询</h1>', unsafe_allow_html=True)
+    st.markdown('<hr style="margin: 0.5rem 0 1rem 0;">', unsafe_allow_html=True)
 
-# --- 自定义侧边栏组件 ---
-def render_custom_sidebar():
-    """渲染自定义高级侧边栏"""
-    with st.sidebar:
-        # 标题区域
-        st.markdown("""
-        <div class="sidebar-header">
-            <div class="sidebar-title">🌟 Gemini 轮询</div>
-            <div class="sidebar-subtitle">高性能API代理服务</div>
-        </div>
-        """, unsafe_allow_html=True)
+    page = st.radio(
+        "导航",
+        ["控制台", "模型配置", "密钥管理", "系统设置"],
+        label_visibility="collapsed"
+    )
 
-        # 导航区域
-        st.markdown("""
-        <div class="nav-container">
-            <div class="nav-title">导航菜单</div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
 
-        # 使用session_state来管理页面状态
-        if 'current_page' not in st.session_state:
-            st.session_state.current_page = "控制台"
+    # 服务状态
+    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+    st.markdown("##### 服务状态")
 
-        # 页面选择
-        page = st.radio(
-            "",
-            ["控制台", "模型配置", "密钥管理", "系统设置"],
-            index=["控制台", "模型配置", "密钥管理", "系统设置"].index(st.session_state.current_page),
-            label_visibility="collapsed",
-            key="page_selector"
-        )
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("刷新", use_container_width=True, key="refresh_sidebar"):
+            st.cache_data.clear()
+    with col2:
+        if st.button("唤醒", use_container_width=True, key="wake_sidebar"):
+            wake_up_service()
 
-        # 更新session_state
-        st.session_state.current_page = page
+    # 检查服务健康状态
+    health = check_service_health()
+    if health:
+        st.markdown('<div class="status-badge status-healthy" style="margin-top: 0.5rem;">✓ 服务正常</div>',
+                    unsafe_allow_html=True)
+        with st.expander("详细信息", expanded=False):
+            st.text(f"地址: {API_BASE_URL}")
+            st.text(f"状态: {health.get('status', 'unknown')}")
+            st.text(f"运行: {health.get('uptime_seconds', 0) // 3600}小时")
+    else:
+        st.markdown('<div class="status-badge status-unhealthy" style="margin-top: 0.5rem;">✗ 服务离线</div>',
+                    unsafe_allow_html=True)
+        st.caption("点击'唤醒'按钮激活服务")
 
-        st.markdown('<hr>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-        # 服务状态卡片
-        st.markdown("""
-        <div class="sidebar-status-card">
-            <div class="status-card-title">🚀 服务状态</div>
-        """, unsafe_allow_html=True)
+    # 系统概览
+    st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+    st.markdown("##### 系统概览")
 
-        # 检查服务健康状态
-        health = check_service_health()
-
-        if health:
-            st.markdown("""
-            <div class="status-badge-premium healthy">
-                <span>✓ 服务正常</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-            with st.expander("详细信息", expanded=False):
-                st.markdown(f"""
-                **地址**: `{API_BASE_URL}`  
-                **状态**: {health.get('status', 'unknown')}  
-                **运行时间**: {health.get('uptime_seconds', 0) // 3600} 小时  
-                **请求数**: {health.get('request_count', 0):,}
-                """)
-        else:
-            st.markdown("""
-            <div class="status-badge-premium offline">
-                <span>✗ 服务离线</span>
-            </div>
-            """, unsafe_allow_html=True)
-            st.caption("点击下方按钮激活服务")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # 操作按钮
+    status_data = get_cached_status()
+    if status_data:
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 刷新", use_container_width=True, key="refresh_sidebar"):
-                st.cache_data.clear()
-                st.rerun()
+            st.metric("可用密钥", status_data.get('active_keys', 0))
         with col2:
-            if st.button("⚡ 唤醒", use_container_width=True, key="wake_sidebar"):
-                wake_up_service()
-                st.rerun()
+            thinking_enabled = status_data.get('thinking_enabled', False)
+            st.metric("思考模式", "开启" if thinking_enabled else "关闭")
 
-        st.markdown('<hr>', unsafe_allow_html=True)
+    # 健康状态
+    health_summary = get_cached_health_summary()
+    if health_summary and health_summary.get('success'):
+        summary = health_summary['summary']
+        if summary.get('unhealthy', 0) > 0:
+            st.warning(f"发现 {summary.get('unhealthy', 0)} 个异常密钥")
 
-        # 系统概览
-        st.markdown("""
-        <div class="sidebar-status-card">
-            <div class="status-card-title">📊 系统概览</div>
-        """, unsafe_allow_html=True)
-
-        status_data = get_cached_status()
-        if status_data:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("可用密钥", status_data.get('active_keys', 0), label_visibility="collapsed")
-            with col2:
-                thinking_enabled = status_data.get('thinking_enabled', False)
-                st.metric("思考模式", "✅" if thinking_enabled else "❌", label_visibility="collapsed")
-
-        # 健康状态提醒
-        health_summary = get_cached_health_summary()
-        if health_summary and health_summary.get('success'):
-            summary = health_summary['summary']
-            if summary.get('unhealthy', 0) > 0:
-                st.warning(f"⚠️ {summary.get('unhealthy', 0)} 个异常密钥")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    return page
-
-
-# --- 渲染侧边栏并获取当前页面 ---
-page = render_custom_sidebar()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 主页面内容 ---
 if page == "控制台":
-    st.title("🎯 控制台")
+    st.title("控制台")
     st.markdown('<p class="page-subtitle">实时监控服务运行状态和使用情况</p>', unsafe_allow_html=True)
 
     # 获取统计数据
@@ -1018,6 +932,7 @@ if page == "控制台":
         st.stop()
 
     # 健康状态提示和刷新按钮（同一行）
+    st.markdown('<div class="health-status-row">', unsafe_allow_html=True)
     col1, col2 = st.columns([11, 1])
 
     with col1:
@@ -1028,26 +943,28 @@ if page == "控制台":
             unhealthy_count = health_summary.get('unhealthy', 0)
 
             if unhealthy_count > 0:
-                st.error(f"🚨 发现 {unhealthy_count} 个异常密钥，共 {total_active} 个激活密钥")
+                st.error(f"发现 {unhealthy_count} 个异常密钥，共 {total_active} 个激活密钥")
             elif healthy_count > 0:
-                st.success(f"✅ 所有 {healthy_count} 个密钥运行正常")
+                st.success(f"所有 {healthy_count} 个密钥运行正常")
             else:
-                st.info("ℹ️ 暂无激活的密钥")
+                st.info("暂无激活的密钥")
 
     with col2:
-        if st.button("🔄", help="刷新数据", key="refresh_dashboard"):
+        if st.button("⟳", help="刷新数据", key="refresh_dashboard"):
             st.cache_data.clear()
             st.rerun()
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
     # 核心指标
-    st.markdown("### 📈 核心指标")
+    st.markdown("### 核心指标")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         gemini_keys = stats_data.get('active_gemini_keys', 0)
         healthy_gemini = stats_data.get('healthy_gemini_keys', 0)
         st.metric(
-            "🔑 GEMINI密钥",
+            "GEMINI密钥",
             gemini_keys,
             delta=f"{healthy_gemini} 正常"
         )
@@ -1056,21 +973,21 @@ if page == "控制台":
         user_keys = stats_data.get('active_user_keys', 0)
         total_user = stats_data.get('user_keys', 0)
         st.metric(
-            "👤 用户密钥",
+            "用户密钥",
             user_keys,
             delta=f"共 {total_user} 个"
         )
 
     with col3:
         models = stats_data.get('supported_models', [])
-        st.metric("🤖 支持模型", len(models))
+        st.metric("支持模型", len(models))
 
     with col4:
-        thinking_status = "🧠 启用" if status_data.get('thinking_enabled', False) else "💭 禁用"
+        thinking_status = "启用" if status_data.get('thinking_enabled', False) else "禁用"
         st.metric("思考功能", thinking_status)
 
     # 使用率分析
-    st.markdown("### 📊 使用率分析")
+    st.markdown("### 使用率分析")
 
     usage_stats = stats_data.get('usage_stats', {})
     if usage_stats and models:
@@ -1121,19 +1038,19 @@ if page == "控制台":
                     customdata=df[['RPM Used', 'RPM Limit']].values
                 ))
                 fig_rpm.update_layout(
-                    title="⚡ 每分钟请求数 (RPM)",
-                    title_font=dict(size=16, color='#374151', family='Inter'),
+                    title="每分钟请求数 (RPM)",
+                    title_font=dict(size=14, color='#374151'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=350,
+                    height=320,
                     showlegend=False,
                     plot_bgcolor='#ffffff',
                     paper_bgcolor='#ffffff',
-                    font=dict(family='Inter', color='#6b7280', size=12),
-                    yaxis=dict(gridcolor='#f1f5f9', zerolinecolor='#e2e8f0'),
-                    xaxis=dict(linecolor='#e2e8f0'),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#6b7280', size=12),
+                    yaxis=dict(gridcolor='#f3f4f6', zerolinecolor='#e5e7eb'),
+                    xaxis=dict(linecolor='#e5e7eb'),
                     bargap=0.3,
-                    margin=dict(l=0, r=0, t=50, b=0)
+                    margin=dict(l=0, r=0, t=40, b=0)
                 )
                 st.plotly_chart(fig_rpm, use_container_width=True)
 
@@ -1149,47 +1066,47 @@ if page == "控制台":
                     customdata=df[['RPD Used', 'RPD Limit']].values
                 ))
                 fig_rpd.update_layout(
-                    title="📅 每日请求数 (RPD)",
-                    title_font=dict(size=16, color='#374151', family='Inter'),
+                    title="每日请求数 (RPD)",
+                    title_font=dict(size=14, color='#374151'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=350,
+                    height=320,
                     showlegend=False,
                     plot_bgcolor='#ffffff',
                     paper_bgcolor='#ffffff',
-                    font=dict(family='Inter', color='#6b7280', size=12),
-                    yaxis=dict(gridcolor='#f1f5f9', zerolinecolor='#e2e8f0'),
-                    xaxis=dict(linecolor='#e2e8f0'),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#6b7280', size=12),
+                    yaxis=dict(gridcolor='#f3f4f6', zerolinecolor='#e5e7eb'),
+                    xaxis=dict(linecolor='#e5e7eb'),
                     bargap=0.3,
-                    margin=dict(l=0, r=0, t=50, b=0)
+                    margin=dict(l=0, r=0, t=40, b=0)
                 )
                 st.plotly_chart(fig_rpd, use_container_width=True)
 
             # 详细数据表
-            with st.expander("📋 查看详细数据"):
+            with st.expander("查看详细数据"):
                 display_df = df[['Model', 'RPM Used', 'RPM Limit', 'RPM %', 'RPD Used', 'RPD Limit', 'RPD %']].copy()
                 display_df.columns = ['模型', '分钟请求', '分钟限制', '分钟使用率', '日请求', '日限制', '日使用率']
                 display_df['分钟使用率'] = display_df['分钟使用率'].apply(lambda x: f"{x:.1f}%")
                 display_df['日使用率'] = display_df['日使用率'].apply(lambda x: f"{x:.1f}%")
                 st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
-        st.info("📊 暂无使用数据")
+        st.info("暂无使用数据")
 
 elif page == "密钥管理":
-    st.title("🔐 密钥管理")
+    st.title("密钥管理")
     st.markdown('<p class="page-subtitle">管理 Gemini API 密钥和用户访问令牌</p>', unsafe_allow_html=True)
 
     # 刷新按钮
     col1, col2 = st.columns([10, 1])
     with col2:
-        if st.button("🔄", help="刷新数据", key="refresh_keys"):
+        if st.button("⟳", help="刷新数据", key="refresh_keys"):
             st.cache_data.clear()
             st.rerun()
 
-    tab1, tab2 = st.tabs(["🔑 Gemini 密钥", "👤 用户密钥"])
+    tab1, tab2 = st.tabs(["Gemini 密钥", "用户密钥"])
 
     with tab1:
-        st.markdown("#### ➕ 添加新密钥")
+        st.markdown("#### 添加新密钥")
 
         with st.form("add_gemini_key"):
             new_key = st.text_input(
@@ -1203,21 +1120,21 @@ elif page == "密钥管理":
             if submitted and new_key:
                 result = call_api('/admin/config/gemini-key', 'POST', {'key': new_key})
                 if result and result.get('success'):
-                    st.success("✅ 密钥添加成功")
+                    st.success("密钥添加成功")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ 添加失败，密钥可能已存在")
+                    st.error("添加失败，密钥可能已存在")
 
         st.markdown('<hr style="margin: 2rem 0;">', unsafe_allow_html=True)
 
         # 现有密钥
         col1, col2, col3 = st.columns([4, 1, 1])
         with col1:
-            st.markdown("#### 🔍 现有密钥")
+            st.markdown("#### 现有密钥")
         with col2:
-            if st.button("🏥 健康检测", help="检测所有密钥状态", key="health_check_gemini"):
+            if st.button("健康检测", help="检测所有密钥状态", key="health_check_gemini"):
                 with st.spinner("检测中..."):
                     result = check_all_keys_health()
                     if result and result.get('success'):
@@ -1226,7 +1143,7 @@ elif page == "密钥管理":
                         time.sleep(1)
                         st.rerun()
         with col3:
-            show_full_keys = st.checkbox("👁️ 显示完整", key="show_gemini_full")
+            show_full_keys = st.checkbox("显示完整", key="show_gemini_full")
 
         # 获取密钥列表
         gemini_keys_data = get_cached_gemini_keys()
@@ -1241,13 +1158,13 @@ elif page == "密钥管理":
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.markdown(f'<div style="color: #1e40af; font-weight: 600;">📊 共 {len(gemini_keys)} 个密钥</div>',
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">共 {len(gemini_keys)} 个密钥</div>',
                                 unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f'<div style="color: #1e40af; font-weight: 600;">⚡ 激活 {active_count} 个</div>',
+                    st.markdown(f'<div style="color: #1e40af; font-weight: 500;">激活 {active_count} 个</div>',
                                 unsafe_allow_html=True)
                 with col3:
-                    st.markdown(f'<div style="color: #10b981; font-weight: 600;">✅ 正常 {healthy_count} 个</div>',
+                    st.markdown(f'<div style="color: #10b981; font-weight: 500;">正常 {healthy_count} 个</div>',
                                 unsafe_allow_html=True)
 
                 valid_keys = []
@@ -1267,7 +1184,7 @@ elif page == "密钥管理":
 
                 # 如果有无效数据，给出提示
                 if invalid_count > 0:
-                    st.warning(f"⚠️ 发现 {invalid_count} 个数据不完整的密钥，已跳过显示")
+                    st.warning(f"发现 {invalid_count} 个数据不完整的密钥，已跳过显示")
 
                 # 渲染有效的密钥
                 for key_info in valid_keys:
@@ -1279,19 +1196,16 @@ elif page == "密钥管理":
                             col1, col2, col3, col4, col5, col6 = st.columns([0.5, 3.5, 0.9, 0.9, 0.8, 0.8])
 
                             with col1:
-                                st.markdown(
-                                    f'<div style="font-weight: 700; color: #374151;">#{key_info.get("id", "N/A")}</div>',
-                                    unsafe_allow_html=True)
+                                st.markdown(f'<div class="key-id">#{key_info.get("id", "N/A")}</div>',
+                                            unsafe_allow_html=True)
 
                             with col2:
                                 st.markdown(f'''
-                                <div class="key-card">
-                                    <div style="font-family: 'SF Mono', Monaco, monospace; font-size: 0.875rem; color: #111827; background: #f3f4f6; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
-                                        {mask_key(key_info.get('key', ''), show_full_keys)}
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: #6b7280;">
+                                <div>
+                                    <div class="key-code">{mask_key(key_info.get('key', ''), show_full_keys)}</div>
+                                    <div class="key-meta">
                                         {f"成功率 {key_info.get('success_rate', 1.0) * 100:.1f}% · 响应时间 {key_info.get('avg_response_time', 0.0):.2f}s · 请求数 {key_info.get('total_requests', 0)}"
-                                if key_info.get('total_requests', 0) > 0 else "🆕 尚未使用"}
+                                if key_info.get('total_requests', 0) > 0 else "尚未使用"}
                                     </div>
                                 </div>
                                 ''', unsafe_allow_html=True)
@@ -1306,7 +1220,7 @@ elif page == "密钥管理":
                             with col4:
                                 st.markdown(f'''
                                 <span class="status-badge status-{'active' if key_info.get('status', 0) == 1 else 'inactive'}">
-                                    {'🟢 激活' if key_info.get('status', 0) == 1 else '🔴 禁用'}
+                                    {'激活' if key_info.get('status', 0) == 1 else '禁用'}
                                 </span>
                                 ''', unsafe_allow_html=True)
 
@@ -1314,38 +1228,38 @@ elif page == "密钥管理":
                                 key_id = key_info.get('id')
                                 status = key_info.get('status', 0)
                                 if key_id is not None:
-                                    toggle_text = "🚫 禁用" if status == 1 else "✅ 激活"
+                                    toggle_text = "禁用" if status == 1 else "激活"
                                     if st.button(toggle_text, key=f"toggle_g_{key_id}", use_container_width=True):
                                         if toggle_key_status('gemini', key_id):
-                                            st.success("✅ 状态已更新")
+                                            st.success("状态已更新")
                                             st.cache_data.clear()
                                             time.sleep(1)
                                             st.rerun()
 
                             with col6:
                                 if key_id is not None:
-                                    if st.button("🗑️ 删除", key=f"del_g_{key_id}", use_container_width=True):
+                                    if st.button("删除", key=f"del_g_{key_id}", use_container_width=True):
                                         if delete_key('gemini', key_id):
-                                            st.success("✅ 删除成功")
+                                            st.success("删除成功")
                                             st.cache_data.clear()
                                             time.sleep(1)
                                             st.rerun()
 
                     except Exception as e:
                         # 异常时显示错误信息而不是空白
-                        st.error(f"❌ 渲染密钥 #{key_info.get('id', '?')} 时出错: {str(e)}")
+                        st.error(f"渲染密钥 #{key_info.get('id', '?')} 时出错: {str(e)}")
 
                 # 如果没有有效密钥
                 if not valid_keys:
-                    st.warning("⚠️ 所有密钥数据都不完整，请检查数据源")
+                    st.warning("所有密钥数据都不完整，请检查数据源")
 
             else:
-                st.info("📝 暂无密钥，请添加第一个 Gemini API 密钥")
+                st.info("暂无密钥，请添加第一个 Gemini API 密钥")
         else:
-            st.error("❌ 无法获取密钥列表")
+            st.error("无法获取密钥列表")
 
     with tab2:
-        st.markdown("#### 🔑 生成访问密钥")
+        st.markdown("#### 生成访问密钥")
 
         with st.form("generate_user_key"):
             key_name = st.text_input("密钥名称", placeholder="例如：生产环境、测试环境")
@@ -1356,11 +1270,11 @@ elif page == "密钥管理":
                 result = call_api('/admin/config/user-key', 'POST', {'name': name})
                 if result and result.get('success'):
                     new_key = result.get('key')
-                    st.success("✅ 密钥生成成功")
-                    st.warning("⚠️ 请立即保存此密钥，它不会再次显示")
+                    st.success("密钥生成成功")
+                    st.warning("请立即保存此密钥，它不会再次显示")
                     st.code(new_key, language=None)
 
-                    with st.expander("💻 使用示例"):
+                    with st.expander("使用示例"):
                         st.code(f"""
 import openai
 
@@ -1382,9 +1296,9 @@ response = client.chat.completions.create(
         # 现有密钥
         col1, col2 = st.columns([4, 1])
         with col1:
-            st.markdown("#### 🔍 现有密钥")
+            st.markdown("#### 现有密钥")
         with col2:
-            show_full_user_keys = st.checkbox("👁️ 显示完整", key="show_user_full")
+            show_full_user_keys = st.checkbox("显示完整", key="show_user_full")
 
         # 获取用户密钥
         user_keys_data = get_cached_user_keys()
@@ -1394,7 +1308,7 @@ response = client.chat.completions.create(
             if user_keys:
                 active_count = len([k for k in user_keys if k['status'] == 1])
                 st.markdown(
-                    f'<div style="color: #6b7280; font-weight: 600; margin-bottom: 1rem;">📊 共 {len(user_keys)} 个密钥，{active_count} 个激活</div>',
+                    f'<div style="color: #6b7280; font-weight: 500; margin-bottom: 1rem;">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>',
                     unsafe_allow_html=True)
 
                 for key_info in user_keys:
@@ -1404,18 +1318,15 @@ response = client.chat.completions.create(
                         col1, col2, col3, col4, col5 = st.columns([0.5, 3.5, 0.9, 0.8, 0.8])
 
                         with col1:
-                            st.markdown(f'<div style="font-weight: 700; color: #374151;">#{key_info["id"]}</div>',
-                                        unsafe_allow_html=True)
+                            st.markdown(f'<div class="key-id">#{key_info["id"]}</div>', unsafe_allow_html=True)
 
                         with col2:
                             st.markdown(f'''
-                            <div class="key-card">
-                                <div style="font-family: 'SF Mono', Monaco, monospace; font-size: 0.875rem; color: #111827; background: #f3f4f6; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 0.5rem;">
-                                    {mask_key(key_info['key'], show_full_user_keys)}
-                                </div>
-                                <div style="font-size: 0.75rem; color: #6b7280;">
-                                    {f"📝 名称: {key_info['name']}" if key_info.get('name') else "📝 未命名"} · 
-                                    {f"🕒 最后使用: {key_info['last_used'][:16]}" if key_info.get('last_used') else "🆕 从未使用"}
+                            <div>
+                                <div class="key-code">{mask_key(key_info['key'], show_full_user_keys)}</div>
+                                <div class="key-meta">
+                                    {f"名称: {key_info['name']}" if key_info.get('name') else "未命名"} · 
+                                    {f"最后使用: {key_info['last_used'][:16]}" if key_info.get('last_used') else "从未使用"}
                                 </div>
                             </div>
                             ''', unsafe_allow_html=True)
@@ -1423,55 +1334,60 @@ response = client.chat.completions.create(
                         with col3:
                             st.markdown(f'''
                             <span class="status-badge status-{'active' if key_info['status'] == 1 else 'inactive'}">
-                                {'🟢 激活' if key_info['status'] == 1 else '🔴 停用'}
+                                {'激活' if key_info['status'] == 1 else '停用'}
                             </span>
                             ''', unsafe_allow_html=True)
 
                         with col4:
-                            toggle_text = "🚫 停用" if key_info['status'] == 1 else "✅ 激活"
+                            toggle_text = "停用" if key_info['status'] == 1 else "激活"
                             if st.button(toggle_text, key=f"toggle_u_{key_info['id']}", use_container_width=True):
                                 if toggle_key_status('user', key_info['id']):
-                                    st.success("✅ 状态已更新")
+                                    st.success("状态已更新")
                                     st.cache_data.clear()
                                     time.sleep(1)
                                     st.rerun()
 
                         with col5:
-                            if st.button("🗑️ 删除", key=f"del_u_{key_info['id']}", use_container_width=True):
+                            if st.button("删除", key=f"del_u_{key_info['id']}", use_container_width=True):
                                 if delete_key('user', key_info['id']):
-                                    st.success("✅ 删除成功")
+                                    st.success("删除成功")
                                     st.cache_data.clear()
                                     time.sleep(1)
                                     st.rerun()
 
             else:
-                st.info("📝 暂无用户密钥")
+                st.info("暂无用户密钥")
 
 elif page == "模型配置":
-    st.title("🤖 模型配置")
+    st.title("模型配置")
     st.markdown('<p class="page-subtitle">调整模型参数和使用限制</p>', unsafe_allow_html=True)
 
     stats_data = get_cached_stats()
     status_data = get_cached_status()
 
     if not stats_data or not status_data:
-        st.error("❌ 无法获取数据")
+        st.error("无法获取数据")
         st.stop()
 
     models = status_data.get('models', [])
     if not models:
-        st.warning("⚠️ 暂无可用模型")
+        st.warning("暂无可用模型")
         st.stop()
 
     # 使用内联样式移除黑色边框
-    st.info("ℹ️ 显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增")
+    st.markdown(
+        '<div style="background: #dbeafe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.875rem; margin-bottom: 1rem;">'
+        '显示的限制针对单个 API Key，总限制会根据健康密钥数量自动倍增'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     for model in models:
-        st.markdown(f"### 🔧 {model}")
+        st.markdown(f"### {model}")
 
         current_config = get_cached_model_config(model)
         if not current_config or not current_config.get('success'):
-            st.warning(f"⚠️ 无法加载模型配置")
+            st.warning(f"无法加载模型配置")
             continue
 
         with st.form(f"model_config_{model}"):
@@ -1479,7 +1395,7 @@ elif page == "模型配置":
 
             with col1:
                 rpm = st.number_input(
-                    "⚡ RPM (每分钟请求)",
+                    "RPM (每分钟请求)",
                     min_value=1,
                     value=current_config.get('single_api_rpm_limit', 10 if 'flash' in model else 5),
                     key=f"rpm_{model}"
@@ -1487,7 +1403,7 @@ elif page == "模型配置":
 
             with col2:
                 rpd = st.number_input(
-                    "📅 RPD (每日请求)",
+                    "RPD (每日请求)",
                     min_value=1,
                     value=current_config.get('single_api_rpd_limit', 250 if 'flash' in model else 100),
                     key=f"rpd_{model}"
@@ -1495,54 +1411,54 @@ elif page == "模型配置":
 
             with col3:
                 tpm = st.number_input(
-                    "🔤 TPM (每分钟令牌)",
+                    "TPM (每分钟令牌)",
                     min_value=1000,
                     value=current_config.get('single_api_tpm_limit', 250000),
                     key=f"tpm_{model}"
                 )
 
             with col4:
-                status_options = {1: "✅ 激活", 0: "❌ 禁用"}
+                status_options = {1: "激活", 0: "禁用"}
                 current_status = current_config.get('status', 1)
                 new_status = st.selectbox(
-                    "🔄 状态",
+                    "状态",
                     options=list(status_options.values()),
                     index=0 if current_status == 1 else 1,
                     key=f"status_{model}"
                 )
 
-            if st.form_submit_button("💾 保存配置", type="primary", use_container_width=True):
+            if st.form_submit_button("保存配置", type="primary", use_container_width=True):
                 update_data = {
                     "single_api_rpm_limit": rpm,
                     "single_api_rpd_limit": rpd,
                     "single_api_tpm_limit": tpm,
-                    "status": 1 if new_status == "✅ 激活" else 0
+                    "status": 1 if new_status == "激活" else 0
                 }
 
                 result = call_api(f'/admin/models/{model}', 'POST', data=update_data)
                 if result and result.get('success'):
-                    st.success("✅ 配置已保存")
+                    st.success("配置已保存")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("❌ 保存失败")
+                    st.error("保存失败")
 
 elif page == "系统设置":
-    st.title("⚙️ 系统设置")
+    st.title("系统设置")
     st.markdown('<p class="page-subtitle">配置高级功能和系统参数</p>', unsafe_allow_html=True)
 
     stats_data = get_cached_stats()
     status_data = get_cached_status()
 
     if not stats_data or not status_data:
-        st.error("❌ 无法获取配置数据")
+        st.error("无法获取配置数据")
         st.stop()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧠 思考模式", "📝 提示词注入", "⚖️ 负载均衡", "🚀 保活管理", "📊 系统信息"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["思考模式", "提示词注入", "负载均衡", "保活管理", "系统信息"])
 
     with tab1:
-        st.markdown("#### 🧠 思考模式配置")
+        st.markdown("#### 思考模式配置")
         st.markdown("启用推理功能以提高复杂查询的响应质量")
 
         thinking_config = stats_data.get('thinking_config', {})
@@ -1552,35 +1468,35 @@ elif page == "系统设置":
 
             with col1:
                 thinking_enabled = st.checkbox(
-                    "🧠 启用思考模式",
+                    "启用思考模式",
                     value=thinking_config.get('enabled', False)
                 )
 
                 include_thoughts = st.checkbox(
-                    "📖 在响应中包含思考过程",
+                    "在响应中包含思考过程",
                     value=thinking_config.get('include_thoughts', False)
                 )
 
             with col2:
                 budget_options = {
-                    "🤖 自动": -1,
-                    "🚫 禁用": 0,
-                    "🔹 低 (4k)": 4096,
-                    "🔸 中 (8k)": 8192,
-                    "⚡ flash最大思考预算 (24k)": 24576,
-                    "🧠 pro最大思考预算 (32k)": 32768
+                    "自动": -1,
+                    "禁用": 0,
+                    "低 (4k)": 4096,
+                    "中 (8k)": 8192,
+                    "flash最大思考预算 (24k)": 24576,
+                    "pro最大思考预算 (32k)": 32768
                 }
 
                 current_budget = thinking_config.get('budget', -1)
-                selected_option = next((k for k, v in budget_options.items() if v == current_budget), "🤖 自动")
+                selected_option = next((k for k, v in budget_options.items() if v == current_budget), "自动")
 
                 budget_option = st.selectbox(
-                    "💭 思考预算",
+                    "思考预算",
                     options=list(budget_options.keys()),
                     index=list(budget_options.keys()).index(selected_option)
                 )
 
-            if st.form_submit_button("💾 保存配置", type="primary", use_container_width=True):
+            if st.form_submit_button("保存配置", type="primary", use_container_width=True):
                 update_data = {
                     "enabled": thinking_enabled,
                     "budget": budget_options[budget_option],
@@ -1589,44 +1505,44 @@ elif page == "系统设置":
 
                 result = call_api('/admin/config/thinking', 'POST', data=update_data)
                 if result and result.get('success'):
-                    st.success("✅ 配置已保存")
+                    st.success("配置已保存")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
 
     with tab2:
-        st.markdown("#### 📝 提示词注入")
+        st.markdown("#### 提示词注入")
         st.markdown("为所有请求自动添加自定义指令")
 
         inject_config = stats_data.get('inject_config', {})
 
         with st.form("inject_prompt_form"):
             inject_enabled = st.checkbox(
-                "📝 启用提示词注入",
+                "启用提示词注入",
                 value=inject_config.get('enabled', False)
             )
 
             position_options = {
-                'system': '🔧 系统消息',
-                'user_prefix': '⬆️ 用户消息前',
-                'user_suffix': '⬇️ 用户消息后'
+                'system': '系统消息',
+                'user_prefix': '用户消息前',
+                'user_suffix': '用户消息后'
             }
 
             position = st.selectbox(
-                "📍 注入位置",
+                "注入位置",
                 options=list(position_options.keys()),
                 format_func=lambda x: position_options[x],
                 index=list(position_options.keys()).index(inject_config.get('position', 'system'))
             )
 
             content = st.text_area(
-                "📄 提示词内容",
+                "提示词内容",
                 value=inject_config.get('content', ''),
                 height=150,
                 placeholder="输入自定义提示词..."
             )
 
-            if st.form_submit_button("💾 保存配置", type="primary", use_container_width=True):
+            if st.form_submit_button("保存配置", type="primary", use_container_width=True):
                 update_data = {
                     "enabled": inject_enabled,
                     "content": content,
@@ -1635,13 +1551,13 @@ elif page == "系统设置":
 
                 result = call_api('/admin/config/inject-prompt', 'POST', data=update_data)
                 if result and result.get('success'):
-                    st.success("✅ 配置已保存")
+                    st.success("配置已保存")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
 
     with tab3:
-        st.markdown("#### ⚖️ 负载均衡策略")
+        st.markdown("#### 负载均衡策略")
         st.markdown("优化 API Key 选择策略")
 
         # 获取当前策略
@@ -1657,9 +1573,9 @@ elif page == "系统设置":
 
         with st.form("load_balance_form"):
             strategy_options = {
-                'adaptive': '🤖 自适应策略',
-                'least_used': '📊 最少使用',
-                'round_robin': '🔄 轮询'
+                'adaptive': '自适应策略',
+                'least_used': '最少使用',
+                'round_robin': '轮询'
             }
 
             strategy_descriptions = {
@@ -1669,19 +1585,19 @@ elif page == "系统设置":
             }
 
             strategy = st.selectbox(
-                "🎯 选择策略",
+                "选择策略",
                 options=list(strategy_options.keys()),
                 format_func=lambda x: strategy_options[x],
                 index=list(strategy_options.keys()).index(current_strategy)
             )
 
-            st.info(f"ℹ️ {strategy_descriptions[strategy]}")
+            st.info(strategy_descriptions[strategy])
 
-            if st.form_submit_button("💾 保存策略", type="primary", use_container_width=True):
-                st.success(f"✅ 策略已更新为: {strategy_options[strategy]}")
+            if st.form_submit_button("保存策略", type="primary", use_container_width=True):
+                st.success(f"策略已更新为: {strategy_options[strategy]}")
 
     with tab4:
-        st.markdown("#### 🚀 保活管理")
+        st.markdown("#### 保活管理")
         st.markdown("防止服务休眠")
 
         keep_alive_status = st.session_state.keep_alive_manager.get_status()
@@ -1689,62 +1605,57 @@ elif page == "系统设置":
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("🔄 状态", "🟢 运行中" if keep_alive_status['running'] else "🔴 已停止")
+            st.metric("状态", "运行中" if keep_alive_status['running'] else "已停止")
         with col2:
-            st.metric("🧵 线程", "✅ 活跃" if keep_alive_status['thread_alive'] else "❌ 停止")
+            st.metric("线程", "活跃" if keep_alive_status['thread_alive'] else "停止")
         with col3:
-            st.metric("📋 任务数", keep_alive_status['scheduled_jobs'])
+            st.metric("任务数", keep_alive_status['scheduled_jobs'])
 
-        with st.expander("🔍 详细信息"):
+        with st.expander("详细信息"):
             if keep_alive_status['render_url']:
-                st.text(f"🌐 Render URL: {keep_alive_status['render_url']}")
-            st.text(f"🔗 后端地址: {keep_alive_status['backend_url']}")
+                st.text(f"Render URL: {keep_alive_status['render_url']}")
+            st.text(f"后端地址: {keep_alive_status['backend_url']}")
 
         col1, col2 = st.columns(2)
         with col1:
             if not keep_alive_status['running']:
-                if st.button("🚀 启动保活", type="primary", use_container_width=True):
+                if st.button("启动保活", type="primary", use_container_width=True):
                     if st.session_state.keep_alive_manager.start_keep_alive_scheduler():
-                        st.success("✅ 保活服务已启动")
+                        st.success("保活服务已启动")
                         time.sleep(1)
                         st.rerun()
         with col2:
             if keep_alive_status['running']:
-                if st.button("🛑 停止保活", use_container_width=True):
+                if st.button("停止保活", use_container_width=True):
                     st.session_state.keep_alive_manager.stop_scheduler()
-                    st.success("✅ 保活服务已停止")
+                    st.success("保活服务已停止")
                     time.sleep(1)
                     st.rerun()
 
     with tab5:
-        st.markdown("#### 📊 系统信息")
+        st.markdown("#### 系统信息")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("##### 🖥️ 服务信息")
-            st.text(f"🐍 Python: {status_data.get('python_version', 'Unknown').split()[0]}")
-            st.text(f"📦 版本: {status_data.get('version', '1.1.0')}")
-            st.text(f"🤖 模型: {', '.join(status_data.get('models', []))}")
+            st.markdown("##### 服务信息")
+            st.text(f"Python: {status_data.get('python_version', 'Unknown').split()[0]}")
+            st.text(f"版本: {status_data.get('version', '1.1.0')}")
+            st.text(f"模型: {', '.join(status_data.get('models', []))}")
 
         with col2:
-            st.markdown("##### 💻 资源使用")
-            st.text(f"💾 内存: {status_data.get('memory_usage_mb', 0):.1f} MB")
-            st.text(f"⚡ CPU: {status_data.get('cpu_percent', 0):.1f}%")
-            st.text(f"⏰ 运行: {status_data.get('uptime_seconds', 0) // 3600} 小时")
+            st.markdown("##### 资源使用")
+            st.text(f"内存: {status_data.get('memory_usage_mb', 0):.1f} MB")
+            st.text(f"CPU: {status_data.get('cpu_percent', 0):.1f}%")
+            st.text(f"运行: {status_data.get('uptime_seconds', 0) // 3600} 小时")
 
 # --- 页脚 ---
 st.markdown(
     f"""
-    <div class="footer">
-        <p>
-            <a href='{API_BASE_URL}/health' target='_blank'>🏥 健康检查</a> · 
-            <span>🔗 {API_BASE_URL}</span> ·
-            <span>📦 v1.1</span>
-        </p>
-        <p style="margin-top: 0.5rem; font-size: 0.75rem; color: #9ca3af;">
-            Powered by Streamlit & FastAPI
-        </p>
+    <div style='text-align: center; color: #9ca3af; font-size: 0.75rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #e5e7eb;'>
+        <a href='{API_BASE_URL}/health' target='_blank' style='color: #6b7280; text-decoration: none;'>健康检查</a> · 
+        <span style='color: #9ca3af;'>{API_BASE_URL}</span> ·
+        <span style='color: #9ca3af;'>v1.1</span>
     </div>
     """,
     unsafe_allow_html=True
