@@ -338,7 +338,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 完整玻璃拟态风格CSS ---
+# --- 玻璃拟态风格CSS ---
 st.markdown("""
 <style>
     /* 全局字体和基础设置 */
@@ -443,7 +443,7 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 度量值样式增强 */
+    /* 度量值样式 */
     [data-testid="metric-container"] > div:nth-child(1) {
         font-size: 0.8125rem;
         font-weight: 600;
@@ -471,7 +471,7 @@ st.markdown("""
         color: #6b7280;
     }
 
-    /* 侧边栏玻璃拟态设计 */
+    /* 侧边栏设计 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -1344,7 +1344,6 @@ st.markdown("""
         );
     }
 
-    /* 修复滚动问题 */
     .main .block-container {
         max-height: none !important;
         overflow: visible !important;
@@ -1354,7 +1353,6 @@ st.markdown("""
         overflow: visible !important;
     }
 
-    /* 确保正确的滚动行为 */
     body {
         overflow-x: hidden;
         overflow-y: auto;
@@ -1516,7 +1514,7 @@ if page == "控制台":
         st.error("无法获取服务数据，请检查服务连接")
         st.stop()
 
-    # 健康状态提示和刷新按钮（同一行）
+    # 健康状态提示和刷新按钮
     st.markdown('<div class="health-status-row">', unsafe_allow_html=True)
     col1, col2 = st.columns([11, 1])
 
