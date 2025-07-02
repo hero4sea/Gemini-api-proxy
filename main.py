@@ -606,7 +606,7 @@ st.markdown("""
     section[data-testid="stSidebar"] .stRadio > div > label {
         font-size: 0.875rem !important;
         font-weight: 500 !important;
-        color: #ffffff;
+        color: #ffffff !important;
         padding: 0.875rem 1rem !important;
         border-radius: 12px !important;
         cursor: pointer !important;
