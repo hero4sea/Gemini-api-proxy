@@ -518,9 +518,7 @@ st.markdown("""
         border-bottom-color: #6366f1;
     }
 
-    /* === 简化侧边栏样式 === */
-
-    /* 侧边栏整体容器 - 极简设计 */
+    /* 侧边栏整体容器 */
     section[data-testid="stSidebar"] {
         background: #fafafa;
         border-right: none;
@@ -534,7 +532,7 @@ st.markdown("""
         padding-right: 1.5rem;
     }
 
-    /* 侧边栏标题 - 极简风格 */
+    /* 侧边栏标题 */
     .sidebar-title {
         font-size: 1rem;
         font-weight: 600;
@@ -545,7 +543,7 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* 导航容器 - 移除所有多余样式 */
+    /* 导航容器 */
     section[data-testid="stSidebar"] .stRadio {
         background: transparent !important;
         padding: 0 !important;
@@ -560,7 +558,7 @@ st.markdown("""
         margin: 0 !important;
     }
 
-    /* 导航项 - 极简设计 */
+    /* 导航项 */
     section[data-testid="stSidebar"] .stRadio > div > label {
         font-size: 0.875rem !important;
         font-weight: 500 !important;
@@ -578,14 +576,14 @@ st.markdown("""
         box-sizing: border-box !important;
     }
 
-    /* 悬停效果 - 微妙的变化 */
+    /* 悬停效果 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
         background: rgba(0, 0, 0, 0.03) !important;
         color: #374151 !important;
         transform: none !important;
     }
 
-    /* 选中状态 - 简洁的指示器 */
+    /* 选中状态 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
         background: transparent !important;
         color: #111827 !important;
@@ -607,12 +605,9 @@ st.markdown("""
         border-radius: 0 2px 2px 0;
     }
 
-    /* 隐藏radio按钮 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"] {
         display: none !important;
     }
-
-    /* 移除所有不必要的元素和间距 */
     section[data-testid="stSidebar"] .element-container {
         margin: 0 !important;
         padding: 0 !important;
@@ -757,7 +752,7 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* Alert 样式修复 */
+    /* Alert 样式 */
     [data-testid="stAlert"] {
         border: none !important;
         box-shadow: none !important;
@@ -794,7 +789,7 @@ st.markdown("""
         border-top: 1px solid #e5e7eb !important;
     }
 
-    /* 密钥管理容器样式 - 整合卡片布局 */
+    /* 密钥管理容器样式 */
     div[data-testid="stHorizontalBlock"]:has(div.key-id) {
         background: #ffffff !important;
         border: 1px solid #e5e7eb !important;
@@ -822,7 +817,7 @@ st.markdown("""
 
 # --- 侧边栏 ---
 with st.sidebar:
-    st.markdown('<h1 class="sidebar-title">Gemini Proxy</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="sidebar-title">Gemini轮询</h1>', unsafe_allow_html=True)
 
     page = st.radio(
         "导航",
@@ -876,7 +871,7 @@ if page == "控制台":
         gemini_keys = stats_data.get('active_gemini_keys', 0)
         healthy_gemini = stats_data.get('healthy_gemini_keys', 0)
         st.metric(
-            "GEMINI密钥",
+            "Gemini密钥",
             gemini_keys,
             delta=f"{healthy_gemini} 正常"
         )
@@ -1486,8 +1481,8 @@ elif page == "系统设置":
         with st.form("load_balance_form"):
             strategy_options = {
                 'adaptive': '自适应策略',
-                'least_used': '最少使用',
-                'round_robin': '轮询'
+                'least_used': '最少使用策略',
+                'round_robin': '轮流使用策略'
             }
 
             strategy_descriptions = {
