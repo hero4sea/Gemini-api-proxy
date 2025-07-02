@@ -587,7 +587,7 @@ st.markdown("""
         margin-bottom: 0.75rem;
     }
 
-    /* 导航容器 - 保持原有功能 */
+    /* 导航容器 */
     section[data-testid="stSidebar"] .stRadio {
         background: transparent !important;
         padding: 0 !important;
@@ -606,7 +606,7 @@ st.markdown("""
     section[data-testid="stSidebar"] .stRadio > div > label {
         font-size: 0.875rem !important;
         font-weight: 500 !important;
-        color: rgba(255, 255, 255, 0.8) !important;
+        color: #ffffff;
         padding: 0.875rem 1rem !important;
         border-radius: 12px !important;
         cursor: pointer !important;
@@ -621,6 +621,7 @@ st.markdown("""
         width: 100% !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
     }
 
     /* 导航项图标 */
@@ -1071,7 +1072,7 @@ with st.sidebar:
             <div class="sidebar-footer-item">
                 <a href="{API_BASE_URL}/docs" target="_blank" class="sidebar-footer-link">API 文档</a>
                 <span>·</span>
-                <a href="https://github.com/your-repo" target="_blank" class="sidebar-footer-link">GitHub</a>
+                <a href="https://github.com/arain119" target="_blank" class="sidebar-footer-link">GitHub</a>
             </div>
         </div>
     </div>
