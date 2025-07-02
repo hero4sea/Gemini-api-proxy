@@ -338,7 +338,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 自定义CSS样式 ---
+# --- 修复后的自定义CSS样式 ---
 st.markdown("""
 <style>
     /* 全局字体 */
@@ -518,63 +518,142 @@ st.markdown("""
         border-bottom-color: #6366f1;
     }
 
-    /* 侧边栏样式 */
+    /* === 修复：侧边栏样式 === */
+
+    /* 侧边栏整体容器 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
         border-right: 1px solid #e5e7eb;
     }
 
+    /* 侧边栏内容区域 */
     section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
-        padding-top: 2rem;
+        padding-top: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 
-    /* 侧边栏导航样式优化 */
+    /* 修复：侧边栏标题左对齐 */
+    .sidebar-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 1.5rem;
+        text-align: left !important;  /* 改为左对齐 */
+        letter-spacing: -0.025em;
+        padding-left: 0.25rem;
+    }
+
+    /* 修复：消除空白气泡 - 重置radio按钮样式 */
     section[data-testid="stSidebar"] .stRadio {
-        background: transparent;
-        padding: 0;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
+    /* 修复：radio按钮容器 */
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.5rem;
+        gap: 0.5rem !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
-    section[data-testid="stSidebar"] .stRadio > label {
-        font-size: 0.9375rem;
-        font-weight: 500;
-        color: #4b5563;
-        padding: 0.875rem 1.25rem;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: block;
-        margin: 0;
-        position: relative;
-        border: 1px solid transparent;
+    /* 修复：radio选项样式 */
+    section[data-testid="stSidebar"] .stRadio > div > label {
+        font-size: 0.9375rem !important;
+        font-weight: 500 !important;
+        color: #4b5563 !important;
+        padding: 0.875rem 1.25rem !important;
+        border-radius: 10px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        display: block !important;
+        margin: 0.25rem 0 !important;
+        position: relative !important;
+        border: 1px solid transparent !important;
+        background: transparent !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
+    /* 悬停效果 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: rgba(99, 102, 241, 0.05);
-        color: #6366f1;
-        border-color: rgba(99, 102, 241, 0.1);
+        background: rgba(99, 102, 241, 0.05) !important;
+        color: #6366f1 !important;
+        border-color: rgba(99, 102, 241, 0.1) !important;
         transform: translateX(4px);
     }
 
-    section[data-testid="stSidebar"] .stRadio > div > label > div:first-child {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    /* 选中状态样式 */
+    section[data-testid="stSidebar"] .stRadio > div > label > div[data-testid="stWidgetLabel"] {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
     }
 
-    section[data-testid="stSidebar"] .stRadio > div > label[data-selected="true"] {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        font-weight: 600;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    /* 激活状态 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
+        transform: translateX(0) !important;
     }
 
-    section[data-testid="stSidebar"] .stRadio > div > label[data-selected="true"]:hover {
-        transform: translateX(0);
-        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+    /* 隐藏radio按钮本身 */
+    section[data-testid="stSidebar"] .stRadio input[type="radio"] {
+        display: none !important;
+    }
+
+    /* 侧边栏分隔线 */
+    section[data-testid="stSidebar"] hr {
+        margin: 1rem 0 !important;
+        border: none !important;
+        border-top: 1px solid #e5e7eb !important;
+        opacity: 0.6;
+    }
+
+    /* 侧边栏服务状态卡片 */
+    .sidebar-section {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border-radius: 10px !important;
+        padding: 1rem !important;
+        margin: 0.5rem 0 !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* 侧边栏按钮样式 */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: #ffffff !important;
+        color: #374151 !important;
+        border: 1px solid #e5e7eb !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.75rem !important;
+        height: 2.25rem !important;
+        width: 100% !important;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: #f9fafb !important;
+        border-color: #d1d5db !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* 修复：消除不必要的内边距和边距 */
+    section[data-testid="stSidebar"] .element-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 修复：侧边栏 expander 样式 */
+    section[data-testid="stSidebar"] .streamlit-expanderHeader {
+        background: transparent !important;
+        border: none !important;
+        padding: 0.5rem 0 !important;
     }
 
     /* 成功/错误消息样式 */
@@ -710,42 +789,6 @@ st.markdown("""
         color: #6b7280;
         margin-bottom: 2rem;
         font-weight: 400;
-    }
-
-    /* 侧边栏标题 */
-    .sidebar-title {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: #111827;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        letter-spacing: -0.025em;
-    }
-
-    /* 侧边栏服务状态卡片 */
-    .sidebar-section {
-        background: rgba(255, 255, 255, 0.5);
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        backdrop-filter: blur(10px);
-    }
-
-    /* 侧边栏按钮样式 */
-    section[data-testid="stSidebar"] .stButton > button {
-        background: #ffffff;
-        color: #374151;
-        border: 1px solid #e5e7eb;
-        font-size: 0.875rem;
-        padding: 0.5rem 0.75rem;
-        height: 2.25rem;
-    }
-
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: #f9fafb;
-        border-color: #d1d5db;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     /* Alert 样式修复 */
@@ -1597,7 +1640,7 @@ elif page == "系统设置":
         with col1:
             st.markdown("##### 服务信息")
             st.text(f"Python: {status_data.get('python_version', 'Unknown').split()[0]}")
-            st.text(f"版本: {status_data.get('version', '1.0.0')}")
+            st.text(f"版本: {status_data.get('version', '1.1.0')}")
             st.text(f"模型: {', '.join(status_data.get('models', []))}")
 
         with col2:
