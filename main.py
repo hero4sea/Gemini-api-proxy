@@ -338,7 +338,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- CSS ---
+# --- 完整玻璃拟态风格CSS ---
 st.markdown("""
 <style>
     /* 全局字体和基础设置 */
@@ -351,15 +351,16 @@ st.markdown("""
     /* 页面背景 */
     .stApp {
         background: linear-gradient(135deg, 
-            #667eea 0%, 
-            #764ba2 25%, 
-            #f093fb 50%, 
-            #f5576c 75%, 
-            #4facfe 100%
+            #e0e7ff 0%, 
+            #f3e8ff 25%, 
+            #fce7f3 50%, 
+            #fef3c7 75%, 
+            #dbeafe 100%
         );
         background-size: 400% 400%;
-        animation: gradient-shift 15s ease infinite;
+        animation: gradient-shift 20s ease infinite;
         min-height: 100vh;
+        overflow-x: hidden;
     }
 
     @keyframes gradient-shift {
@@ -370,20 +371,21 @@ st.markdown("""
 
     /* 主内容区域 */
     .block-container {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.1),
-            0 8px 32px rgba(0, 0, 0, 0.05),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            0 20px 60px rgba(0, 0, 0, 0.05),
+            0 8px 32px rgba(0, 0, 0, 0.03),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
         padding: 2rem 2.5rem;
         margin: 1.5rem;
         max-width: 1440px;
         position: relative;
-        overflow: hidden;
+        overflow: visible;
+        min-height: auto;
     }
 
     .block-container::before {
@@ -402,16 +404,16 @@ st.markdown("""
 
     /* 度量卡片玻璃效果 */
     [data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         padding: 1.5rem 1.75rem;
         border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.5);
         box-shadow: 
-            0 12px 40px rgba(0, 0, 0, 0.08),
-            0 4px 16px rgba(0, 0, 0, 0.04),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            0 12px 40px rgba(0, 0, 0, 0.05),
+            0 4px 16px rgba(0, 0, 0, 0.03),
+            inset 0 1px 0 rgba(255, 255, 255, 0.6);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
@@ -426,7 +428,7 @@ st.markdown("""
         height: 1px;
         background: linear-gradient(90deg, 
             transparent, 
-            rgba(255, 255, 255, 0.7) 50%, 
+            rgba(255, 255, 255, 0.8) 50%, 
             transparent
         );
     }
@@ -434,31 +436,29 @@ st.markdown("""
     [data-testid="metric-container"]:hover {
         transform: translateY(-4px) scale(1.02);
         box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.15),
-            0 8px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        border-color: rgba(255, 255, 255, 0.35);
-        background: rgba(255, 255, 255, 0.15);
+            0 20px 60px rgba(0, 0, 0, 0.08),
+            0 8px 32px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        border-color: rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 度量值样式 */
+    /* 度量值样式增强 */
     [data-testid="metric-container"] > div:nth-child(1) {
         font-size: 0.8125rem;
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.85);
+        color: #6b7280;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         margin-bottom: 0.5rem;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
     [data-testid="metric-container"] > div:nth-child(2) {
         font-size: 2.25rem;
         font-weight: 700;
-        color: white;
+        color: #1f2937;
         line-height: 1.1;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        background: linear-gradient(135deg, #1f2937 0%, #4f46e5 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -468,11 +468,10 @@ st.markdown("""
         font-size: 0.8125rem;
         font-weight: 500;
         margin-top: 0.75rem;
-        color: rgba(255, 255, 255, 0.7);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        color: #6b7280;
     }
 
-    /* 侧边栏设计 */
+    /* 侧边栏玻璃拟态设计 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -954,18 +953,17 @@ st.markdown("""
         border-radius: 14px;
         font-weight: 500;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
         font-size: 0.9375rem;
         padding: 0.75rem 1.5rem;
         letter-spacing: 0.02em;
-        background: rgba(255, 255, 255, 0.15);
-        color: white;
+        background: rgba(99, 102, 241, 0.1);
+        color: #4f46e5;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            0 8px 24px rgba(99, 102, 241, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
         position: relative;
         overflow: hidden;
     }
@@ -979,19 +977,20 @@ st.markdown("""
         height: 100%;
         background: linear-gradient(90deg, 
             transparent, 
-            rgba(255, 255, 255, 0.2) 50%, 
+            rgba(255, 255, 255, 0.3) 50%, 
             transparent
         );
         transition: left 0.6s ease;
     }
 
     .stButton > button:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(99, 102, 241, 0.2);
         transform: translateY(-3px) scale(1.02);
         box-shadow: 
-            0 12px 36px rgba(0, 0, 0, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        border-color: rgba(255, 255, 255, 0.3);
+            0 12px 36px rgba(99, 102, 241, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        border-color: rgba(99, 102, 241, 0.4);
+        color: #4338ca;
     }
 
     .stButton > button:hover::before {
@@ -1007,37 +1006,35 @@ st.markdown("""
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
     .stTextArea > div > div > textarea {
-        background: rgba(255, 255, 255, 0.12) !important;
+        background: rgba(255, 255, 255, 0.6) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
         border-radius: 12px !important;
         font-size: 0.9375rem !important;
         padding: 0.875rem 1.25rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-        color: white !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+            0 8px 24px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        color: #1f2937 !important;
     }
 
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {
-        color: rgba(255, 255, 255, 0.6) !important;
-        text-shadow: none !important;
+        color: #6b7280 !important;
     }
 
     .stTextInput > div > div > input:focus,
     .stNumberInput > div > div > input:focus,
     .stSelectbox > div > div > select:focus,
     .stTextArea > div > div > textarea:focus {
-        background: rgba(255, 255, 255, 0.18) !important;
+        background: rgba(255, 255, 255, 0.8) !important;
         border-color: rgba(99, 102, 241, 0.5) !important;
         box-shadow: 
-            0 0 0 3px rgba(99, 102, 241, 0.2),
-            0 12px 32px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+            0 0 0 3px rgba(99, 102, 241, 0.1),
+            0 12px 32px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
         outline: none !important;
         transform: translateY(-1px);
     }
@@ -1056,79 +1053,63 @@ st.markdown("""
         min-width: 4rem;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
-            0 6px 20px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            0 6px 20px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
     .status-badge:hover {
         transform: translateY(-2px) scale(1.05);
         box-shadow: 
-            0 12px 32px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+            0 12px 32px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
     }
 
     .status-healthy {
-        background: rgba(16, 185, 129, 0.2);
+        background: rgba(16, 185, 129, 0.15);
         color: #065f46;
-        border-color: rgba(16, 185, 129, 0.4);
-        box-shadow: 
-            0 6px 20px rgba(16, 185, 129, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        border-color: rgba(16, 185, 129, 0.3);
     }
 
     .status-unhealthy {
-        background: rgba(239, 68, 68, 0.2);
+        background: rgba(239, 68, 68, 0.15);
         color: #991b1b;
-        border-color: rgba(239, 68, 68, 0.4);
-        box-shadow: 
-            0 6px 20px rgba(239, 68, 68, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        border-color: rgba(239, 68, 68, 0.3);
     }
 
     .status-unknown {
-        background: rgba(245, 158, 11, 0.2);
+        background: rgba(245, 158, 11, 0.15);
         color: #92400e;
-        border-color: rgba(245, 158, 11, 0.4);
-        box-shadow: 
-            0 6px 20px rgba(245, 158, 11, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        border-color: rgba(245, 158, 11, 0.3);
     }
 
     .status-active {
-        background: rgba(59, 130, 246, 0.2);
+        background: rgba(59, 130, 246, 0.15);
         color: #1e40af;
-        border-color: rgba(59, 130, 246, 0.4);
-        box-shadow: 
-            0 6px 20px rgba(59, 130, 246, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        border-color: rgba(59, 130, 246, 0.3);
     }
 
     .status-inactive {
-        background: rgba(107, 114, 128, 0.2);
+        background: rgba(107, 114, 128, 0.15);
         color: #374151;
-        border-color: rgba(107, 114, 128, 0.4);
-        box-shadow: 
-            0 6px 20px rgba(107, 114, 128, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        border-color: rgba(107, 114, 128, 0.3);
     }
 
     /* 密钥卡片玻璃效果 */
     div[data-testid="stHorizontalBlock"] {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.5);
         border-radius: 20px;
         padding: 1.5rem;
         margin: 1rem 0;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 
-            0 10px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            0 10px 32px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
         position: relative;
         overflow: hidden;
     }
@@ -1142,7 +1123,7 @@ st.markdown("""
         height: 1px;
         background: linear-gradient(90deg, 
             transparent, 
-            rgba(255, 255, 255, 0.6) 50%, 
+            rgba(255, 255, 255, 0.8) 50%, 
             transparent
         );
     }
@@ -1150,63 +1131,60 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:hover {
         transform: translateY(-3px) scale(1.01);
         box-shadow: 
-            0 16px 48px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.35);
-        border-color: rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.12);
+            0 16px 48px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        border-color: rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.5);
     }
 
     /* 密钥代码显示 */
     .key-code {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         padding: 0.875rem 1.25rem;
         border-radius: 12px;
         font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
         font-size: 0.9375rem;
-        color: rgba(255, 255, 255, 0.9);
+        color: #1f2937;
         overflow: hidden;
         text-overflow: ellipsis;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
     }
 
     .key-id {
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.9);
+        color: #374151;
         min-width: 3rem;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
 
     .key-meta {
         font-size: 0.8125rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: #6b7280;
         margin-top: 0.5rem;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
     /* 标签页玻璃效果 */
     .stTabs [data-testid="stTabBar"] {
         gap: 2rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
         padding: 0;
         margin-bottom: 2rem;
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border-radius: 16px 16px 0 0;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
         border-bottom: none;
         box-shadow: 
-            0 4px 16px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            0 4px 16px rgba(0, 0, 0, 0.04),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     .stTabs [data-testid="stTabBar"] button {
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.7);
+        color: #6b7280;
         padding: 1.25rem 1.75rem;
         border-bottom: 2px solid transparent;
         font-size: 1rem;
@@ -1216,23 +1194,21 @@ st.markdown("""
         background: transparent;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
     .stTabs [data-testid="stTabBar"] button:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.4);
+        color: #374151;
         transform: translateY(-1px);
     }
 
     .stTabs [data-testid="stTabBar"] button[aria-selected="true"] {
-        color: white;
+        color: #1f2937;
         border-bottom-color: #6366f1;
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.5);
         box-shadow: 
-            0 -4px 12px rgba(99, 102, 241, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            0 -4px 12px rgba(99, 102, 241, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     /* Alert消息玻璃效果 */
@@ -1241,48 +1217,36 @@ st.markdown("""
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
         border-radius: 16px !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
         box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+            0 8px 24px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
         padding: 1rem 1.25rem !important;
         margin: 1rem 0 !important;
     }
 
     [data-testid="stAlert"][kind="info"] {
-        background: rgba(219, 234, 254, 0.15) !important;
+        background: rgba(59, 130, 246, 0.1) !important;
         color: #1e40af !important;
         border-color: rgba(59, 130, 246, 0.3) !important;
-        box-shadow: 
-            0 8px 24px rgba(59, 130, 246, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     }
 
     [data-testid="stAlert"][kind="success"] {
-        background: rgba(209, 250, 229, 0.15) !important;
+        background: rgba(16, 185, 129, 0.1) !important;
         color: #065f46 !important;
         border-color: rgba(16, 185, 129, 0.3) !important;
-        box-shadow: 
-            0 8px 24px rgba(16, 185, 129, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     }
 
     [data-testid="stAlert"][kind="warning"] {
-        background: rgba(254, 243, 199, 0.15) !important;
+        background: rgba(245, 158, 11, 0.1) !important;
         color: #92400e !important;
         border-color: rgba(245, 158, 11, 0.3) !important;
-        box-shadow: 
-            0 8px 24px rgba(245, 158, 11, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     }
 
     [data-testid="stAlert"][kind="error"] {
-        background: rgba(254, 226, 226, 0.15) !important;
+        background: rgba(239, 68, 68, 0.1) !important;
         color: #991b1b !important;
         border-color: rgba(239, 68, 68, 0.3) !important;
-        box-shadow: 
-            0 8px 24px rgba(239, 68, 68, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     }
 
     /* 图表容器玻璃效果 */
@@ -1291,11 +1255,11 @@ st.markdown("""
         overflow: hidden;
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.5);
         box-shadow: 
-            0 12px 40px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            0 12px 40px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     /* 表格玻璃效果 */
@@ -1304,21 +1268,20 @@ st.markdown("""
         overflow: hidden;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
-            0 8px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            0 8px 32px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     /* 标题样式增强 */
     h1, h2, h3 {
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        color: white;
+        color: #1f2937;
     }
 
     h1 {
-        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%);
+        background: linear-gradient(135deg, #1f2937 0%, #4f46e5 50%, #7c3aed 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -1347,10 +1310,9 @@ st.markdown("""
     /* 页面副标题 */
     .page-subtitle {
         font-size: 1rem;
-        color: rgba(255, 255, 255, 0.8);
+        color: #6b7280;
         margin-bottom: 2rem;
         font-weight: 400;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
     /* 分割线玻璃效果 */
@@ -1360,9 +1322,9 @@ st.markdown("""
         height: 1px !important;
         background: linear-gradient(90deg, 
             transparent, 
-            rgba(255, 255, 255, 0.3) 20%, 
-            rgba(255, 255, 255, 0.5) 50%, 
-            rgba(255, 255, 255, 0.3) 80%, 
+            rgba(99, 102, 241, 0.3) 20%, 
+            rgba(99, 102, 241, 0.5) 50%, 
+            rgba(99, 102, 241, 0.3) 80%, 
             transparent
         ) !important;
         position: relative;
@@ -1377,39 +1339,30 @@ st.markdown("""
         height: 1px;
         background: linear-gradient(90deg, 
             transparent, 
-            rgba(255, 255, 255, 0.15) 50%, 
+            rgba(255, 255, 255, 0.3) 50%, 
             transparent
         );
     }
 
-    /* 响应式优化 */
-    @media (max-width: 768px) {
-        .block-container {
-            margin: 1rem;
-            padding: 1.5rem 1.75rem;
-            border-radius: 20px;
-        }
+    /* 修复滚动问题 */
+    .main .block-container {
+        max-height: none !important;
+        overflow: visible !important;
+    }
 
-        section[data-testid="stSidebar"] .stRadio > div > label {
-            padding: 1rem 1.25rem !important;
-            font-size: 0.9375rem !important;
-        }
+    .stApp > div {
+        overflow: visible !important;
+    }
 
-        .sidebar-logo {
-            padding: 1.25rem 1rem;
-        }
+    /* 确保正确的滚动行为 */
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
 
-        .sidebar-logo-title {
-            font-size: 1.25rem;
-        }
-
-        h1 {
-            font-size: 2rem;
-        }
-
-        [data-testid="metric-container"] {
-            padding: 1.25rem 1.5rem;
-        }
+    .stApp {
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 
     /* 自定义滚动条 */
@@ -1419,30 +1372,30 @@ st.markdown("""
     }
 
     ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.1);
         border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(99, 102, 241, 0.3);
         border-radius: 4px;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.3);
+        background: rgba(99, 102, 241, 0.5);
     }
 
     /* 选择文本样式 */
     ::selection {
-        background: rgba(99, 102, 241, 0.3);
-        color: white;
+        background: rgba(99, 102, 241, 0.2);
+        color: #1f2937;
     }
 
     ::-moz-selection {
-        background: rgba(99, 102, 241, 0.3);
-        color: white;
+        background: rgba(99, 102, 241, 0.2);
+        color: #1f2937;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1672,17 +1625,17 @@ if page == "控制台":
                 ))
                 fig_rpm.update_layout(
                     title="每分钟请求数 (RPM)",
-                    title_font=dict(size=16, color='white', family='-apple-system, BlinkMacSystemFont'),
+                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
                     height=340,
                     showlegend=False,
-                    plot_bgcolor='rgba(255, 255, 255, 0.05)',
-                    paper_bgcolor='rgba(255, 255, 255, 0.05)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='rgba(255, 255, 255, 0.9)', size=12),
-                    yaxis=dict(gridcolor='rgba(255, 255, 255, 0.1)', zerolinecolor='rgba(255, 255, 255, 0.2)',
-                               color='rgba(255, 255, 255, 0.8)'),
-                    xaxis=dict(linecolor='rgba(255, 255, 255, 0.2)', color='rgba(255, 255, 255, 0.8)'),
+                    plot_bgcolor='rgba(255, 255, 255, 0.3)',
+                    paper_bgcolor='rgba(255, 255, 255, 0.3)',
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
+                    yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
+                               color='#374151'),
+                    xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
                     margin=dict(l=0, r=0, t=50, b=0)
                 )
@@ -1702,17 +1655,17 @@ if page == "控制台":
                 ))
                 fig_rpd.update_layout(
                     title="每日请求数 (RPD)",
-                    title_font=dict(size=16, color='white', family='-apple-system, BlinkMacSystemFont'),
+                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
                     height=340,
                     showlegend=False,
-                    plot_bgcolor='rgba(255, 255, 255, 0.05)',
-                    paper_bgcolor='rgba(255, 255, 255, 0.05)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='rgba(255, 255, 255, 0.9)', size=12),
-                    yaxis=dict(gridcolor='rgba(255, 255, 255, 0.1)', zerolinecolor='rgba(255, 255, 255, 0.2)',
-                               color='rgba(255, 255, 255, 0.8)'),
-                    xaxis=dict(linecolor='rgba(255, 255, 255, 0.2)', color='rgba(255, 255, 255, 0.8)'),
+                    plot_bgcolor='rgba(255, 255, 255, 0.3)',
+                    paper_bgcolor='rgba(255, 255, 255, 0.3)',
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
+                    yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
+                               color='#374151'),
+                    xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
                     margin=dict(l=0, r=0, t=50, b=0)
                 )
@@ -1794,17 +1747,14 @@ elif page == "密钥管理":
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.markdown(
-                        f'<div style="color: rgba(255, 255, 255, 0.9); font-weight: 500; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);">共 {len(gemini_keys)} 个密钥</div>',
-                        unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #374151; font-weight: 500;">共 {len(gemini_keys)} 个密钥</div>',
+                                unsafe_allow_html=True)
                 with col2:
-                    st.markdown(
-                        f'<div style="color: rgba(255, 255, 255, 0.9); font-weight: 500; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);">激活 {active_count} 个</div>',
-                        unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #374151; font-weight: 500;">激活 {active_count} 个</div>',
+                                unsafe_allow_html=True)
                 with col3:
-                    st.markdown(
-                        f'<div style="color: rgba(16, 185, 129, 0.9); font-weight: 500; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);">正常 {healthy_count} 个</div>',
-                        unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: #059669; font-weight: 500;">正常 {healthy_count} 个</div>',
+                                unsafe_allow_html=True)
 
                 valid_keys = []
                 invalid_count = 0
@@ -1947,7 +1897,7 @@ response = client.chat.completions.create(
             if user_keys:
                 active_count = len([k for k in user_keys if k['status'] == 1])
                 st.markdown(
-                    f'<div style="color: rgba(255, 255, 255, 0.8); font-weight: 500; margin-bottom: 1rem; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>',
+                    f'<div style="color: #6b7280; font-weight: 500; margin-bottom: 1rem;">共 {len(user_keys)} 个密钥，{active_count} 个激活</div>',
                     unsafe_allow_html=True)
 
                 for key_info in user_keys:
