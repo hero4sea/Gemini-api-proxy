@@ -347,6 +347,23 @@ st.markdown("""
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
     }
+    
+    /* 使用 data-baseweb 属性选择器 */
+    section[data-testid="stSidebar"] label[data-baseweb="radio"] {
+        color: white !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        padding: 0.875rem 1rem !important;
+        border-radius: 12px !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        background: transparent !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
 
     /* 整体布局 */
     .block-container {
@@ -517,8 +534,6 @@ st.markdown("""
         color: #111827;
         border-bottom-color: #6366f1;
     }
-
-    /* ===== 全新优化的侧边栏样式 ===== */
 
     /* 侧边栏整体容器 */
     section[data-testid="stSidebar"] {
