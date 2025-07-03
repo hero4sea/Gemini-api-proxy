@@ -279,7 +279,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Gemini API Proxy",
     description="A high-performance proxy for Gemini API with OpenAI compatibility",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -1380,7 +1380,7 @@ async def api_v1_info():
 
     return {
         "service": "Gemini API Proxy",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "api_version": "v1",
         "compatibility": "OpenAI API v1",
         "description": "A high-performance proxy for Gemini API with OpenAI compatibility and multi-key polling",
@@ -1794,12 +1794,109 @@ async def list_model_configs():
 
 @app.post("/admin/config/gemini-key")
 async def add_gemini_key(request: dict):
-    """通过API添加Gemini密钥"""
-    key = request.get("key")
-    if key and db.add_gemini_key(key):
-        logger.info(f"Added new Gemini API key")
-        return {"success": True, "message": "Key added successfully"}
-    return {"success": False, "message": "Failed to add key"}
+    """通过API添加Gemini密钥，支持批量添加"""
+    input_keys = request.get("key", "").strip()
+
+    if not input_keys:
+        return {"success": False, "message": "请提供API密钥"}
+
+    # 检测是否包含分隔符，支持批量添加
+    separators = [',', ';', '\n', '\r\n', '\r', '\t']  # 逗号、分号、换行符、制表符
+    has_separator = any(sep in input_keys for sep in separators)
+
+    # 如果包含分隔符或多个空格，进行分割
+    if has_separator or '  ' in input_keys:  # 两个或更多空格也视为分隔符
+        # 首先按换行符分割
+        lines = input_keys.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+
+        keys_to_add = []
+        for line in lines:
+            # 再按其他分隔符分割每一行
+            line_keys = []
+            for sep in [',', ';', '\t']:
+                if sep in line:
+                    line_keys.extend([k.strip() for k in line.split(sep)])
+                    break
+            else:
+                # 如果没有找到分隔符，检查是否有多个空格
+                if '  ' in line:  # 多个空格
+                    line_keys.extend([k.strip() for k in line.split()])
+                else:
+                    line_keys.append(line.strip())
+
+            keys_to_add.extend(line_keys)
+
+        # 清理空字符串
+        keys_to_add = [key for key in keys_to_add if key]
+
+        logger.info(f"检测到批量添加模式，将添加 {len(keys_to_add)} 个密钥")
+
+    else:
+        # 单个密钥
+        keys_to_add = [input_keys]
+
+    # 验证和添加密钥
+    results = {
+        "success": True,
+        "total_processed": len(keys_to_add),
+        "successful_adds": 0,
+        "failed_adds": 0,
+        "details": [],
+        "invalid_keys": [],
+        "duplicate_keys": []
+    }
+
+    for i, key in enumerate(keys_to_add, 1):
+        key = key.strip()
+
+        # 验证密钥格式
+        if not key:
+            continue
+
+        if not key.startswith('AIzaSy'):
+            results["invalid_keys"].append(f"#{i}: {key[:20]}... (不是有效的Gemini API密钥格式)")
+            results["failed_adds"] += 1
+            continue
+
+        if len(key) < 30 or len(key) > 50:  # Gemini API Key 长度通常在35-40字符
+            results["invalid_keys"].append(f"#{i}: {key[:20]}... (密钥长度异常)")
+            results["failed_adds"] += 1
+            continue
+
+        # 尝试添加到数据库
+        try:
+            if db.add_gemini_key(key):
+                results["successful_adds"] += 1
+                results["details"].append(f"✅ #{i}: {key[:10]}...{key[-4:]} 添加成功")
+                logger.info(f"成功添加Gemini密钥 #{i}")
+            else:
+                results["duplicate_keys"].append(f"#{i}: {key[:10]}...{key[-4:]} (密钥已存在)")
+                results["failed_adds"] += 1
+        except Exception as e:
+            results["failed_adds"] += 1
+            results["details"].append(f"❌ #{i}: {key[:10]}...{key[-4:]} 添加失败 - {str(e)}")
+            logger.error(f"添加Gemini密钥 #{i} 失败: {str(e)}")
+
+    # 生成返回消息
+    if results["successful_adds"] > 0:
+        message_parts = [f"成功添加 {results['successful_adds']} 个密钥"]
+
+        if results["failed_adds"] > 0:
+            message_parts.append(f"失败 {results['failed_adds']} 个")
+
+        results["message"] = "、".join(message_parts)
+
+        # 如果有部分成功，整体仍视为成功
+        results["success"] = True
+    else:
+        results["success"] = False
+        results["message"] = f"所有 {results['total_processed']} 个密钥添加失败"
+
+    # 详细日志
+    logger.info(
+        f"批量添加结果: 处理{results['total_processed']}个，成功{results['successful_adds']}个，失败{results['failed_adds']}个")
+
+    return results
 
 
 @app.post("/admin/config/user-key")

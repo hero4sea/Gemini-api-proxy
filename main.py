@@ -1275,7 +1275,7 @@ st.markdown("""
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
-    /* 标题样式增强 */
+    /* 标题样式 */
     h1, h2, h3 {
         color: #1f2937;
     }
@@ -1696,23 +1696,65 @@ elif page == "密钥管理":
         st.markdown("#### 添加新密钥")
 
         with st.form("add_gemini_key"):
-            new_key = st.text_input(
+            new_key = st.text_area(
                 "Gemini API 密钥",
-                type="password",
-                placeholder="AIzaSy...",
-                help="从 Google AI Studio 获取"
+                height=120,
+                placeholder="AIzaSy...\n\n支持批量添加：\n- 多个密钥可用逗号、分号或换行符分隔\n- 示例：AIzaSy123..., AIzaSy456...; AIzaSy789...",
+                help="从 Google AI Studio 获取。支持批量添加：用逗号、分号、换行符或多个空格分隔多个密钥"
             )
             submitted = st.form_submit_button("添加密钥", type="primary")
 
             if submitted and new_key:
                 result = call_api('/admin/config/gemini-key', 'POST', {'key': new_key})
-                if result and result.get('success'):
-                    st.success("密钥添加成功")
-                    st.cache_data.clear()
-                    time.sleep(1)
-                    st.rerun()
+                if result:
+                    if result.get('success'):
+                        # 显示成功消息
+                        st.success(result.get('message', '密钥添加成功'))
+
+                        # 如果是批量添加，显示详细结果
+                        total_processed = result.get('total_processed', 1)
+                        if total_processed > 1:
+                            successful = result.get('successful_adds', 0)
+                            failed = result.get('failed_adds', 0)
+
+                            # 创建详细信息展开器
+                            with st.expander(f"查看详细结果 (处理了 {total_processed} 个密钥)", expanded=failed > 0):
+                                if successful > 0:
+                                    st.markdown("**✅ 成功添加的密钥：**")
+                                    success_details = [detail for detail in result.get('details', []) if '✅' in detail]
+                                    for detail in success_details:
+                                        st.markdown(f"- {detail}")
+
+                                if result.get('duplicate_keys'):
+                                    st.markdown("**⚠️ 重复的密钥（已跳过）：**")
+                                    for duplicate in result.get('duplicate_keys', []):
+                                        st.warning(f"- {duplicate}")
+
+                                if result.get('invalid_keys'):
+                                    st.markdown("**❌ 无效的密钥：**")
+                                    for invalid in result.get('invalid_keys', []):
+                                        st.error(f"- {invalid}")
+
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        # 显示失败消息和详细信息
+                        st.error(result.get('message', '添加失败'))
+
+                        # 显示失败详情
+                        if result.get('invalid_keys'):
+                            with st.expander("查看失败详情"):
+                                st.markdown("**格式错误的密钥：**")
+                                for invalid in result.get('invalid_keys', []):
+                                    st.write(f"- {invalid}")
+
+                        if result.get('duplicate_keys'):
+                            with st.expander("重复的密钥"):
+                                for duplicate in result.get('duplicate_keys', []):
+                                    st.write(f"- {duplicate}")
                 else:
-                    st.error("添加失败，密钥可能已存在")
+                    st.error("网络错误，请重试")
 
         st.markdown('<hr style="margin: 2rem 0;">', unsafe_allow_html=True)
 
