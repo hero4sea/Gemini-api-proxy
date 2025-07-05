@@ -338,7 +338,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 玻璃拟态风格CSS ---
+# --- 玻璃拟态风格CSS （修复图表重叠和添加侧边栏滑动功能）---
 st.markdown("""
 <style>
     /* 全局字体和基础设置 */
@@ -471,7 +471,7 @@ st.markdown("""
         color: #6b7280;
     }
 
-    /* 侧边栏设计 */
+    /* 侧边栏设计（添加滑动功能） */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -497,7 +497,7 @@ st.markdown("""
         transform: translateX(-100%);
     }
 
-    /* 主内容区域调整 */
+    /* 主内容区域调整（当侧边栏收起时） */
     .main .block-container {
         transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -506,42 +506,7 @@ st.markdown("""
         margin-left: 0 !important;
     }
 
-    /* 侧边栏滑动指示器 */
-    section[data-testid="stSidebar"]::after {
-        content: '⟨';
-        position: absolute;
-        right: -15px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        width: 30px;
-        height: 60px;
-        border-radius: 0 15px 15px 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #6366f1;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        z-index: 1000;
-        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-    }
 
-    section[data-testid="stSidebar"]:hover::after {
-        background: rgba(99, 102, 241, 0.1);
-        color: #4f46e5;
-    }
-
-    section[data-testid="stSidebar"].collapsed::after {
-        content: '⟩';
-        left: -15px;
-        right: auto;
-        border-radius: 15px 0 0 15px;
-    }
 
     /* 侧边栏动态背景 */
     section[data-testid="stSidebar"]::before {
@@ -1302,7 +1267,7 @@ st.markdown("""
         border-color: rgba(239, 68, 68, 0.3) !important;
     }
 
-    /* 图表容器玻璃效果（修复重叠问题） */
+    /* 图表容器玻璃效果（彻底修复重叠问题） */
     .js-plotly-plot .plotly {
         border-radius: 20px;
         overflow: hidden;
@@ -1314,15 +1279,38 @@ st.markdown("""
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         margin: 0.5rem;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
-    /* 列容器间距调整（解决图表重叠） */
+    /* 修复图表容器宽度限制 */
+    .js-plotly-plot {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 列容器间距调整（彻底解决图表重叠） */
     .stColumns {
-        gap: 1rem !important;
+        gap: 2rem !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
     }
 
     .stColumns > div {
-        padding: 0 0.5rem !important;
+        padding: 0 1rem !important;
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: 50% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 确保图表内容不溢出 */
+    .stColumns > div > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
     }
 
     /* 表格玻璃效果 */
@@ -1461,13 +1449,15 @@ st.markdown("""
 </style>
 
 <script>
-// 侧边栏滑动功能
+// 侧边栏滑动功能（修复版本）
 (function() {
     let startX = 0;
+    let startY = 0;
     let currentX = 0;
     let sidebar = null;
     let isCollapsed = false;
     let startTime = 0;
+    let isSwipeDetected = false;
 
     // 等待DOM加载完成
     function initializeSidebar() {
@@ -1482,20 +1472,6 @@ st.markdown("""
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-        // 添加鼠标事件监听
-        sidebar.addEventListener('mousedown', handleMouseDown);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-
-        // 点击收起/展开按钮
-        sidebar.addEventListener('click', function(e) {
-            const rect = sidebar.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            if (clickX > rect.width - 20) { // 点击右边缘20px区域
-                toggleSidebar();
-            }
-        });
-
         console.log('Sidebar swipe functionality initialized');
     }
 
@@ -1503,16 +1479,17 @@ st.markdown("""
         if (!sidebar) return;
 
         startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
         startTime = Date.now();
+        isSwipeDetected = false;
 
-        // 如果侧边栏已收起且触摸在左边缘，允许展开
-        if (isCollapsed && startX < 20) {
-            return;
-        }
-
-        // 如果侧边栏展开且触摸在侧边栏内，允许收起
+        // 检查是否在有效的滑动区域
         const sidebarRect = sidebar.getBoundingClientRect();
-        if (!isCollapsed && startX >= sidebarRect.left && startX <= sidebarRect.right) {
+        const touchInSidebar = startX >= sidebarRect.left && startX <= sidebarRect.right;
+        const touchAtEdge = isCollapsed && startX < 30; // 收起时在左边缘30px内
+
+        if (!touchInSidebar && !touchAtEdge) {
+            startX = 0; // 重置，表示不处理这次触摸
             return;
         }
     }
@@ -1521,11 +1498,16 @@ st.markdown("""
         if (!sidebar || startX === 0) return;
 
         currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
         const deltaX = currentX - startX;
+        const deltaY = currentY - startY;
 
-        // 防止页面滚动
-        if (Math.abs(deltaX) > 10) {
+        // 检测是否为水平滑动（而不是垂直滚动）
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+            isSwipeDetected = true;
+            // 阻止默认行为，防止页面滚动
             e.preventDefault();
+            e.stopPropagation();
         }
     }
 
@@ -1537,67 +1519,26 @@ st.markdown("""
         const deltaTime = Date.now() - startTime;
         const velocity = Math.abs(deltaX) / deltaTime;
 
-        // 快速滑动或滑动距离足够大时触发
-        if (velocity > 0.5 || Math.abs(deltaX) > 100) {
-            if (deltaX < -50 && !isCollapsed) {
-                // 向左滑动收起
-                toggleSidebar();
-            } else if (deltaX > 50 && isCollapsed) {
-                // 向右滑动展开
-                toggleSidebar();
+        // 只有在检测到水平滑动时才处理
+        if (isSwipeDetected) {
+            // 快速滑动或滑动距离足够大时触发
+            if (velocity > 0.3 || Math.abs(deltaX) > 80) {
+                if (deltaX < -50 && !isCollapsed) {
+                    // 向左滑动收起
+                    toggleSidebar();
+                } else if (deltaX > 50 && isCollapsed) {
+                    // 向右滑动展开
+                    toggleSidebar();
+                }
             }
         }
 
+        // 重置状态
         startX = 0;
+        startY = 0;
         currentX = 0;
         startTime = 0;
-    }
-
-    // 鼠标事件处理（桌面端）
-    let isDragging = false;
-
-    function handleMouseDown(e) {
-        if (!sidebar) return;
-
-        const rect = sidebar.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-
-        // 只在右边缘附近才允许拖拽
-        if (clickX > rect.width - 30) {
-            isDragging = true;
-            startX = e.clientX;
-            startTime = Date.now();
-            e.preventDefault();
-        }
-    }
-
-    function handleMouseMove(e) {
-        if (!isDragging || !sidebar) return;
-
-        currentX = e.clientX;
-        e.preventDefault();
-    }
-
-    function handleMouseUp(e) {
-        if (!isDragging || !sidebar) return;
-
-        const endX = e.clientX;
-        const deltaX = endX - startX;
-        const deltaTime = Date.now() - startTime;
-        const velocity = Math.abs(deltaX) / deltaTime;
-
-        if (velocity > 0.3 || Math.abs(deltaX) > 80) {
-            if (deltaX < -40 && !isCollapsed) {
-                toggleSidebar();
-            } else if (deltaX > 40 && isCollapsed) {
-                toggleSidebar();
-            }
-        }
-
-        isDragging = false;
-        startX = 0;
-        currentX = 0;
-        startTime = 0;
+        isSwipeDetected = false;
     }
 
     function toggleSidebar() {
