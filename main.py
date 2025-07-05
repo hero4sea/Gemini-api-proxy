@@ -488,6 +488,59 @@ st.markdown("""
             0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         position: relative;
         overflow: hidden;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        touch-action: pan-y;
+    }
+
+    /* 侧边栏收起状态 */
+    section[data-testid="stSidebar"].collapsed {
+        transform: translateX(-100%);
+    }
+
+    /* 主内容区域调整 */
+    .main .block-container {
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    section[data-testid="stSidebar"].collapsed ~ .main .block-container {
+        margin-left: 0 !important;
+    }
+
+    /* 侧边栏滑动指示器 */
+    section[data-testid="stSidebar"]::after {
+        content: '⟨';
+        position: absolute;
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        width: 30px;
+        height: 60px;
+        border-radius: 0 15px 15px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6366f1;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+    section[data-testid="stSidebar"]:hover::after {
+        background: rgba(99, 102, 241, 0.1);
+        color: #4f46e5;
+    }
+
+    section[data-testid="stSidebar"].collapsed::after {
+        content: '⟩';
+        left: -15px;
+        right: auto;
+        border-radius: 15px 0 0 15px;
     }
 
     /* 侧边栏动态背景 */
@@ -1249,7 +1302,7 @@ st.markdown("""
         border-color: rgba(239, 68, 68, 0.3) !important;
     }
 
-    /* 图表容器玻璃效果 */
+    /* 图表容器玻璃效果（修复重叠问题） */
     .js-plotly-plot .plotly {
         border-radius: 20px;
         overflow: hidden;
@@ -1260,6 +1313,16 @@ st.markdown("""
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        margin: 0.5rem;
+    }
+
+    /* 列容器间距调整（解决图表重叠） */
+    .stColumns {
+        gap: 1rem !important;
+    }
+
+    .stColumns > div {
+        padding: 0 0.5rem !important;
     }
 
     /* 表格玻璃效果 */
@@ -1396,6 +1459,175 @@ st.markdown("""
         color: #1f2937;
     }
 </style>
+
+<script>
+// 侧边栏滑动功能
+(function() {
+    let startX = 0;
+    let currentX = 0;
+    let sidebar = null;
+    let isCollapsed = false;
+    let startTime = 0;
+
+    // 等待DOM加载完成
+    function initializeSidebar() {
+        sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (!sidebar) {
+            setTimeout(initializeSidebar, 100);
+            return;
+        }
+
+        // 添加触摸事件监听
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        // 添加鼠标事件监听
+        sidebar.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // 点击收起/展开按钮
+        sidebar.addEventListener('click', function(e) {
+            const rect = sidebar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            if (clickX > rect.width - 20) { // 点击右边缘20px区域
+                toggleSidebar();
+            }
+        });
+
+        console.log('Sidebar swipe functionality initialized');
+    }
+
+    function handleTouchStart(e) {
+        if (!sidebar) return;
+
+        startX = e.touches[0].clientX;
+        startTime = Date.now();
+
+        // 如果侧边栏已收起且触摸在左边缘，允许展开
+        if (isCollapsed && startX < 20) {
+            return;
+        }
+
+        // 如果侧边栏展开且触摸在侧边栏内，允许收起
+        const sidebarRect = sidebar.getBoundingClientRect();
+        if (!isCollapsed && startX >= sidebarRect.left && startX <= sidebarRect.right) {
+            return;
+        }
+    }
+
+    function handleTouchMove(e) {
+        if (!sidebar || startX === 0) return;
+
+        currentX = e.touches[0].clientX;
+        const deltaX = currentX - startX;
+
+        // 防止页面滚动
+        if (Math.abs(deltaX) > 10) {
+            e.preventDefault();
+        }
+    }
+
+    function handleTouchEnd(e) {
+        if (!sidebar || startX === 0) return;
+
+        const endX = e.changedTouches[0].clientX;
+        const deltaX = endX - startX;
+        const deltaTime = Date.now() - startTime;
+        const velocity = Math.abs(deltaX) / deltaTime;
+
+        // 快速滑动或滑动距离足够大时触发
+        if (velocity > 0.5 || Math.abs(deltaX) > 100) {
+            if (deltaX < -50 && !isCollapsed) {
+                // 向左滑动收起
+                toggleSidebar();
+            } else if (deltaX > 50 && isCollapsed) {
+                // 向右滑动展开
+                toggleSidebar();
+            }
+        }
+
+        startX = 0;
+        currentX = 0;
+        startTime = 0;
+    }
+
+    // 鼠标事件处理（桌面端）
+    let isDragging = false;
+
+    function handleMouseDown(e) {
+        if (!sidebar) return;
+
+        const rect = sidebar.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+
+        // 只在右边缘附近才允许拖拽
+        if (clickX > rect.width - 30) {
+            isDragging = true;
+            startX = e.clientX;
+            startTime = Date.now();
+            e.preventDefault();
+        }
+    }
+
+    function handleMouseMove(e) {
+        if (!isDragging || !sidebar) return;
+
+        currentX = e.clientX;
+        e.preventDefault();
+    }
+
+    function handleMouseUp(e) {
+        if (!isDragging || !sidebar) return;
+
+        const endX = e.clientX;
+        const deltaX = endX - startX;
+        const deltaTime = Date.now() - startTime;
+        const velocity = Math.abs(deltaX) / deltaTime;
+
+        if (velocity > 0.3 || Math.abs(deltaX) > 80) {
+            if (deltaX < -40 && !isCollapsed) {
+                toggleSidebar();
+            } else if (deltaX > 40 && isCollapsed) {
+                toggleSidebar();
+            }
+        }
+
+        isDragging = false;
+        startX = 0;
+        currentX = 0;
+        startTime = 0;
+    }
+
+    function toggleSidebar() {
+        if (!sidebar) return;
+
+        isCollapsed = !isCollapsed;
+
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+        }
+
+        // 添加一个短暂的延迟，确保动画播放
+        setTimeout(() => {
+            // 触发窗口resize事件，让Streamlit重新计算布局
+            window.dispatchEvent(new Event('resize'));
+        }, 300);
+
+        console.log('Sidebar toggled:', isCollapsed ? 'collapsed' : 'expanded');
+    }
+
+    // 开始初始化
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSidebar);
+    } else {
+        initializeSidebar();
+    }
+})();
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -1606,8 +1838,8 @@ if page == "控制台":
         if model_data:
             df = pd.DataFrame(model_data)
 
-            # 创建图表
-            col1, col2 = st.columns(2)
+            # 创建图表 - 修复重叠问题
+            col1, col2 = st.columns(2, gap="large")
 
             with col1:
                 fig_rpm = go.Figure()
@@ -1626,7 +1858,7 @@ if page == "控制台":
                     title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=340,
+                    height=320,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
@@ -1635,7 +1867,7 @@ if page == "控制台":
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=0, r=0, t=50, b=0)
+                    margin=dict(l=40, r=40, t=50, b=40)
                 )
                 st.plotly_chart(fig_rpm, use_container_width=True)
 
@@ -1656,7 +1888,7 @@ if page == "控制台":
                     title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=340,
+                    height=320,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
@@ -1665,7 +1897,7 @@ if page == "控制台":
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=0, r=0, t=50, b=0)
+                    margin=dict(l=40, r=40, t=50, b=40)
                 )
                 st.plotly_chart(fig_rpd, use_container_width=True)
 
