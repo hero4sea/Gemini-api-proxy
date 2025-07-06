@@ -381,7 +381,7 @@ st.markdown("""
         width: 30px;
         height: 60px;
         border-radius: 0 15px 15px 0;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         color: #6366f1;
