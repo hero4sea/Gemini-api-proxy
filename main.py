@@ -157,7 +157,6 @@ def is_mobile():
             this.isDragging = false;
             this.threshold = 80; // 滑动阈值（像素）
             this.sidebar = null;
-            this.sidebarButton = null;
             this.velocityThreshold = 0.5; // 速度阈值
             this.lastMoveTime = 0;
             this.lastMoveX = 0;
@@ -165,41 +164,86 @@ def is_mobile():
         }
 
         init() {
-            // 等待DOM加载完成
-            setTimeout(() => {
-                this.sidebar = document.querySelector('[data-testid="stSidebar"]');
-                this.sidebarButton = document.querySelector('button[kind="secondary"]');
-
-                if (this.sidebar) {
-                    this.bindEvents();
-                }
-            }, 1000);
+            // 使用更长的延迟确保DOM完全加载
+            this.waitForSidebar();
         }
 
-        addGestureHints() {
-            // 移除视觉引导系统
+        waitForSidebar() {
+            const checkSidebar = () => {
+                this.sidebar = document.querySelector('[data-testid="stSidebar"]');
+
+                if (this.sidebar) {
+                    console.log('✅ 侧边栏找到，初始化手势控制');
+                    this.bindEvents();
+                } else {
+                    console.log('⏳ 等待侧边栏加载...');
+                    setTimeout(checkSidebar, 500);
+                }
+            };
+
+            // 立即检查一次，然后每500ms检查一次，最多等待10秒
+            checkSidebar();
         }
 
         bindEvents() {
+            if (!this.sidebar) return;
+
             // 只在侧边栏区域添加触摸事件
             this.sidebar.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
             this.sidebar.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
             this.sidebar.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+
+            console.log('✅ 手势事件已绑定');
+        }
+
+        isSidebarOpen() {
+            // 多种方式检测侧边栏是否打开
+
+            // 方法1：检查是否有关闭按钮
+            const closeButton = document.querySelector('button[kind="secondary"]') || 
+                               document.querySelector('button[title*="Close"]') ||
+                               document.querySelector('button[aria-label*="Close"]');
+
+            // 方法2：检查侧边栏的可见性
+            const sidebarVisible = this.sidebar && 
+                                  window.getComputedStyle(this.sidebar).display !== 'none' &&
+                                  window.getComputedStyle(this.sidebar).visibility !== 'hidden';
+
+            // 方法3：检查Streamlit的内部状态
+            const streamlitSidebarOpen = !document.body.classList.contains('sidebar-collapsed');
+
+            const isOpen = closeButton && sidebarVisible;
+
+            console.log('侧边栏状态检查:', {
+                closeButton: !!closeButton,
+                sidebarVisible: sidebarVisible,
+                streamlitState: streamlitSidebarOpen,
+                finalResult: isOpen
+            });
+
+            return isOpen;
         }
 
         handleTouchStart(e) {
-            // 检查是否在移动端且侧边栏是打开状态
-            if (window.innerWidth > 768) return;
+            // 检查是否在移动端
+            if (window.innerWidth > 768) {
+                console.log('🚫 非移动端，忽略手势');
+                return;
+            }
 
             // 检查侧边栏是否打开
-            const closeButton = document.querySelector('button[kind="secondary"]');
-            if (!closeButton) return;
+            if (!this.isSidebarOpen()) {
+                console.log('🚫 侧边栏未打开，忽略手势');
+                return;
+            }
 
             this.startX = e.touches[0].clientX;
             this.startY = e.touches[0].clientY;
             this.lastMoveX = this.startX;
             this.lastMoveTime = Date.now();
             this.isDragging = true;
+
+            console.log('👆 开始触摸:', { startX: this.startX, startY: this.startY });
 
             // 添加拖拽状态样式
             this.sidebar.classList.add('gesture-active');
@@ -220,12 +264,15 @@ def is_mobile():
             const deltaY = currentY - this.startY;
 
             // 如果是垂直滚动为主，不处理水平手势
-            if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+            if (Math.abs(deltaY) > Math.abs(deltaX) * 1.2) {
+                console.log('📱 检测到垂直滚动，忽略手势');
                 return;
             }
 
             // 只处理向左滑动
             if (deltaX < -10) { // 增加一些容错
+                console.log('👈 检测到左滑:', { deltaX, deltaY });
+
                 // 防止页面滚动
                 e.preventDefault();
 
@@ -241,7 +288,7 @@ def is_mobile():
                 this.sidebar.style.transform = `translateX(${translateX}px)`;
 
                 // 添加背景遮罩透明度变化
-                const overlay = document.querySelector('.stSidebar > div');
+                const overlay = this.sidebar.querySelector('div');
                 if (overlay) {
                     const opacity = Math.max(0.3, 1 - progress * 0.7);
                     overlay.style.opacity = opacity;
@@ -258,7 +305,9 @@ def is_mobile():
 
             const deltaX = this.currentX - this.startX;
             const deltaTime = Date.now() - this.lastMoveTime;
-            const velocity = Math.abs(deltaX) / deltaTime;
+            const velocity = Math.abs(deltaX) / Math.max(deltaTime, 1);
+
+            console.log('👆 触摸结束:', { deltaX, velocity, threshold: this.threshold });
 
             // 移除拖拽状态样式
             this.sidebar.classList.remove('gesture-active', 'gesture-dragging');
@@ -271,6 +320,7 @@ def is_mobile():
                               (velocity > this.velocityThreshold && deltaX < -20);
 
             if (shouldClose && deltaX < 0) {
+                console.log('✅ 触发关闭侧边栏');
                 this.closeSidebar();
 
                 // 提供成功触觉反馈
@@ -278,9 +328,10 @@ def is_mobile():
                     navigator.vibrate([10, 50, 10]);
                 }
             } else {
+                console.log('↩️ 回弹到原位置');
                 // 否则回弹到原位置
                 this.sidebar.style.transform = 'translateX(0)';
-                const overlay = document.querySelector('.stSidebar > div');
+                const overlay = this.sidebar.querySelector('div');
                 if (overlay) {
                     overlay.style.opacity = '1';
                 }
@@ -299,7 +350,7 @@ def is_mobile():
             setTimeout(() => {
                 this.sidebar.style.transition = '';
                 this.sidebar.style.transform = '';
-                const overlay = document.querySelector('.stSidebar > div');
+                const overlay = this.sidebar.querySelector('div');
                 if (overlay) {
                     overlay.style.opacity = '';
                 }
@@ -313,12 +364,31 @@ def is_mobile():
             // 添加关闭状态样式
             this.sidebar.style.opacity = '0.8';
 
-            // 触发关闭按钮点击
-            const closeButton = document.querySelector('button[kind="secondary"]');
+            // 查找关闭按钮并点击
+            const closeButton = document.querySelector('button[kind="secondary"]') || 
+                               document.querySelector('button[title*="Close"]') ||
+                               document.querySelector('button[aria-label*="Close"]') ||
+                               // 更广泛的搜索
+                               Array.from(document.querySelectorAll('button')).find(btn => 
+                                   btn.innerHTML.includes('×') || 
+                                   btn.innerHTML.includes('close') ||
+                                   btn.getAttribute('aria-label')?.includes('close')
+                               );
+
             if (closeButton) {
+                console.log('🔘 找到关闭按钮，准备点击');
                 setTimeout(() => {
                     closeButton.click();
+                    console.log('✅ 已点击关闭按钮');
                     // 恢复样式
+                    this.sidebar.style.opacity = '';
+                }, 250);
+            } else {
+                console.log('❌ 未找到关闭按钮，尝试其他方法');
+                // 备用方法：触发ESC键
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+                setTimeout(() => {
                     this.sidebar.style.opacity = '';
                 }, 250);
             }
