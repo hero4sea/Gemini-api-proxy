@@ -73,6 +73,24 @@ class Database:
                 )
             ''')
 
+            # 新增：健康检测历史记录表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS health_check_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    gemini_key_id INTEGER NOT NULL,
+                    check_date DATE NOT NULL,
+                    is_healthy BOOLEAN NOT NULL,
+                    total_checks INTEGER DEFAULT 1,
+                    failed_checks INTEGER DEFAULT 0,
+                    success_rate REAL DEFAULT 1.0,
+                    avg_response_time REAL DEFAULT 0.0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (gemini_key_id) REFERENCES gemini_keys (id),
+                    UNIQUE(gemini_key_id, check_date)
+                )
+            ''')
+
             # 模型配置表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS model_configs (
@@ -124,6 +142,11 @@ class Database:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_gemini_key_health ON gemini_keys(health_status)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(key)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_model_configs_name ON model_configs(model_name)')
+
+            # 新增索引
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_health_history_date ON health_check_history(check_date)')
+            cursor.execute(
+                'CREATE INDEX IF NOT EXISTS idx_health_history_key_date ON health_check_history(gemini_key_id, check_date)')
 
             # 初始化系统配置
             self._init_system_config(cursor)
@@ -218,6 +241,10 @@ class Database:
             ('inject_prompt_enabled', 'false', '是否启用注入prompt'),
             ('inject_prompt_content', '', '注入的prompt内容'),
             ('inject_prompt_position', 'system', '注入位置: system, user_prefix, user_suffix'),
+            # 新增：自动清理配置
+            ('auto_cleanup_enabled', 'false', '是否启用自动清理异常API key'),
+            ('auto_cleanup_days', '3', '连续异常天数阈值'),
+            ('min_checks_per_day', '5', '每日最少检测次数'),
         ]
 
         for key, value, description in default_configs:
@@ -309,6 +336,33 @@ class Database:
             if position not in ['system', 'user_prefix', 'user_suffix']:
                 raise ValueError("position must be one of: system, user_prefix, user_suffix")
             self.set_config('inject_prompt_position', position)
+
+        return True
+
+    # 新增：自动清理配置方法
+    def get_auto_cleanup_config(self) -> Dict[str, any]:
+        """获取自动清理配置"""
+        return {
+            'enabled': self.get_config('auto_cleanup_enabled', 'false').lower() == 'true',
+            'days_threshold': int(self.get_config('auto_cleanup_days', '3')),
+            'min_checks_per_day': int(self.get_config('min_checks_per_day', '5'))
+        }
+
+    def set_auto_cleanup_config(self, enabled: bool = None, days_threshold: int = None,
+                                min_checks_per_day: int = None) -> bool:
+        """设置自动清理配置"""
+        if enabled is not None:
+            self.set_config('auto_cleanup_enabled', 'true' if enabled else 'false')
+
+        if days_threshold is not None:
+            if not (1 <= days_threshold <= 30):
+                raise ValueError("days_threshold must be between 1 and 30")
+            self.set_config('auto_cleanup_days', str(days_threshold))
+
+        if min_checks_per_day is not None:
+            if not (1 <= min_checks_per_day <= 100):
+                raise ValueError("min_checks_per_day must be between 1 and 100")
+            self.set_config('min_checks_per_day', str(min_checks_per_day))
 
         return True
 
@@ -551,6 +605,163 @@ class Database:
         """获取支持思考功能的模型列表"""
         return [model for model in self.get_supported_models() if self.is_thinking_model(model)]
 
+    # 新增：健康检测历史记录方法
+    def record_daily_health_status(self, key_id: int, is_healthy: bool, response_time: float = 0.0):
+        """记录每日健康状态"""
+        today = datetime.now().date()
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 检查当日是否已有记录
+            cursor.execute('''
+                SELECT total_checks, failed_checks, avg_response_time
+                FROM health_check_history 
+                WHERE gemini_key_id = ? AND check_date = ?
+            ''', (key_id, today))
+
+            existing = cursor.fetchone()
+
+            if existing:
+                # 更新现有记录
+                new_total = existing['total_checks'] + 1
+                new_failed = existing['failed_checks'] + (0 if is_healthy else 1)
+                new_success_rate = (new_total - new_failed) / new_total
+
+                # 计算新的平均响应时间
+                old_avg = existing['avg_response_time']
+                new_avg = (old_avg * existing['total_checks'] + response_time) / new_total
+
+                cursor.execute('''
+                    UPDATE health_check_history 
+                    SET total_checks = ?, failed_checks = ?, success_rate = ?,
+                        avg_response_time = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE gemini_key_id = ? AND check_date = ?
+                ''', (new_total, new_failed, new_success_rate, new_avg, key_id, today))
+            else:
+                # 插入新记录
+                cursor.execute('''
+                    INSERT INTO health_check_history 
+                    (gemini_key_id, check_date, is_healthy, total_checks, failed_checks, success_rate, avg_response_time)
+                    VALUES (?, ?, ?, 1, ?, 1.0, ?)
+                ''', (key_id, today, is_healthy, 0 if is_healthy else 1, response_time))
+
+            conn.commit()
+
+    def get_consecutive_unhealthy_days(self, key_id: int, days_threshold: int = 3) -> int:
+        """获取连续异常天数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 获取最近N+2天的健康状态（按日期倒序）
+            cursor.execute('''
+                SELECT check_date, success_rate 
+                FROM health_check_history 
+                WHERE gemini_key_id = ? 
+                AND check_date >= date('now', '-{} days')
+                ORDER BY check_date DESC
+            '''.format(days_threshold + 2), (key_id,))
+
+            records = cursor.fetchall()
+
+            consecutive_days = 0
+            for record in records:
+                # 健康阈值：成功率低于10%视为异常
+                if record['success_rate'] < 0.1:
+                    consecutive_days += 1
+                else:
+                    break
+
+            return consecutive_days
+
+    def get_at_risk_keys(self, days_threshold: int = None) -> List[Dict]:
+        """获取有风险的API keys"""
+        if days_threshold is None:
+            days_threshold = int(self.get_config('auto_cleanup_days', '3'))
+
+        at_risk_keys = []
+        available_keys = self.get_all_gemini_keys()
+
+        for key_info in available_keys:
+            if key_info['status'] != 1:  # 只检查激活的key
+                continue
+
+            consecutive_days = self.get_consecutive_unhealthy_days(key_info['id'], days_threshold)
+            if consecutive_days > 0:
+                at_risk_keys.append({
+                    'id': key_info['id'],
+                    'key': key_info['key'][:10] + '...',
+                    'consecutive_unhealthy_days': consecutive_days,
+                    'days_until_removal': max(0, days_threshold - consecutive_days)
+                })
+
+        return at_risk_keys
+
+    def auto_remove_failed_keys(self, days_threshold: int = None, min_checks_per_day: int = None) -> List[Dict]:
+        """自动移除连续异常的API key"""
+        if days_threshold is None:
+            days_threshold = int(self.get_config('auto_cleanup_days', '3'))
+        if min_checks_per_day is None:
+            min_checks_per_day = int(self.get_config('min_checks_per_day', '5'))
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 获取所有激活的key
+            cursor.execute('SELECT id, key FROM gemini_keys WHERE status = 1')
+            active_keys = cursor.fetchall()
+
+            # 确保至少保留一个健康的key
+            healthy_keys = [k for k in active_keys if self.get_consecutive_unhealthy_days(k['id'], days_threshold) == 0]
+
+            removed_keys = []
+
+            for key_info in active_keys:
+                key_id = key_info['id']
+
+                # 检查连续异常天数
+                consecutive_days = self.get_consecutive_unhealthy_days(key_id, days_threshold)
+
+                if consecutive_days >= days_threshold:
+                    # 确保不会移除所有key
+                    if len(healthy_keys) <= 1 and key_info in healthy_keys:
+                        continue
+
+                    # 验证每天都有足够的检测次数（避免因检测不足导致误删）
+                    cursor.execute('''
+                        SELECT check_date, total_checks 
+                        FROM health_check_history 
+                        WHERE gemini_key_id = ? 
+                        AND check_date >= date('now', '-{} days')
+                        ORDER BY check_date DESC
+                    '''.format(days_threshold), (key_id,))
+
+                    recent_records = cursor.fetchall()
+
+                    # 检查是否每天都有足够的检测次数
+                    sufficient_checks = all(
+                        record['total_checks'] >= min_checks_per_day
+                        for record in recent_records[:days_threshold]
+                    )
+
+                    if sufficient_checks and len(recent_records) >= days_threshold:
+                        # 标记为删除（软删除）
+                        cursor.execute('''
+                            UPDATE gemini_keys 
+                            SET status = 0, health_status = 'auto_removed',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        ''', (key_id,))
+
+                        removed_keys.append({
+                            'id': key_id,
+                            'key': key_info['key'][:10] + '...',
+                            'consecutive_days': consecutive_days
+                        })
+
+            conn.commit()
+            return removed_keys
+
     # 用户Key管理
     def generate_user_key(self, name: str = None) -> str:
         """生成用户Key，自动填补删除的ID"""
@@ -791,7 +1002,8 @@ class Database:
                 cursor = conn.cursor()
 
                 # 获取各表的记录数
-                tables = ['system_config', 'gemini_keys', 'model_configs', 'user_keys', 'usage_logs']
+                tables = ['system_config', 'gemini_keys', 'model_configs', 'user_keys', 'usage_logs',
+                          'health_check_history']
                 for table in tables:
                     cursor.execute(f"SELECT COUNT(*) as count FROM {table}")
                     stats[f'{table}_count'] = cursor.fetchone()['count']
@@ -819,6 +1031,21 @@ class Database:
                 DELETE FROM usage_logs 
                 WHERE timestamp < ?
             ''', (cutoff_date,))
+            deleted_count = cursor.rowcount
+            conn.commit()
+
+        return deleted_count
+
+    def cleanup_old_health_history(self, days: int = 90) -> int:
+        """清理旧的健康检测历史"""
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                DELETE FROM health_check_history 
+                WHERE check_date < ?
+            ''', (cutoff_date.date(),))
             deleted_count = cursor.rowcount
             conn.commit()
 

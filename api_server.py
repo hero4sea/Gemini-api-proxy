@@ -7,7 +7,7 @@ import os
 import sys
 import base64
 import mimetypes
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, AsyncGenerator, Union, Any
 from contextlib import asynccontextmanager
 
@@ -322,6 +322,67 @@ async def keep_alive_ping():
         logger.warning(f"🔴 Keep-alive ping failed: {e}")
 
 
+# 新增：每小时健康检测函数
+async def record_hourly_health_check():
+    """每小时记录一次健康检测结果"""
+    try:
+        available_keys = db.get_available_gemini_keys()
+
+        for key_info in available_keys:
+            key_id = key_info['id']
+
+            # 执行健康检测
+            health_result = await check_gemini_key_health(key_info['key'])
+
+            # 记录到历史表
+            db.record_daily_health_status(
+                key_id,
+                health_result['healthy'],
+                health_result['response_time']
+            )
+
+            # 更新性能指标
+            db.update_key_performance(
+                key_id,
+                health_result['healthy'],
+                health_result['response_time']
+            )
+
+        logger.info(f"✅ Hourly health check completed for {len(available_keys)} keys")
+
+    except Exception as e:
+        logger.error(f"❌ Hourly health check failed: {e}")
+
+
+# 新增：自动清理函数
+async def auto_cleanup_failed_keys():
+    """每日自动清理连续异常的API key"""
+    try:
+        # 获取配置
+        cleanup_config = db.get_auto_cleanup_config()
+
+        if not cleanup_config['enabled']:
+            logger.info("🔒 Auto cleanup is disabled")
+            return
+
+        days_threshold = cleanup_config['days_threshold']
+        min_checks_per_day = cleanup_config['min_checks_per_day']
+
+        # 执行自动清理
+        removed_keys = db.auto_remove_failed_keys(days_threshold, min_checks_per_day)
+
+        if removed_keys:
+            logger.warning(
+                f"🗑️ Auto-removed {len(removed_keys)} failed keys after {days_threshold} consecutive unhealthy days:")
+            for key in removed_keys:
+                logger.warning(f"   - Key #{key['id']}: {key['key']} (failed for {key['consecutive_days']} days)")
+        else:
+            logger.info(f"✅ No keys need cleanup (threshold: {days_threshold} days)")
+
+    except Exception as e:
+        logger.error(f"❌ Auto cleanup failed: {e}")
+
+
 # 全局变量
 db = Database()
 rate_limiter = RateLimitCache()
@@ -401,15 +462,36 @@ async def lifespan(app: FastAPI):
                 max_instances=1
             )
 
+            # 新增：每小时健康检测任务
+            scheduler.add_job(
+                record_hourly_health_check,
+                'interval',
+                hours=1,
+                id='hourly_health_check',
+                max_instances=1,
+                coalesce=True
+            )
+
+            # 新增：每天凌晨2点自动清理任务
+            scheduler.add_job(
+                auto_cleanup_failed_keys,
+                'cron',
+                hour=2,  # 凌晨2点执行
+                minute=0,
+                id='daily_cleanup',
+                max_instances=1,
+                coalesce=True
+            )
+
             scheduler.start()
             keep_alive_enabled = True
-            logger.info(f"✅ Keep-alive scheduler started (interval: {keep_alive_interval} minutes)")
+            logger.info(f"✅ Scheduler started with auto-cleanup enabled (interval: {keep_alive_interval} minutes)")
 
             # 启动后立即执行一次保活
             await keep_alive_ping()
 
         except Exception as e:
-            logger.error(f"❌ Failed to start keep-alive scheduler: {e}")
+            logger.error(f"❌ Failed to start scheduler: {e}")
             keep_alive_enabled = False
     else:
         logger.info("⚪ Keep-alive disabled (set ENABLE_KEEP_ALIVE=true to enable)")
@@ -425,7 +507,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Gemini API Proxy",
-    description="A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, and auto keep-alive",
+    description="A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, auto keep-alive and auto-cleanup",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -1475,8 +1557,9 @@ async def root():
         "service": "Gemini API Proxy",
         "status": "running",
         "version": "1.1.0",
-        "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling", "Auto Keep-Alive"],
+        "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling", "Auto Keep-Alive", "Auto-Cleanup"],
         "keep_alive": keep_alive_enabled,
+        "auto_cleanup": db.get_auto_cleanup_config()['enabled'],
         "docs": "/docs",
         "health": "/health"
     }
@@ -1497,7 +1580,8 @@ async def health_check():
         "request_count": request_count,
         "version": "1.1.0",
         "multimodal_support": "Gemini 2.5 Optimized",
-        "keep_alive_enabled": keep_alive_enabled
+        "keep_alive_enabled": keep_alive_enabled,
+        "auto_cleanup_enabled": db.get_auto_cleanup_config()['enabled']
     }
 
 
@@ -1508,7 +1592,8 @@ async def wake_up():
         "status": "awake",
         "timestamp": datetime.now().isoformat(),
         "message": "Service is active",
-        "keep_alive_enabled": keep_alive_enabled
+        "keep_alive_enabled": keep_alive_enabled,
+        "auto_cleanup_enabled": db.get_auto_cleanup_config()['enabled']
     }
 
 
@@ -1534,7 +1619,8 @@ async def get_status():
         "total_requests": request_count,
         "thinking_enabled": db.get_thinking_config()['enabled'],
         "multimodal_optimized": True,
-        "keep_alive_enabled": keep_alive_enabled
+        "keep_alive_enabled": keep_alive_enabled,
+        "auto_cleanup_enabled": db.get_auto_cleanup_config()['enabled']
     }
 
 
@@ -1552,7 +1638,8 @@ async def get_metrics():
         "uptime_seconds": int(time.time() - start_time),
         "requests_count": request_count,
         "database_size_mb": os.path.getsize(db.db_path) / 1024 / 1024 if os.path.exists(db.db_path) else 0,
-        "keep_alive_enabled": keep_alive_enabled
+        "keep_alive_enabled": keep_alive_enabled,
+        "auto_cleanup_enabled": db.get_auto_cleanup_config()['enabled']
     }
 
 
@@ -1562,6 +1649,7 @@ async def api_v1_info():
     available_keys = len(db.get_available_gemini_keys())
     supported_models = db.get_supported_models()
     thinking_config = db.get_thinking_config()
+    cleanup_config = db.get_auto_cleanup_config()
 
     render_url = os.getenv('RENDER_EXTERNAL_URL')
     base_url = render_url if render_url else 'https://your-service.onrender.com'
@@ -1571,7 +1659,7 @@ async def api_v1_info():
         "version": "1.1.0",
         "api_version": "v1",
         "compatibility": "OpenAI API v1",
-        "description": "A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, and auto keep-alive",
+        "description": "A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, auto keep-alive and auto-cleanup",
         "status": "operational",
         "base_url": base_url,
         "features": [
@@ -1585,7 +1673,8 @@ async def api_v1_info():
             "Real-time monitoring",
             "Health checking",
             "Adaptive load balancing",
-            "Auto keep-alive"
+            "Auto keep-alive",
+            "Auto-cleanup unhealthy keys"
         ],
         "endpoints": {
             "chat_completions": "/v1/chat/completions",
@@ -1604,7 +1693,9 @@ async def api_v1_info():
             "thinking_budget": thinking_config.get('budget', -1),
             "uptime_seconds": int(time.time() - start_time),
             "total_requests": request_count,
-            "keep_alive_enabled": keep_alive_enabled
+            "keep_alive_enabled": keep_alive_enabled,
+            "auto_cleanup_enabled": cleanup_config['enabled'],
+            "auto_cleanup_threshold": cleanup_config['days_threshold']
         },
         "multimodal_support": {
             "images": ["jpeg", "png", "gif", "webp", "bmp"],
@@ -1951,6 +2042,13 @@ async def check_all_keys_health():
                 health_result['response_time']
             )
 
+            # 同时记录到健康检测历史
+            db.record_daily_health_status(
+                key_id,
+                health_result['healthy'],
+                health_result['response_time']
+            )
+
             if health_result['healthy']:
                 healthy_count += 1
 
@@ -1986,6 +2084,74 @@ async def get_health_summary():
         }
     except Exception as e:
         logger.error(f"Failed to get health summary: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 新增：自动清理管理端点
+@app.get("/admin/cleanup/status")
+async def get_cleanup_status():
+    """获取自动清理状态"""
+    try:
+        cleanup_config = db.get_auto_cleanup_config()
+        at_risk_keys = db.get_at_risk_keys(cleanup_config['days_threshold'])
+
+        return {
+            "success": True,
+            "auto_cleanup_enabled": cleanup_config['enabled'],
+            "days_threshold": cleanup_config['days_threshold'],
+            "min_checks_per_day": cleanup_config['min_checks_per_day'],
+            "at_risk_keys": at_risk_keys,
+            "next_cleanup": "Every day at 02:00 UTC"
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get cleanup status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/cleanup/config")
+async def update_cleanup_config(request: dict):
+    """更新自动清理配置"""
+    try:
+        enabled = request.get('enabled')
+        days_threshold = request.get('days_threshold')
+        min_checks = request.get('min_checks_per_day')
+
+        success = db.set_auto_cleanup_config(
+            enabled=enabled,
+            days_threshold=days_threshold,
+            min_checks_per_day=min_checks
+        )
+
+        if success:
+            logger.info(
+                f"Updated auto cleanup config: enabled={enabled}, days={days_threshold}, min_checks={min_checks}")
+
+            return {
+                "success": True,
+                "message": "Auto cleanup configuration updated successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update auto cleanup configuration")
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update cleanup config: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/cleanup/manual")
+async def manual_cleanup():
+    """手动执行清理任务"""
+    try:
+        await auto_cleanup_failed_keys()
+        return {
+            "success": True,
+            "message": "Manual cleanup executed successfully"
+        }
+    except Exception as e:
+        logger.error(f"Manual cleanup failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2028,6 +2194,26 @@ async def toggle_keep_alive():
                 minutes=5,
                 id='cache_cleanup',
                 max_instances=1
+            )
+
+            # 重新添加健康检测和自动清理任务
+            scheduler.add_job(
+                record_hourly_health_check,
+                'interval',
+                hours=1,
+                id='hourly_health_check',
+                max_instances=1,
+                coalesce=True
+            )
+
+            scheduler.add_job(
+                auto_cleanup_failed_keys,
+                'cron',
+                hour=2,
+                minute=0,
+                id='daily_cleanup',
+                max_instances=1,
+                coalesce=True
             )
 
             scheduler.start()
@@ -2442,12 +2628,14 @@ async def get_all_config():
         configs = db.get_all_configs()
         thinking_config = db.get_thinking_config()
         inject_config = db.get_inject_prompt_config()
+        cleanup_config = db.get_auto_cleanup_config()
 
         return {
             "success": True,
             "system_configs": configs,
             "thinking_config": thinking_config,
-            "inject_config": inject_config
+            "inject_config": inject_config,
+            "cleanup_config": cleanup_config
         }
     except Exception as e:
         logger.error(f"Failed to get configs: {str(e)}")
@@ -2469,6 +2657,7 @@ async def get_admin_stats():
         "usage_stats": db.get_all_usage_stats(),
         "thinking_config": db.get_thinking_config(),
         "inject_config": db.get_inject_prompt_config(),
+        "cleanup_config": db.get_auto_cleanup_config(),
         "health_summary": health_summary,
         "keep_alive_enabled": keep_alive_enabled
     }
@@ -2482,5 +2671,6 @@ def run_api_server(port: int = 8000):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting Gemini API Proxy with optimized multimodal support and auto keep-alive on port {port}")
+    logger.info(
+        f"Starting Gemini API Proxy with optimized multimodal support, auto keep-alive and auto-cleanup on port {port}")
     run_api_server(port)

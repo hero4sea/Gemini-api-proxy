@@ -101,6 +101,22 @@ def get_health_summary():
     return result
 
 
+# --- 自动清理功能函数 ---
+def get_cleanup_status():
+    """获取自动清理状态"""
+    return call_api('/admin/cleanup/status')
+
+
+def update_cleanup_config(config_data):
+    """更新自动清理配置"""
+    return call_api('/admin/cleanup/config', 'POST', config_data)
+
+
+def manual_cleanup():
+    """手动执行清理"""
+    return call_api('/admin/cleanup/manual', 'POST')
+
+
 # --- 缓存函数 ---
 @st.cache_data(ttl=30)
 def get_cached_stats():
@@ -136,6 +152,12 @@ def get_cached_user_keys():
 def get_cached_health_summary():
     """获取缓存的健康状态汇总"""
     return get_health_summary()
+
+
+@st.cache_data(ttl=60)
+def get_cached_cleanup_status():
+    """获取缓存的自动清理状态"""
+    return get_cleanup_status()
 
 
 # --- 移动端检测和手势控制函数 ---
@@ -2189,6 +2211,19 @@ st.markdown("""
             font-size: 1.5rem !important;
         }
     }
+
+    /* 状态卡片样式 */
+    .status-card-style {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 
+            0 10px 32px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -2894,8 +2929,8 @@ elif page == "系统设置":
         st.error("无法获取配置数据")
         st.stop()
 
-    # 只保留核心功能标签，移除保活管理
-    tab1, tab2, tab3, tab4 = st.tabs(["思考模式", "提示词注入", "负载均衡", "系统信息"])
+    # 包含自动清理功能的标签页
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["思考模式", "提示词注入", "负载均衡", "自动清理", "系统信息"])
 
     with tab1:
         st.markdown("#### 思考模式配置")
@@ -3036,7 +3071,177 @@ elif page == "系统设置":
             if st.form_submit_button("保存策略", type="primary", use_container_width=True):
                 st.success(f"策略已更新为: {strategy_options[strategy]}")
 
-    with tab4:
+    with tab4:  # 新增：自动清理标签页
+        st.markdown("#### 自动清理异常API Key")
+        st.markdown("连续多天检测异常的API Key将被自动移除，避免影响服务质量")
+
+        # 获取当前配置
+        cleanup_status = get_cached_cleanup_status()
+
+        if not cleanup_status or not cleanup_status.get('success'):
+            st.error("无法获取自动清理状态")
+        else:
+            # 显示当前状态
+            col1, col2 = st.columns([2, 1])
+
+            with col1:
+                # 配置表单
+                with st.form("auto_cleanup_config"):
+                    cleanup_enabled = st.checkbox(
+                        "启用自动清理",
+                        value=cleanup_status.get('auto_cleanup_enabled', False),
+                        help="启用后将自动移除连续异常的API Key"
+                    )
+
+                    col_a, col_b = st.columns(2)
+
+                    with col_a:
+                        days_threshold = st.number_input(
+                            "连续异常天数阈值",
+                            min_value=1,
+                            max_value=30,
+                            value=cleanup_status.get('days_threshold', 3),
+                            help="连续异常超过此天数的Key将被自动移除"
+                        )
+
+                    with col_b:
+                        min_checks_per_day = st.number_input(
+                            "每日最少检测次数",
+                            min_value=1,
+                            max_value=100,
+                            value=cleanup_status.get('min_checks_per_day', 5),
+                            help="只有每天检测次数达到此值才会被纳入清理考虑"
+                        )
+
+                    st.info(f"🕐 自动清理时间：每天凌晨02:00 UTC")
+
+                    col_save, col_manual = st.columns(2)
+
+                    with col_save:
+                        if st.form_submit_button("保存配置", type="primary", use_container_width=True):
+                            config_data = {
+                                'enabled': cleanup_enabled,
+                                'days_threshold': days_threshold,
+                                'min_checks_per_day': min_checks_per_day
+                            }
+
+                            result = update_cleanup_config(config_data)
+                            if result and result.get('success'):
+                                st.success("配置已保存")
+                                st.cache_data.clear()
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("保存失败")
+
+                    with col_manual:
+                        if st.form_submit_button("立即执行清理", use_container_width=True):
+                            with st.spinner("执行中..."):
+                                result = manual_cleanup()
+                                if result and result.get('success'):
+                                    st.success("手动清理已完成")
+                                    st.cache_data.clear()
+                                    time.sleep(1)
+                                    st.rerun()
+                                else:
+                                    st.error("清理失败")
+
+            with col2:
+                # 状态信息卡片
+                status_card_style = """
+                <div style="
+                    background: rgba(255, 255, 255, 0.4);
+                    backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255, 255, 255, 0.5);
+                    border-radius: 16px;
+                    padding: 1.25rem;
+                    margin-bottom: 1rem;
+                ">
+                """
+
+                # 自动清理状态
+                status_color = "#10b981" if cleanup_status.get('auto_cleanup_enabled') else "#ef4444"
+                status_text = "已启用" if cleanup_status.get('auto_cleanup_enabled') else "已禁用"
+
+                st.markdown(f"""
+                {status_card_style}
+                    <div style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">
+                        自动清理状态
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: {status_color};"></div>
+                        <span style="color: #1f2937; font-weight: 500;">{status_text}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 风险提醒
+            at_risk_keys = cleanup_status.get('at_risk_keys', [])
+            if at_risk_keys:
+                st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
+                st.markdown("#### ⚠️ 风险API Key")
+                st.warning(f"发现 {len(at_risk_keys)} 个API Key存在连续异常风险")
+
+                for key in at_risk_keys:
+                    container = st.container()
+                    with container:
+                        col1, col2, col3, col4 = st.columns([0.5, 2.5, 1.5, 1.5])
+
+                        with col1:
+                            st.markdown(f'<div class="key-id">#{key["id"]}</div>', unsafe_allow_html=True)
+
+                        with col2:
+                            st.markdown(f'''
+                            <div class="key-code">{key["key"]}</div>
+                            ''', unsafe_allow_html=True)
+
+                        with col3:
+                            days = key["consecutive_unhealthy_days"]
+                            if days >= cleanup_status.get('days_threshold', 3):
+                                status_class = "status-unhealthy"
+                                status_text = f"将被清理"
+                            else:
+                                status_class = "status-unknown"
+                                status_text = f"异常{days}天"
+
+                            st.markdown(f'''
+                            <span class="status-badge {status_class}">
+                                {status_text}
+                            </span>
+                            ''', unsafe_allow_html=True)
+
+                        with col4:
+                            remaining = key.get("days_until_removal", 0)
+                            if remaining <= 0:
+                                st.markdown('<span style="color: #ef4444; font-weight: 500;">即将清理</span>',
+                                            unsafe_allow_html=True)
+                            else:
+                                st.markdown(
+                                    f'<span style="color: #f59e0b; font-weight: 500;">{remaining}天后清理</span>',
+                                    unsafe_allow_html=True)
+            else:
+                st.success("✅ 当前没有风险API Key")
+
+            # 清理规则说明
+            with st.expander("📋 清理规则说明"):
+                st.markdown("""
+                **自动清理触发条件：**
+                1. 连续N天检测为异常状态（成功率 < 10%）
+                2. 每天检测次数 ≥ 最少检测次数
+                3. 启用自动清理功能
+
+                **清理动作：**
+                - 将API Key状态设置为禁用
+                - 健康状态标记为 `auto_removed`
+                - 保留历史记录，可手动重新激活
+
+                **安全保护：**
+                - 至少保留1个健康的API Key
+                - 检测次数不足的Key不会被清理
+                - 可随时手动恢复被清理的Key
+                """)
+
+    with tab5:
         st.markdown("#### 系统信息")
 
         col1, col2 = st.columns(2)
