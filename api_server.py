@@ -423,6 +423,106 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # 文件存储字典（内存存储，生产环境建议使用数据库）
 file_storage: Dict[str, Dict] = {}
 
+# Gemini File API 基础URL
+GEMINI_FILE_API_BASE = "https://generativelanguage.googleapis.com/v1beta/files"
+
+
+async def upload_file_to_gemini(file_content: bytes, mime_type: str, filename: str, gemini_key: str) -> Optional[str]:
+    """上传文件到Gemini File API并返回fileUri"""
+    try:
+        # 构建上传请求
+        url = f"{GEMINI_FILE_API_BASE}?key={gemini_key}"
+        
+        # 准备multipart/form-data
+        files = {
+            'metadata': (None, json.dumps({
+                'name': f"files/{uuid.uuid4().hex}_{filename}",
+                'displayName': filename
+            }), 'application/json'),
+            'data': (filename, file_content, mime_type)
+        }
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(url, files=files)
+            
+        if response.status_code == 200:
+            result = response.json()
+            file_uri = result.get('uri')
+            if file_uri:
+                logger.info(f"File uploaded to Gemini successfully: {file_uri}")
+                return file_uri
+            else:
+                logger.error(f"No URI returned from Gemini File API: {result}")
+                return None
+        else:
+            logger.error(f"Failed to upload file to Gemini: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error uploading file to Gemini: {str(e)}")
+        return None
+
+
+async def delete_file_from_gemini(file_uri: str, gemini_key: str) -> bool:
+    """从Gemini File API删除文件"""
+    try:
+        # 从URI中提取文件名
+        file_name = file_uri.split('/')[-1]
+        url = f"{GEMINI_FILE_API_BASE}/{file_name}?key={gemini_key}"
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.delete(url)
+            
+        if response.status_code == 200:
+            logger.info(f"File deleted from Gemini successfully: {file_uri}")
+            return True
+        else:
+            logger.warning(f"Failed to delete file from Gemini: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error deleting file from Gemini: {str(e)}")
+        return False
+
+
+async def cleanup_expired_files():
+    """清理过期的文件（Gemini文件有2天有效期）"""
+    try:
+        current_time = time.time()
+        expired_files = []
+        
+        for file_id, file_info in list(file_storage.items()):
+            # 检查文件是否超过2天（Gemini文件有效期）
+            file_age = current_time - file_info.get('created_at', 0)
+            if file_age > 2 * 24 * 3600:  # 2天
+                expired_files.append(file_id)
+        
+        cleaned_count = 0
+        for file_id in expired_files:
+            try:
+                file_info = file_storage[file_id]
+                
+                # 如果文件存储在Gemini，尝试删除（可能已经过期）
+                if "gemini_file_uri" in file_info and "gemini_key_used" in file_info:
+                    await delete_file_from_gemini(file_info["gemini_file_uri"], file_info["gemini_key_used"])
+                
+                # 删除本地文件
+                if "file_path" in file_info and os.path.exists(file_info["file_path"]):
+                    os.remove(file_info["file_path"])
+                
+                # 从存储中移除
+                del file_storage[file_id]
+                cleaned_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error cleaning up file {file_id}: {str(e)}")
+        
+        if cleaned_count > 0:
+            logger.info(f"Cleaned up {cleaned_count} expired files")
+        
+    except Exception as e:
+        logger.error(f"Error in cleanup_expired_files: {str(e)}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -479,6 +579,17 @@ async def lifespan(app: FastAPI):
                 hour=2,  # 凌晨2点执行
                 minute=0,
                 id='daily_cleanup',
+                max_instances=1,
+                coalesce=True
+            )
+            
+            # 新增：每天凌晨3点清理过期文件
+            scheduler.add_job(
+                cleanup_expired_files,
+                'cron',
+                hour=3,  # 凌晨3点执行
+                minute=0,
+                id='file_cleanup',
                 max_instances=1,
                 coalesce=True
             )
@@ -713,6 +824,40 @@ def process_multimodal_content(item: Dict) -> Optional[Dict]:
                         "fileUri": file_uri
                     }
                 }
+        
+        # 处理通过文件ID引用的情况
+        elif item.get('type') == 'file' and 'file_id' in item:
+            file_id = item['file_id']
+            if file_id in file_storage:
+                file_info = file_storage[file_id]
+                
+                if file_info.get('format') == 'inlineData':
+                    return {
+                        "inlineData": {
+                            "mimeType": file_info['mime_type'],
+                            "data": file_info['data']
+                        }
+                    }
+                elif file_info.get('format') == 'fileData':
+                    if 'gemini_file_uri' in file_info:
+                        # 使用Gemini File API的URI
+                        return {
+                            "fileData": {
+                                "mimeType": file_info['mime_type'],
+                                "fileUri": file_info['gemini_file_uri']
+                            }
+                        }
+                    elif 'file_uri' in file_info:
+                        # 回退到本地文件URI（不推荐，但作为备用）
+                        logger.warning(f"Using local file URI for file {file_id}, this may not work with Gemini")
+                        return {
+                            "fileData": {
+                                "mimeType": file_info['mime_type'],
+                                "fileUri": file_info['file_uri']
+                            }
+                        }
+            else:
+                logger.warning(f"File ID {file_id} not found in storage")
 
         # 处理直接的图片URL格式（OpenAI兼容）
         if item.get('type') == 'image_url' and 'image_url' in item:
@@ -1756,15 +1901,33 @@ async def upload_file(
         }
 
         if validation_result["use_inline"]:
+            # 小文件使用内联数据
             file_info["data"] = base64.b64encode(file_content).decode('utf-8')
             file_info["format"] = "inlineData"
         else:
-            file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
-            with open(file_path, "wb") as f:
-                f.write(file_content)
-            file_info["file_path"] = file_path
-            file_info["file_uri"] = f"file://{os.path.abspath(file_path)}"
-            file_info["format"] = "fileData"
+            # 大文件上传到Gemini File API
+            # 获取一个可用的Gemini Key用于文件上传
+            gemini_keys = db.get_available_gemini_keys()
+            if not gemini_keys:
+                raise HTTPException(status_code=503, detail="No available Gemini keys for file upload")
+            
+            gemini_key = gemini_keys[0]['api_key']
+            gemini_file_uri = await upload_file_to_gemini(file_content, mime_type, file.filename, gemini_key)
+            
+            if gemini_file_uri:
+                file_info["gemini_file_uri"] = gemini_file_uri
+                file_info["gemini_key_used"] = gemini_key
+                file_info["format"] = "fileData"
+                logger.info(f"File uploaded to Gemini File API: {gemini_file_uri}")
+            else:
+                # 如果上传到Gemini失败，回退到本地存储
+                file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
+                with open(file_path, "wb") as f:
+                    f.write(file_content)
+                file_info["file_path"] = file_path
+                file_info["file_uri"] = f"file://{os.path.abspath(file_path)}"
+                file_info["format"] = "fileData"
+                logger.warning(f"Failed to upload to Gemini, using local storage: {file_path}")
 
         file_storage[file_id] = file_info
 
@@ -1877,6 +2040,11 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
         file_info = file_storage[file_id]
 
+        # 如果文件存储在Gemini File API，先从Gemini删除
+        if "gemini_file_uri" in file_info and "gemini_key_used" in file_info:
+            await delete_file_from_gemini(file_info["gemini_file_uri"], file_info["gemini_key_used"])
+        
+        # 如果有本地文件，也删除
         if "file_path" in file_info and os.path.exists(file_info["file_path"]):
             os.remove(file_info["file_path"])
 
