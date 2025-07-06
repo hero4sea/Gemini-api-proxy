@@ -60,11 +60,13 @@ class FileData(BaseModel):
     size: Optional[int] = None
     filename: Optional[str] = None
 
+
 # 多模态内容部分
 class ContentPart(BaseModel):
     type: str  # "text", "image", "audio", "video", "document"
     text: Optional[str] = None
     file_data: Optional[FileData] = None
+
 
 # 请求/响应模型
 class ChatMessage(BaseModel):
@@ -103,7 +105,7 @@ class ChatMessage(BaseModel):
             return ' '.join(text_parts) if text_parts else ""
         else:
             return str(self.content)
-    
+
     def has_multimodal_content(self) -> bool:
         """检查是否包含多模态内容"""
         if isinstance(self.content, list):
@@ -524,7 +526,7 @@ def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
 
     for msg in request.messages:
         parts = []
-        
+
         if isinstance(msg.content, str):
             # 纯文本消息
             if msg.role == "system":
@@ -557,10 +559,10 @@ def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
                                         "fileUri": file_data['file_uri']
                                     }
                                 })
-        
+
         # 确定角色
         role = "user" if msg.role in ["system", "user"] else "model"
-        
+
         if parts:  # 只有当有内容时才添加
             contents.append({
                 "role": role,
@@ -814,6 +816,7 @@ async def make_request_with_failover(
         gemini_request: Dict,
         openai_request: ChatCompletionRequest,
         model_name: str,
+        user_key_info: Dict = None,  # ✅ 添加用户信息参数
         max_key_attempts: int = None,
         excluded_keys: set = None
 ) -> Dict:
@@ -824,6 +827,7 @@ async def make_request_with_failover(
         gemini_request: 转换后的Gemini请求
         openai_request: 原始OpenAI请求
         model_name: 模型名称
+        user_key_info: 用户密钥信息
         max_key_attempts: 最大尝试key数量，默认为所有可用key
         excluded_keys: 排除的key ID集合
 
@@ -899,7 +903,19 @@ async def make_request_with_failover(
                         if "text" in part:
                             total_tokens += len(part["text"].split())
 
-                # 记录成功的使用统计
+                # ✅ 记录成功的使用统计到数据库
+                if user_key_info:
+                    db.log_usage(
+                        gemini_key_id=key_info['id'],
+                        user_key_id=user_key_info['id'],
+                        model_name=model_name,
+                        requests=1,
+                        tokens=total_tokens
+                    )
+                    logger.info(
+                        f"📊 Logged usage: gemini_key_id={key_info['id']}, user_key_id={user_key_info['id']}, model={model_name}, tokens={total_tokens}")
+
+                # 记录到内存缓存（用于速率限制）
                 await rate_limiter.add_usage(model_name, 1, total_tokens)
 
                 return response
@@ -912,7 +928,17 @@ async def make_request_with_failover(
                 # 更新key性能统计（失败）
                 db.update_key_performance(key_info['id'], False, 0.0)
 
-                # 记录失败统计
+                # ✅ 记录失败统计到数据库
+                if user_key_info:
+                    db.log_usage(
+                        gemini_key_id=key_info['id'],
+                        user_key_id=user_key_info['id'],
+                        model_name=model_name,
+                        requests=1,
+                        tokens=0
+                    )
+
+                # 记录失败统计到内存缓存
                 await rate_limiter.add_usage(model_name, 1, 0)
 
                 logger.warning(f"❌ Key #{key_info['id']} failed with {e.status_code}: {e.detail}")
@@ -948,6 +974,7 @@ async def stream_with_failover(
         gemini_request: Dict,
         openai_request: ChatCompletionRequest,
         model_name: str,
+        user_key_info: Dict = None,  # ✅ 添加用户信息参数
         max_key_attempts: int = None,
         excluded_keys: set = None
 ) -> AsyncGenerator[bytes, None]:
@@ -996,6 +1023,7 @@ async def stream_with_failover(
 
             # 尝试流式响应
             success = False
+            total_tokens = 0
             try:
                 async for chunk in stream_gemini_response(
                         key_info['key'],
@@ -1008,8 +1036,22 @@ async def stream_with_failover(
                     yield chunk
                     success = True
 
-                # 如果成功开始流式传输，就不再尝试其他key
+                # 如果成功开始流式传输，记录使用统计
                 if success:
+                    # ✅ 记录成功的使用统计到数据库
+                    if user_key_info:
+                        db.log_usage(
+                            gemini_key_id=key_info['id'],
+                            user_key_id=user_key_info['id'],
+                            model_name=model_name,
+                            requests=1,
+                            tokens=total_tokens  # 流式响应中token计算比较复杂，这里暂时用0
+                        )
+                        logger.info(
+                            f"📊 Logged stream usage: gemini_key_id={key_info['id']}, user_key_id={user_key_info['id']}, model={model_name}")
+
+                    # 记录到内存缓存
+                    await rate_limiter.add_usage(model_name, 1, total_tokens)
                     return
 
             except Exception as e:
@@ -1018,6 +1060,16 @@ async def stream_with_failover(
 
                 # 更新失败统计
                 db.update_key_performance(key_info['id'], False, 0.0)
+
+                # ✅ 记录失败统计到数据库
+                if user_key_info:
+                    db.log_usage(
+                        gemini_key_id=key_info['id'],
+                        user_key_id=user_key_info['id'],
+                        model_name=model_name,
+                        requests=1,
+                        tokens=0
+                    )
 
                 # 如果还有其他key可以尝试，继续
                 if attempt < max_key_attempts - 1:
@@ -1525,6 +1577,9 @@ async def chat_completions(
         if not user_key:
             raise HTTPException(status_code=401, detail="Invalid API key")
 
+        # ✅ 获取用户密钥信息，用于记录使用统计
+        user_key_info = user_key
+
         # 基础请求验证
         if not request.messages or len(request.messages) == 0:
             raise HTTPException(status_code=422, detail="Messages cannot be empty")
@@ -1551,22 +1606,24 @@ async def chat_completions(
 
         # 故障转移机制
         if request.stream:
-            # 流式响应使用故障转移
+            # ✅ 流式响应使用故障转移，传递用户信息
             return StreamingResponse(
                 stream_with_failover(
                     gemini_request,
                     request,
                     actual_model_name,
+                    user_key_info=user_key_info,  # 传递用户信息
                     max_key_attempts=5  # 最多尝试5个key
                 ),
                 media_type="text/event-stream; charset=utf-8"
             )
         else:
-            # 非流式响应使用故障转移
+            # ✅ 非流式响应使用故障转移，传递用户信息
             gemini_response = await make_request_with_failover(
                 gemini_request,
                 request,
                 actual_model_name,
+                user_key_info=user_key_info,  # 传递用户信息
                 max_key_attempts=5  # 最多尝试5个key
             )
 
@@ -1616,8 +1673,8 @@ async def list_models():
 # 文件上传相关端点
 @app.post("/v1/files")
 async def upload_file(
-    file: UploadFile = File(...),
-    authorization: str = Header(None)
+        file: UploadFile = File(...),
+        authorization: str = Header(None)
 ):
     """上传文件用于多模态对话"""
     try:
@@ -1635,8 +1692,8 @@ async def upload_file(
         file_content = await file.read()
         if len(file_content) > MAX_FILE_SIZE:
             raise HTTPException(
-                status_code=413, 
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+                status_code=413,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
             )
 
         # 检查MIME类型
@@ -1649,10 +1706,10 @@ async def upload_file(
 
         # 生成文件ID
         file_id = f"file-{uuid.uuid4().hex}"
-        
+
         # 判断是否为小文件（20MB以下使用内联数据）
         is_small_file = len(file_content) <= 20 * 1024 * 1024
-        
+
         file_info = {
             "id": file_id,
             "object": "file",
@@ -1663,7 +1720,7 @@ async def upload_file(
             "mime_type": mime_type,
             "is_small_file": is_small_file
         }
-        
+
         if is_small_file:
             # 小文件：存储base64编码的数据
             file_info["data"] = base64.b64encode(file_content).decode('utf-8')
@@ -1674,12 +1731,12 @@ async def upload_file(
                 f.write(file_content)
             file_info["file_path"] = file_path
             file_info["file_uri"] = f"file://{os.path.abspath(file_path)}"
-        
+
         # 存储文件信息
         file_storage[file_id] = file_info
-        
+
         logger.info(f"File uploaded: {file_id}, size: {len(file_content)} bytes, type: {mime_type}")
-        
+
         return {
             "id": file_id,
             "object": "file",
@@ -1688,7 +1745,7 @@ async def upload_file(
             "filename": file.filename,
             "purpose": "multimodal"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1720,12 +1777,12 @@ async def list_files(authorization: str = Header(None)):
                 "filename": file_info["filename"],
                 "purpose": file_info["purpose"]
             })
-        
+
         return {
             "object": "list",
             "data": files
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1749,7 +1806,7 @@ async def get_file(file_id: str, authorization: str = Header(None)):
 
         if file_id not in file_storage:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_info = file_storage[file_id]
         return {
             "id": file_id,
@@ -1759,7 +1816,7 @@ async def get_file(file_id: str, authorization: str = Header(None)):
             "filename": file_info["filename"],
             "purpose": file_info["purpose"]
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1783,24 +1840,24 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
         if file_id not in file_storage:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_info = file_storage[file_id]
-        
+
         # 如果是大文件，删除磁盘文件
         if "file_path" in file_info and os.path.exists(file_info["file_path"]):
             os.remove(file_info["file_path"])
-        
+
         # 从存储中删除
         del file_storage[file_id]
-        
+
         logger.info(f"File deleted: {file_id}")
-        
+
         return {
             "id": file_id,
             "object": "file",
             "deleted": True
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
