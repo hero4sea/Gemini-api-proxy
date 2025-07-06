@@ -196,7 +196,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 手机端适配的玻璃拟态风格CSS ---
+# --- 修复的CSS样式 ---
 st.markdown("""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
 <style>
@@ -260,6 +260,7 @@ st.markdown("""
         box-sizing: border-box;
         overflow-x: hidden;
         position: relative;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* 移动端响应式设计 */
@@ -315,6 +316,22 @@ st.markdown("""
         .stTextArea > div > div > textarea {
             font-size: 16px !important; /* 防止iOS缩放 */
             min-height: 44px !important;
+        }
+
+        /* 移动端主内容区域调整 - 关键修复 */
+        .main .block-container {
+            margin-left: 0 !important;
+            width: calc(100% - 0.5rem) !important;
+            max-width: calc(100vw - 0.5rem) !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+
+        /* 侧边栏收起时的主内容区域 */
+        body.sidebar-collapsed .main .block-container {
+            margin-left: 0 !important;
+            width: calc(100% - 0.5rem) !important;
+            max-width: calc(100vw - 0.5rem) !important;
         }
     }
 
@@ -431,7 +448,7 @@ st.markdown("""
         word-wrap: break-word;
     }
 
-    /* 侧边栏设计 - 手机端优化 */
+    /* 侧边栏设计 - 手机端优化 - 关键修复 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -454,28 +471,37 @@ st.markdown("""
         box-sizing: border-box;
     }
 
-    /* 移动端侧边栏优化 */
+    /* 移动端侧边栏优化 - 关键修复 */
     @media screen and (max-width: 768px) {
         section[data-testid="stSidebar"] {
-            max-width: 100vw;
-            width: 100vw;
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            z-index: 999;
-            transform: translateX(-100%);
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            height: 100vh !important;
+            width: 280px !important;
+            max-width: 280px !important;
+            z-index: 999 !important;
+            transform: translateX(-100%) !important;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
-        section[data-testid="stSidebar"].st-emotion-cache-1d391kg {
-            transform: translateX(0);
+        /* 侧边栏展开状态 */
+        section[data-testid="stSidebar"].sidebar-expanded {
+            transform: translateX(0) !important;
         }
 
-        /* 主内容区域在移动端的调整 */
+        /* 主内容区域响应侧边栏状态 */
+        .main {
+            margin-left: 0 !important;
+            width: 100% !important;
+            transition: margin-left 0.3s ease, width 0.3s ease !important;
+        }
+
+        /* 确保主内容区域始终占满宽度 */
         .main .block-container {
             margin-left: 0 !important;
-            width: calc(100% - 1rem) !important;
-            max-width: calc(100vw - 1rem) !important;
+            width: calc(100% - 0.5rem) !important;
+            max-width: calc(100vw - 0.5rem) !important;
         }
     }
 
@@ -1578,15 +1604,16 @@ st.markdown("""
 </style>
 
 <script>
-// 手机端侧边栏滑动功能 - 优化版
+// 手机端侧边栏滑动功能 - 修复版
 (function() {
     let startX = 0;
     let currentX = 0;
     let sidebar = null;
-    let isCollapsed = false;
+    let isCollapsed = true;
     let startTime = 0;
     let isDragging = false;
     let initialLoad = true;
+    let overlay = null;
 
     // 检测是否为移动设备
     function isMobileDevice() {
@@ -1604,18 +1631,27 @@ st.markdown("""
 
         // 移动端初始化
         if (isMobileDevice()) {
-            // 移动端默认收起侧边栏
-            if (initialLoad) {
-                sidebar.style.transform = 'translateX(-100%)';
-                isCollapsed = true;
-                initialLoad = false;
-            }
+            setupMobileSidebar();
+        }
 
-            // 添加移动端专用类
-            sidebar.classList.add('mobile-sidebar');
+        console.log('Sidebar swipe functionality initialized');
+    }
 
-            // 创建遮罩层
-            const overlay = document.createElement('div');
+    function setupMobileSidebar() {
+        // 移动端默认收起侧边栏
+        if (initialLoad) {
+            sidebar.style.transform = 'translateX(-100%)';
+            sidebar.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            isCollapsed = true;
+            initialLoad = false;
+
+            // 添加body类来标识侧边栏状态
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        // 创建遮罩层
+        if (!overlay) {
+            overlay = document.createElement('div');
             overlay.className = 'sidebar-overlay';
             overlay.style.cssText = `
                 position: fixed;
@@ -1640,14 +1676,17 @@ st.markdown("""
                     toggleSidebar();
                 }
             });
+        }
 
-            // 添加触摸事件监听
-            document.addEventListener('touchstart', handleTouchStart, { passive: false });
-            document.addEventListener('touchmove', handleTouchMove, { passive: false });
-            document.addEventListener('touchend', handleTouchEnd, { passive: false });
+        // 添加触摸事件监听
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-            // 添加左边缘滑动触发区域
+        // 添加左边缘滑动触发区域
+        if (!document.querySelector('.edge-trigger')) {
             const edgeTrigger = document.createElement('div');
+            edgeTrigger.className = 'edge-trigger';
             edgeTrigger.style.cssText = `
                 position: fixed;
                 top: 0;
@@ -1663,11 +1702,13 @@ st.markdown("""
                 if (isCollapsed) {
                     startX = e.touches[0].clientX;
                     startTime = Date.now();
+                    isDragging = true;
                 }
             });
         }
 
-        console.log('Sidebar swipe functionality initialized for mobile');
+        // 创建导航按钮
+        createNavigationButton();
     }
 
     function handleTouchStart(e) {
@@ -1675,11 +1716,11 @@ st.markdown("""
 
         startX = e.touches[0].clientX;
         startTime = Date.now();
-        isDragging = false;
 
         // 如果侧边栏已收起且触摸在左边缘，允许展开
         if (isCollapsed && startX < 30) {
             isDragging = true;
+            e.preventDefault();
             return;
         }
 
@@ -1687,6 +1728,7 @@ st.markdown("""
         const sidebarRect = sidebar.getBoundingClientRect();
         if (!isCollapsed && startX >= 0 && startX <= sidebarRect.width) {
             isDragging = true;
+            e.preventDefault();
             return;
         }
     }
@@ -1701,6 +1743,9 @@ st.markdown("""
         if (Math.abs(deltaX) > 10) {
             e.preventDefault();
         }
+
+        // 临时移除过渡动画
+        sidebar.style.transition = 'none';
 
         // 实时拖拽效果
         if (isCollapsed && deltaX > 0) {
@@ -1745,10 +1790,6 @@ st.markdown("""
         }
 
         // 清理状态
-        setTimeout(() => {
-            sidebar.style.transition = '';
-        }, 300);
-
         startX = 0;
         currentX = 0;
         startTime = 0;
@@ -1762,9 +1803,15 @@ st.markdown("""
 
         if (isCollapsed) {
             sidebar.style.transform = 'translateX(-100%)';
+            sidebar.classList.remove('sidebar-expanded');
+            document.body.classList.add('sidebar-collapsed');
+            document.body.classList.remove('sidebar-expanded');
             updateOverlay(0);
         } else {
             sidebar.style.transform = 'translateX(0)';
+            sidebar.classList.add('sidebar-expanded');
+            document.body.classList.remove('sidebar-collapsed');
+            document.body.classList.add('sidebar-expanded');
             updateOverlay(1);
         }
 
@@ -1789,7 +1836,6 @@ st.markdown("""
     }
 
     function updateOverlay(progress) {
-        const overlay = document.querySelector('.sidebar-overlay');
         if (overlay) {
             overlay.style.opacity = progress * 0.5;
             overlay.style.visibility = progress > 0 ? 'visible' : 'hidden';
@@ -1802,14 +1848,22 @@ st.markdown("""
         if (!isMobileDevice() && sidebar) {
             // 桌面端恢复正常状态
             sidebar.style.transform = '';
-            sidebar.classList.remove('mobile-sidebar');
+            sidebar.style.transition = '';
+            sidebar.classList.remove('sidebar-expanded');
+            document.body.classList.remove('sidebar-collapsed', 'sidebar-expanded');
             updateOverlay(0);
             isCollapsed = false;
-        } else if (isMobileDevice() && sidebar && !sidebar.classList.contains('mobile-sidebar')) {
+
+            // 移除移动端专用元素
+            const navButton = document.querySelector('.mobile-nav-button');
+            if (navButton) navButton.remove();
+
+            const edgeTrigger = document.querySelector('.edge-trigger');
+            if (edgeTrigger) edgeTrigger.remove();
+
+        } else if (isMobileDevice() && sidebar && !document.querySelector('.mobile-nav-button')) {
             // 切换到移动端
-            sidebar.classList.add('mobile-sidebar');
-            sidebar.style.transform = 'translateX(-100%)';
-            isCollapsed = true;
+            setupMobileSidebar();
         }
     });
 
@@ -1817,7 +1871,11 @@ st.markdown("""
     function createNavigationButton() {
         if (!isMobileDevice()) return;
 
+        // 避免重复创建
+        if (document.querySelector('.mobile-nav-button')) return;
+
         const navButton = document.createElement('button');
+        navButton.className = 'mobile-nav-button';
         navButton.innerHTML = '☰';
         navButton.style.cssText = `
             position: fixed;
@@ -1842,7 +1900,10 @@ st.markdown("""
             justify-content: center;
         `;
 
-        navButton.addEventListener('click', toggleSidebar);
+        navButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSidebar();
+        });
 
         navButton.addEventListener('touchstart', (e) => {
             e.stopPropagation();
@@ -1859,13 +1920,9 @@ st.markdown("""
 
     // 开始初始化
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeSidebar();
-            createNavigationButton();
-        });
+        document.addEventListener('DOMContentLoaded', initializeSidebar);
     } else {
         initializeSidebar();
-        createNavigationButton();
     }
 })();
 
@@ -2119,7 +2176,7 @@ if page == "控制台":
                     customdata=df[['RPM Used', 'RPM Limit']].values
                 ))
                 fig_rpm.update_layout(
-                    title="每分钟请求数 (RPM)",
+                    title="每分钟请求数",
                     title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
@@ -2149,7 +2206,7 @@ if page == "控制台":
                     customdata=df[['RPD Used', 'RPD Limit']].values
                 ))
                 fig_rpd.update_layout(
-                    title="每日请求数 (RPD)",
+                    title="每日请求数",
                     title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
