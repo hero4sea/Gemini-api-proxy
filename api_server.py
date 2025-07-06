@@ -904,7 +904,7 @@ def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
                 elif isinstance(item, dict):
                     if item.get('type') == 'text':
                         parts.append({"text": item.get('text', '')})
-                    elif item.get('type') in ['image', 'audio', 'video', 'document']:
+                    elif item.get('type') in ['image', 'image_url','audio', 'video', 'document']:
                         multimodal_part = process_multimodal_content(item)
                         if multimodal_part:
                             parts.append(multimodal_part)
