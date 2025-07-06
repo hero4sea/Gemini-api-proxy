@@ -3094,12 +3094,12 @@ elif page == "系统设置":
                 status_icon = "🟢" if is_enabled else "🔴"
 
                 st.markdown(f'''
-                <div class="status-card-style">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div class="status-card-style" style="height: 120px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span style="font-size: 1.2rem;">{status_icon}</span>
                         <span style="font-weight: 600; color: #374151;">自动清理</span>
                     </div>
-                    <div style="color: {status_color}; font-weight: 500; font-size: 1.1rem;">
+                    <div style="color: {status_color}; font-weight: 500; font-size: 1.1rem; text-align: center;">
                         {status_text}
                     </div>
                 </div>
@@ -3111,15 +3111,17 @@ elif page == "系统设置":
                 min_checks = cleanup_status.get('min_checks_per_day', 5)
 
                 st.markdown(f'''
-                <div class="status-card-style">
-                    <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                <div class="status-card-style" style="height: 120px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="font-weight: 600; color: #374151;">
                         清理阈值
                     </div>
-                    <div style="color: #6366f1; font-weight: 500;">
-                        连续 {days_threshold} 天异常
-                    </div>
-                    <div style="color: #6b7280; font-size: 0.875rem;">
-                        需日检≥{min_checks}次
+                    <div style="text-align: center;">
+                        <div style="color: #6366f1; font-weight: 500; font-size: 1.1rem;">
+                            连续 {days_threshold} 天异常
+                        </div>
+                        <div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">
+                            需日检≥{min_checks}次
+                        </div>
                     </div>
                 </div>
                 ''', unsafe_allow_html=True)
@@ -3132,12 +3134,12 @@ elif page == "系统设置":
                 risk_icon = "⚠️" if risk_count > 0 else "✅"
 
                 st.markdown(f'''
-                <div class="status-card-style">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div class="status-card-style" style="height: 120px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span style="font-size: 1.2rem;">{risk_icon}</span>
                         <span style="font-weight: 600; color: #374151;">风险Keys</span>
                     </div>
-                    <div style="color: {risk_color}; font-weight: 500; font-size: 1.1rem;">
+                    <div style="color: {risk_color}; font-weight: 500; font-size: 1.1rem; text-align: center;">
                         {risk_count} 个
                     </div>
                 </div>
@@ -3148,11 +3150,11 @@ elif page == "系统设置":
                 next_cleanup = "每日 02:00 UTC"
 
                 st.markdown(f'''
-                <div class="status-card-style">
-                    <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                <div class="status-card-style" style="height: 120px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="font-weight: 600; color: #374151;">
                         下次清理
                     </div>
-                    <div style="color: #8b5cf6; font-weight: 500;">
+                    <div style="color: #8b5cf6; font-weight: 500; font-size: 1.1rem; text-align: center;">
                         🕐 {next_cleanup}
                     </div>
                 </div>
@@ -3318,7 +3320,7 @@ elif page == "系统设置":
 
                 # 操作按钮区域
                 st.markdown("**操作选项**")
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
 
                 with col1:
                     save_config = st.form_submit_button(
@@ -3330,12 +3332,6 @@ elif page == "系统设置":
                 with col2:
                     manual_cleanup = st.form_submit_button(
                         "🧹 立即执行清理",
-                        use_container_width=True
-                    )
-
-                with col3:
-                    test_mode = st.form_submit_button(
-                        "🔍 模拟清理（不执行）",
                         use_container_width=True
                     )
 
@@ -3379,65 +3375,6 @@ elif page == "系统设置":
                                 st.error("❌ 清理执行失败")
                     else:
                         st.info("✅ 当前无需清理的Keys")
-
-                if test_mode:
-                    # 模拟清理模式
-                    st.markdown("##### 🧪 清理模拟结果")
-
-                    if at_risk_keys:
-                        critical_keys = [k for k in at_risk_keys if
-                                         k.get('consecutive_unhealthy_days', 0) >= days_threshold]
-
-                        if critical_keys:
-                            st.markdown("**将被清理的Keys：**")
-                            for key in critical_keys:
-                                st.write(
-                                    f"🗑️ Key #{key.get('id')}: {key.get('key')} (异常{key.get('consecutive_unhealthy_days')}天)")
-                        else:
-                            st.success("✅ 模拟结果：无Keys需要清理")
-                    else:
-                        st.success("✅ 模拟结果：无Keys需要清理")
-
-            # === 高级设置与监控 ===
-            st.markdown('<hr style="margin: 2rem 0;">', unsafe_allow_html=True)
-
-            with st.expander("🔧 高级设置与监控"):
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.markdown("**清理历史**")
-
-                    # 这里可以添加清理历史记录的显示
-                    # 由于后端没有专门的清理历史表，可以通过健康检测历史推断
-                    st.info("💡 清理历史功能开发中，当前可通过健康检测记录查看Key状态变化")
-
-                    if st.button("📊 查看健康检测记录", use_container_width=True):
-                        st.info("🔗 请前往「密钥管理」页面查看详细的健康状态记录")
-
-                with col2:
-                    st.markdown("**紧急恢复**")
-
-                    st.markdown("""
-                    如果重要的Key被误删，可以通过以下方式恢复：
-
-                    1. **手动恢复**：在密钥管理页面重新激活被禁用的Key
-                    2. **重新添加**：重新添加相同的API Key
-                    3. **调整阈值**：提高清理阈值以降低误删风险
-                    """)
-
-                    if st.button("🚨 紧急停用自动清理", use_container_width=True):
-                        emergency_config = {
-                            'enabled': False,
-                            'days_threshold': cleanup_status.get('days_threshold', 3),
-                            'min_checks_per_day': cleanup_status.get('min_checks_per_day', 5)
-                        }
-
-                        result = update_cleanup_config(emergency_config)
-                        if result and result.get('success'):
-                            st.success("🛡️ 自动清理已紧急停用")
-                            st.cache_data.clear()
-                            time.sleep(1)
-                            st.rerun()
 
             # === 规则说明 ===
             with st.expander("📋 自动清理规则详细说明"):
@@ -3512,7 +3449,7 @@ elif page == "系统设置":
             st.text(f"CPU: {status_data.get('cpu_percent', 0):.1f}%")
             st.text(f"运行: {status_data.get('uptime_seconds', 0) // 3600} 小时")
 
-        # 添加简化的服务状态信息
+        # 服务状态信息
         st.markdown("##### 服务状态")
         st.text(f"环境: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
         st.text(f"后端地址: {API_BASE_URL}")
@@ -3530,7 +3467,7 @@ st.markdown(
     <div style='text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.05); border-radius: 16px 16px 0 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: rgba(255, 255, 255, 0.8); text-decoration: none; transition: all 0.3s ease; padding: 0.25rem 0.5rem; border-radius: 6px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);' onmouseover='this.style.color="white"; this.style.background="rgba(255, 255, 255, 0.1)"; this.style.textShadow="0 0 8px rgba(255, 255, 255, 0.5)";' onmouseout='this.style.color="rgba(255, 255, 255, 0.8)"; this.style.background="transparent"; this.style.textShadow="none";'>健康检查</a> · 
         <span style='color: rgba(255, 255, 255, 0.6);'>{API_BASE_URL}</span> ·
-        <span style='color: rgba(255, 255, 255, 0.6);'>v1.1</span>
+        <span style='color: rgba(255, 255, 255, 0.6);'>v1.2</span>
     </div>
     """,
     unsafe_allow_html=True
