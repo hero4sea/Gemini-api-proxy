@@ -301,10 +301,32 @@ async def check_gemini_key_health(api_key: str, timeout: int = 10) -> Dict[str, 
         }
 
 
+# 保活功能
+async def keep_alive_ping():
+    """保活函数：定期ping自己的健康检查端点"""
+    try:
+        render_url = os.getenv('RENDER_EXTERNAL_URL')
+        if render_url:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(f"{render_url}/wake")
+                if response.status_code == 200:
+                    logger.info(f"🟢 Keep-alive ping successful: {response.status_code}")
+                else:
+                    logger.warning(f"🟡 Keep-alive ping warning: {response.status_code}")
+        else:
+            # 本地环境自ping
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get("http://localhost:8000/wake")
+                logger.info(f"🟢 Local keep-alive ping: {response.status_code}")
+    except Exception as e:
+        logger.warning(f"🔴 Keep-alive ping failed: {e}")
+
+
 # 全局变量
 db = Database()
 rate_limiter = RateLimitCache()
 scheduler = None
+keep_alive_enabled = False
 
 # 文件存储配置
 UPLOAD_DIR = "uploads"
@@ -343,25 +365,67 @@ file_storage: Dict[str, Dict] = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global scheduler
+    global scheduler, keep_alive_enabled
+
     # 启动时的操作
     logger.info("Starting Gemini API Proxy...")
     logger.info(f"Available API keys: {len(db.get_available_gemini_keys())}")
     logger.info(f"Environment: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
     logger.info("✅ Gemini 2.5 multimodal features optimized")
 
+    # 检查是否启用保活功能
+    enable_keep_alive = os.getenv('ENABLE_KEEP_ALIVE', 'false').lower() == 'true'
+    keep_alive_interval = int(os.getenv('KEEP_ALIVE_INTERVAL', '10'))  # 默认10分钟
+
+    if enable_keep_alive:
+        try:
+            scheduler = AsyncIOScheduler()
+
+            # 添加保活任务
+            scheduler.add_job(
+                keep_alive_ping,
+                'interval',
+                minutes=keep_alive_interval,
+                id='keep_alive',
+                max_instances=1,  # 防止重叠执行
+                coalesce=True,  # 合并延迟的任务
+                misfire_grace_time=30  # 30秒的宽限时间
+            )
+
+            # 添加缓存清理任务
+            scheduler.add_job(
+                rate_limiter.cleanup_expired,
+                'interval',
+                minutes=5,
+                id='cache_cleanup',
+                max_instances=1
+            )
+
+            scheduler.start()
+            keep_alive_enabled = True
+            logger.info(f"✅ Keep-alive scheduler started (interval: {keep_alive_interval} minutes)")
+
+            # 启动后立即执行一次保活
+            await keep_alive_ping()
+
+        except Exception as e:
+            logger.error(f"❌ Failed to start keep-alive scheduler: {e}")
+            keep_alive_enabled = False
+    else:
+        logger.info("⚪ Keep-alive disabled (set ENABLE_KEEP_ALIVE=true to enable)")
+
     yield
 
     # 关闭时的操作
     if scheduler:
-        scheduler.shutdown()
+        scheduler.shutdown(wait=False)
         logger.info("Scheduler shutdown")
     logger.info("API Server shutting down...")
 
 
 app = FastAPI(
     title="Gemini API Proxy",
-    description="A high-performance proxy for Gemini API with OpenAI compatibility and optimized multimodal support",
+    description="A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, and auto keep-alive",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -1411,7 +1475,8 @@ async def root():
         "service": "Gemini API Proxy",
         "status": "running",
         "version": "1.1.0",
-        "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling"],
+        "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling", "Auto Keep-Alive"],
+        "keep_alive": keep_alive_enabled,
         "docs": "/docs",
         "health": "/health"
     }
@@ -1431,7 +1496,8 @@ async def health_check():
         "uptime_seconds": int(uptime),
         "request_count": request_count,
         "version": "1.1.0",
-        "multimodal_support": "Gemini 2.5 Optimized"
+        "multimodal_support": "Gemini 2.5 Optimized",
+        "keep_alive_enabled": keep_alive_enabled
     }
 
 
@@ -1441,7 +1507,8 @@ async def wake_up():
     return {
         "status": "awake",
         "timestamp": datetime.now().isoformat(),
-        "message": "Service is active"
+        "message": "Service is active",
+        "keep_alive_enabled": keep_alive_enabled
     }
 
 
@@ -1466,7 +1533,8 @@ async def get_status():
         "uptime_seconds": int(time.time() - start_time),
         "total_requests": request_count,
         "thinking_enabled": db.get_thinking_config()['enabled'],
-        "multimodal_optimized": True
+        "multimodal_optimized": True,
+        "keep_alive_enabled": keep_alive_enabled
     }
 
 
@@ -1483,7 +1551,8 @@ async def get_metrics():
         "active_connections": len(db.get_available_gemini_keys()),
         "uptime_seconds": int(time.time() - start_time),
         "requests_count": request_count,
-        "database_size_mb": os.path.getsize(db.db_path) / 1024 / 1024 if os.path.exists(db.db_path) else 0
+        "database_size_mb": os.path.getsize(db.db_path) / 1024 / 1024 if os.path.exists(db.db_path) else 0,
+        "keep_alive_enabled": keep_alive_enabled
     }
 
 
@@ -1502,7 +1571,7 @@ async def api_v1_info():
         "version": "1.1.0",
         "api_version": "v1",
         "compatibility": "OpenAI API v1",
-        "description": "A high-performance proxy for Gemini API with OpenAI compatibility and optimized multimodal support",
+        "description": "A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, and auto keep-alive",
         "status": "operational",
         "base_url": base_url,
         "features": [
@@ -1515,7 +1584,8 @@ async def api_v1_info():
             "Automatic failover",
             "Real-time monitoring",
             "Health checking",
-            "Adaptive load balancing"
+            "Adaptive load balancing",
+            "Auto keep-alive"
         ],
         "endpoints": {
             "chat_completions": "/v1/chat/completions",
@@ -1533,7 +1603,8 @@ async def api_v1_info():
             "thinking_enabled": thinking_config.get('enabled', False),
             "thinking_budget": thinking_config.get('budget', -1),
             "uptime_seconds": int(time.time() - start_time),
-            "total_requests": request_count
+            "total_requests": request_count,
+            "keep_alive_enabled": keep_alive_enabled
         },
         "multimodal_support": {
             "images": ["jpeg", "png", "gif", "webp", "bmp"],
@@ -1918,6 +1989,112 @@ async def get_health_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# 保活管理端点
+@app.post("/admin/keep-alive/toggle")
+async def toggle_keep_alive():
+    """切换保活状态"""
+    global scheduler, keep_alive_enabled
+
+    try:
+        if keep_alive_enabled and scheduler and scheduler.running:
+            # 停用保活
+            scheduler.shutdown(wait=False)
+            scheduler = None
+            keep_alive_enabled = False
+            logger.info("🔴 Keep-alive disabled manually")
+            return {
+                "success": True,
+                "message": "Keep-alive disabled",
+                "enabled": False
+            }
+        else:
+            # 启用保活
+            keep_alive_interval = int(os.getenv('KEEP_ALIVE_INTERVAL', '10'))
+            scheduler = AsyncIOScheduler()
+
+            scheduler.add_job(
+                keep_alive_ping,
+                'interval',
+                minutes=keep_alive_interval,
+                id='keep_alive',
+                max_instances=1,
+                coalesce=True,
+                misfire_grace_time=30
+            )
+
+            scheduler.add_job(
+                rate_limiter.cleanup_expired,
+                'interval',
+                minutes=5,
+                id='cache_cleanup',
+                max_instances=1
+            )
+
+            scheduler.start()
+            keep_alive_enabled = True
+
+            # 立即执行一次保活
+            await keep_alive_ping()
+
+            logger.info(f"🟢 Keep-alive enabled manually (interval: {keep_alive_interval} minutes)")
+            return {
+                "success": True,
+                "message": f"Keep-alive enabled (interval: {keep_alive_interval} minutes)",
+                "enabled": True,
+                "interval_minutes": keep_alive_interval
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to toggle keep-alive: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Failed to toggle keep-alive: {str(e)}",
+            "enabled": keep_alive_enabled
+        }
+
+
+@app.get("/admin/keep-alive/status")
+async def get_keep_alive_status():
+    """获取保活状态"""
+    global keep_alive_enabled
+
+    next_run = None
+    if scheduler and scheduler.running:
+        try:
+            job = scheduler.get_job('keep_alive')
+            if job:
+                next_run = job.next_run_time.isoformat() if job.next_run_time else None
+        except:
+            pass
+
+    return {
+        "enabled": keep_alive_enabled,
+        "scheduler_running": scheduler.running if scheduler else False,
+        "next_ping": next_run,
+        "interval_minutes": int(os.getenv('KEEP_ALIVE_INTERVAL', '10')),
+        "environment_enabled": os.getenv('ENABLE_KEEP_ALIVE', 'false').lower() == 'true'
+    }
+
+
+@app.post("/admin/keep-alive/ping")
+async def manual_keep_alive_ping():
+    """手动执行保活ping"""
+    try:
+        await keep_alive_ping()
+        return {
+            "success": True,
+            "message": "Keep-alive ping executed successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Manual keep-alive ping failed: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Keep-alive ping failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
 # 密钥管理端点
 @app.get("/admin/keys/gemini")
 async def get_gemini_keys():
@@ -2292,7 +2469,8 @@ async def get_admin_stats():
         "usage_stats": db.get_all_usage_stats(),
         "thinking_config": db.get_thinking_config(),
         "inject_config": db.get_inject_prompt_config(),
-        "health_summary": health_summary
+        "health_summary": health_summary,
+        "keep_alive_enabled": keep_alive_enabled
     }
 
 
@@ -2304,5 +2482,5 @@ def run_api_server(port: int = 8000):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting Gemini API Proxy with optimized multimodal support on port {port}")
+    logger.info(f"Starting Gemini API Proxy with optimized multimodal support and auto keep-alive on port {port}")
     run_api_server(port)
