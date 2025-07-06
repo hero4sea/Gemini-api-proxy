@@ -138,15 +138,204 @@ def get_cached_health_summary():
     return get_health_summary()
 
 
-# --- 移动端检测函数 ---
+# --- 移动端检测和手势控制函数 ---
 def is_mobile():
-    """检测是否为移动端"""
-    # 通过JavaScript检测屏幕宽度
+    """检测是否为移动端并添加滑动手势控制"""
     return """
     <script>
+    // 移动端检测
     if (window.innerWidth <= 768) {
         document.body.classList.add('mobile-device');
     }
+
+    // 侧边栏滑动手势控制
+    class SidebarGestureController {
+        constructor() {
+            this.startX = 0;
+            this.startY = 0;
+            this.currentX = 0;
+            this.isDragging = false;
+            this.threshold = 80; // 滑动阈值（像素）
+            this.sidebar = null;
+            this.sidebarButton = null;
+            this.velocityThreshold = 0.5; // 速度阈值
+            this.lastMoveTime = 0;
+            this.lastMoveX = 0;
+            this.init();
+        }
+
+        init() {
+            // 等待DOM加载完成
+            setTimeout(() => {
+                this.sidebar = document.querySelector('[data-testid="stSidebar"]');
+                this.sidebarButton = document.querySelector('button[kind="secondary"]');
+
+                if (this.sidebar) {
+                    this.bindEvents();
+                }
+            }, 1000);
+        }
+
+        addGestureHints() {
+            // 移除视觉引导系统
+        }
+
+        bindEvents() {
+            // 只在侧边栏区域添加触摸事件
+            this.sidebar.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+            this.sidebar.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+            this.sidebar.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+        }
+
+        handleTouchStart(e) {
+            // 检查是否在移动端且侧边栏是打开状态
+            if (window.innerWidth > 768) return;
+
+            // 检查侧边栏是否打开
+            const closeButton = document.querySelector('button[kind="secondary"]');
+            if (!closeButton) return;
+
+            this.startX = e.touches[0].clientX;
+            this.startY = e.touches[0].clientY;
+            this.lastMoveX = this.startX;
+            this.lastMoveTime = Date.now();
+            this.isDragging = true;
+
+            // 添加拖拽状态样式
+            this.sidebar.classList.add('gesture-active');
+
+            // 提供触觉反馈（如果支持）
+            if (navigator.vibrate) {
+                navigator.vibrate(10);
+            }
+        }
+
+        handleTouchMove(e) {
+            if (!this.isDragging || window.innerWidth > 768) return;
+
+            this.currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+
+            const deltaX = this.currentX - this.startX;
+            const deltaY = currentY - this.startY;
+
+            // 如果是垂直滚动为主，不处理水平手势
+            if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+                return;
+            }
+
+            // 只处理向左滑动
+            if (deltaX < -10) { // 增加一些容错
+                // 防止页面滚动
+                e.preventDefault();
+
+                // 添加拖拽样式
+                this.sidebar.classList.add('gesture-dragging');
+
+                // 计算滑动进度和阻力
+                const progress = Math.min(Math.abs(deltaX) / this.sidebar.offsetWidth, 1);
+                const resistance = 1 - (progress * 0.3); // 增加阻力感
+                const translateX = Math.max(deltaX * resistance, -this.sidebar.offsetWidth * 0.8);
+
+                // 实时跟随手指移动
+                this.sidebar.style.transform = `translateX(${translateX}px)`;
+
+                // 添加背景遮罩透明度变化
+                const overlay = document.querySelector('.stSidebar > div');
+                if (overlay) {
+                    const opacity = Math.max(0.3, 1 - progress * 0.7);
+                    overlay.style.opacity = opacity;
+                }
+
+                // 更新速度记录
+                this.lastMoveX = this.currentX;
+                this.lastMoveTime = Date.now();
+            }
+        }
+
+        handleTouchEnd(e) {
+            if (!this.isDragging || window.innerWidth > 768) return;
+
+            const deltaX = this.currentX - this.startX;
+            const deltaTime = Date.now() - this.lastMoveTime;
+            const velocity = Math.abs(deltaX) / deltaTime;
+
+            // 移除拖拽状态样式
+            this.sidebar.classList.remove('gesture-active', 'gesture-dragging');
+
+            // 恢复过渡动画
+            this.sidebar.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+            // 判断是否应该关闭侧边栏（基于距离或速度）
+            const shouldClose = (Math.abs(deltaX) > this.threshold) || 
+                              (velocity > this.velocityThreshold && deltaX < -20);
+
+            if (shouldClose && deltaX < 0) {
+                this.closeSidebar();
+
+                // 提供成功触觉反馈
+                if (navigator.vibrate) {
+                    navigator.vibrate([10, 50, 10]);
+                }
+            } else {
+                // 否则回弹到原位置
+                this.sidebar.style.transform = 'translateX(0)';
+                const overlay = document.querySelector('.stSidebar > div');
+                if (overlay) {
+                    overlay.style.opacity = '1';
+                }
+
+                // 提供回弹触觉反馈
+                if (navigator.vibrate && Math.abs(deltaX) > 20) {
+                    navigator.vibrate(20);
+                }
+            }
+
+            this.isDragging = false;
+            this.startX = 0;
+            this.currentX = 0;
+
+            // 清理临时样式
+            setTimeout(() => {
+                this.sidebar.style.transition = '';
+                this.sidebar.style.transform = '';
+                const overlay = document.querySelector('.stSidebar > div');
+                if (overlay) {
+                    overlay.style.opacity = '';
+                }
+            }, 400);
+        }
+
+        closeSidebar() {
+            // 执行关闭动画
+            this.sidebar.style.transform = `translateX(-100%)`;
+
+            // 添加关闭状态样式
+            this.sidebar.style.opacity = '0.8';
+
+            // 触发关闭按钮点击
+            const closeButton = document.querySelector('button[kind="secondary"]');
+            if (closeButton) {
+                setTimeout(() => {
+                    closeButton.click();
+                    // 恢复样式
+                    this.sidebar.style.opacity = '';
+                }, 250);
+            }
+        }
+    }
+
+    // 初始化手势控制器
+    const gestureController = new SidebarGestureController();
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768) {
+            document.body.classList.add('mobile-device');
+        } else {
+            document.body.classList.remove('mobile-device');
+        }
+    });
     </script>
     """
 
@@ -444,13 +633,119 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 移动端触摸优化 */
+    /* 移动端触摸优化 - 保留动画效果 */
     @media (max-width: 768px) {
+        /* 保留卡片悬停动画，但减弱效果 */
         [data-testid="metric-container"]:hover {
-            transform: none; /* 移动端禁用悬停效果 */
+            transform: translateY(-2px) scale(1.01);
         }
 
         [data-testid="metric-container"]:active {
+            transform: scale(0.98);
+            transition: transform 0.15s ease;
+        }
+
+        /* 保留按钮动画但适配触摸 */
+        .stButton > button:hover {
+            transform: translateY(-1px);
+        }
+
+        .stButton > button:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        /* 保留导航项动画但减弱 */
+        section[data-testid="stSidebar"] .stRadio > div > label:hover {
+            transform: translateX(3px);
+        }
+
+        section[data-testid="stSidebar"] .stRadio > div > label:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        /* 保留Logo动画但减弱 */
+        .sidebar-logo:hover {
+            transform: translateY(-1px) scale(1.01);
+        }
+
+        .sidebar-logo:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        /* 保留状态卡片动画 */
+        .sidebar-status-card:hover {
+            transform: translateY(-1px);
+        }
+
+        .sidebar-status-card:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        /* 保留密钥卡片动画 */
+        div[data-testid="stHorizontalBlock"]:hover {
+            transform: translateY(-1px) scale(1.005);
+        }
+
+        div[data-testid="stHorizontalBlock"]:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+
+        /* 保留链接动画 */
+        .sidebar-footer-link:hover {
+            transform: translateY(-0.5px);
+        }
+
+        .sidebar-footer-link:active {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(0.98);
+            transition: all 0.1s ease;
+        }
+
+        /* 保留标签页动画 */
+        .stTabs [data-testid="stTabBar"] button:hover {
+            transform: translateY(-0.5px);
+        }
+
+        .stTabs [data-testid="stTabBar"] button:active {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0.98);
+            transition: all 0.1s ease;
+        }
+
+        /* 保留输入框聚焦动画 */
+        .stTextInput > div > div > input:focus,
+        .stNumberInput > div > div > input:focus,
+        .stSelectbox > div > div > select:focus,
+        .stTextArea > div > div > textarea:focus {
+            transform: translateY(-0.5px);
+        }
+
+        /* 侧边栏滑动手势支持 */
+        section[data-testid="stSidebar"] {
+            touch-action: pan-y; /* 允许垂直滚动，限制水平滚动 */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform; /* 优化动画性能 */
+        }
+
+        /* 侧边栏拖拽时的视觉反馈 */
+        section[data-testid="stSidebar"].dragging {
+            transition: none;
+            box-shadow: 
+                8px 0 32px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+        }
+
+        /* 移动端状态标签保留动画 */
+        .status-badge:hover {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .status-badge:active {
             transform: scale(0.98);
             transition: transform 0.1s ease;
         }
@@ -484,7 +779,7 @@ st.markdown("""
         color: #6b7280;
     }
 
-    /* 侧边栏设计 - 移动端优化 */
+    /* 侧边栏设计 - 移动端优化 + 手势支持 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -501,16 +796,35 @@ st.markdown("""
             0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         position: relative;
         overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* 移动端侧边栏宽度调整 */
+    /* 移动端侧边栏宽度调整 + 手势优化 */
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
             width: 280px !important;
+            z-index: 999;
+            transform: translateX(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
             padding: 1.5rem 1rem;
+            position: relative;
+        }
+
+        /* 拖拽时的视觉反馈 */
+        section[data-testid="stSidebar"].gesture-dragging {
+            border-right: 2px solid rgba(99, 102, 241, 0.4);
+            box-shadow: 
+                8px 0 40px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+        }
+
+        /* 滑动阻力效果 */
+        section[data-testid="stSidebar"].gesture-active {
+            transition: none;
+            will-change: transform;
         }
     }
 
@@ -1544,6 +1858,18 @@ st.markdown("""
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        pointer-events: none; /* 禁用所有交互 */
+        user-select: none; /* 禁用文本选择 */
+    }
+
+    /* 禁用图表内部元素的交互 */
+    .js-plotly-plot .plotly svg,
+    .js-plotly-plot .plotly canvas,
+    .js-plotly-plot .plotly .plotly-plot,
+    .js-plotly-plot .plotly .svg-container {
+        pointer-events: none !important;
+        touch-action: none !important;
+        user-select: none !important;
     }
 
     /* 移动端图表调整 */
@@ -1736,20 +2062,15 @@ st.markdown("""
         }
     }
 
-    /* 移动端性能优化 */
+    /* 移动端性能优化 - 保留基本交互 */
     @media (max-width: 768px) {
         * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
         }
 
-        /* 允许文本选择的元素 */
-        input, textarea, .key-code, [data-testid="stAlert"] {
+        /* 允许文本和特定元素的选择 */
+        input, textarea, .key-code, [data-testid="stAlert"], p, span, div {
             -webkit-user-select: text !important;
             -khtml-user-select: text !important;
             -moz-user-select: text !important;
@@ -1757,9 +2078,25 @@ st.markdown("""
             user-select: text !important;
         }
 
-        /* 禁用双击缩放 */
+        /* 按钮和导航保持不可选择 */
+        button, .stRadio label, .sidebar-logo {
+            -webkit-user-select: none !important;
+            -khtml-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+        }
+
+        /* 优化滑动体验 */
         .stApp {
             touch-action: manipulation;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        /* 侧边栏特殊触摸处理 */
+        section[data-testid="stSidebar"] {
+            -webkit-overflow-scrolling: touch; /* iOS 滑动优化 */
         }
     }
 
@@ -1785,8 +2122,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 添加移动端检测脚本
+# 添加移动端检测和手势控制脚本
 st.markdown(is_mobile(), unsafe_allow_html=True)
+
 
 # --- 获取服务状态函数 ---
 @st.cache_data(ttl=10)
@@ -1804,6 +2142,7 @@ def get_service_status():
     except:
         pass
     return {'online': False, 'active_keys': 0, 'healthy_keys': 0}
+
 
 # --- 玻璃拟态侧边栏 ---
 with st.sidebar:
@@ -2025,7 +2364,16 @@ if page == "控制台":
                     bargap=0.4,
                     margin=dict(l=0, r=0, t=50, b=0)
                 )
-                st.plotly_chart(fig_rpm, use_container_width=True, config={'displayModeBar': False})
+                st.plotly_chart(fig_rpm, use_container_width=True, config={
+                    'displayModeBar': False,
+                    'staticPlot': True,  # 禁用所有交互
+                    'scrollZoom': False,
+                    'doubleClick': False,
+                    'showTips': False,
+                    'displaylogo': False,
+                    'modeBarButtonsToRemove': ['select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d',
+                                               'resetScale2d']
+                })
 
             with col2:
                 fig_rpd = go.Figure()
@@ -2055,7 +2403,16 @@ if page == "控制台":
                     bargap=0.4,
                     margin=dict(l=0, r=0, t=50, b=0)
                 )
-                st.plotly_chart(fig_rpd, use_container_width=True, config={'displayModeBar': False})
+                st.plotly_chart(fig_rpd, use_container_width=True, config={
+                    'displayModeBar': False,
+                    'staticPlot': True,  # 禁用所有交互
+                    'scrollZoom': False,
+                    'doubleClick': False,
+                    'showTips': False,
+                    'displaylogo': False,
+                    'modeBarButtonsToRemove': ['select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d',
+                                               'resetScale2d']
+                })
 
             # 详细数据表
             with st.expander("查看详细数据"):
