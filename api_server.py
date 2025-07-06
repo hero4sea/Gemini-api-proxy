@@ -51,21 +51,70 @@ class ThinkingConfig(BaseModel):
         return v
 
 
-# 文件数据模型
+# 优化的文件数据模型 - 符合Gemini 2.5 API规范
+class InlineData(BaseModel):
+    """内联数据模型 - 用于小文件(<20MB)"""
+    mime_type: Optional[str] = None  # 兼容旧字段名
+    mimeType: Optional[str] = None  # Gemini 2.5标准字段名
+    data: str  # base64编码的文件数据
+
+    def __init__(self, **data):
+        # 确保两种字段名都支持
+        if 'mime_type' in data and 'mimeType' not in data:
+            data['mimeType'] = data['mime_type']
+        elif 'mimeType' in data and 'mime_type' not in data:
+            data['mime_type'] = data['mimeType']
+        super().__init__(**data)
+
+
 class FileData(BaseModel):
-    file_id: str
-    mime_type: str
-    data: Optional[str] = None  # base64编码的文件数据（小文件）
-    file_uri: Optional[str] = None  # 文件URI（大文件）
-    size: Optional[int] = None
-    filename: Optional[str] = None
+    """文件引用模型 - 用于已上传的文件"""
+    mime_type: Optional[str] = None  # 兼容旧字段名
+    mimeType: Optional[str] = None  # Gemini 2.5标准字段名
+    file_uri: Optional[str] = None  # 兼容旧字段名
+    fileUri: Optional[str] = None  # Gemini 2.5标准字段名
+
+    def __init__(self, **data):
+        # 确保两种字段名都支持
+        if 'mime_type' in data and 'mimeType' not in data:
+            data['mimeType'] = data['mime_type']
+        elif 'mimeType' in data and 'mime_type' not in data:
+            data['mime_type'] = data['mimeType']
+
+        if 'file_uri' in data and 'fileUri' not in data:
+            data['fileUri'] = data['file_uri']
+        elif 'fileUri' in data and 'file_uri' not in data:
+            data['file_uri'] = data['fileUri']
+        super().__init__(**data)
 
 
-# 多模态内容部分
+# 多模态内容部分 - 优化后的模型
 class ContentPart(BaseModel):
+    """内容部分模型 - 支持Gemini 2.5所有内容类型"""
     type: str  # "text", "image", "audio", "video", "document"
     text: Optional[str] = None
+
+    # Gemini 2.5标准格式
+    inlineData: Optional[InlineData] = None
+    fileData: Optional[FileData] = None
+
+    # 向后兼容的字段
+    inline_data: Optional[InlineData] = None
     file_data: Optional[FileData] = None
+
+    def __init__(self, **data):
+        # 处理字段名兼容性
+        if 'inline_data' in data and 'inlineData' not in data:
+            data['inlineData'] = data['inline_data']
+        elif 'inlineData' in data and 'inline_data' not in data:
+            data['inline_data'] = data['inlineData']
+
+        if 'file_data' in data and 'fileData' not in data:
+            data['fileData'] = data['file_data']
+        elif 'fileData' in data and 'file_data' not in data:
+            data['file_data'] = data['fileData']
+
+        super().__init__(**data)
 
 
 # 请求/响应模型
@@ -74,7 +123,6 @@ class ChatMessage(BaseModel):
     content: Union[str, List[Union[str, Dict[str, Any], ContentPart]]]  # 支持多模态内容
 
     class Config:
-        # 允许额外字段，提高兼容性
         extra = "allow"
 
     @validator('content')
@@ -83,7 +131,6 @@ class ChatMessage(BaseModel):
         if isinstance(v, str):
             return v
         elif isinstance(v, list):
-            # 保持原始格式以支持多模态
             return v
         else:
             raise ValueError("content must be string or array of content objects")
@@ -127,14 +174,11 @@ class ChatCompletionRequest(BaseModel):
     presence_penalty: Optional[float] = 0
     frequency_penalty: Optional[float] = 0
     user: Optional[str] = None
-    # 思考配置
     thinking_config: Optional[ThinkingConfig] = None
 
     class Config:
-        # 允许额外字段，提高与OpenAI SDK的兼容性
         extra = "allow"
 
-    # 自定义验证器，确保参数在合理范围内
     def __init__(self, **data):
         # 参数范围验证
         if 'temperature' in data and data['temperature'] is not None:
@@ -207,19 +251,6 @@ class RateLimitCache:
             return {'requests': total_requests, 'tokens': total_tokens}
 
 
-# 保持唤醒机制（仅在Render环境启用）
-async def keep_alive():
-    """保持服务唤醒"""
-    try:
-        render_url = os.getenv('RENDER_EXTERNAL_URL')
-        if render_url:
-            async with httpx.AsyncClient(timeout=10) as client:
-                await client.get(f"{render_url}/wake")
-                logger.info("Keep-alive ping sent successfully")
-    except Exception as e:
-        logger.warning(f"Keep-alive ping failed: {e}")
-
-
 # 健康检测功能
 async def check_gemini_key_health(api_key: str, timeout: int = 10) -> Dict[str, Any]:
     """检测单个Gemini Key的健康状态"""
@@ -278,17 +309,29 @@ scheduler = None
 # 文件存储配置
 UPLOAD_DIR = "uploads"
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+MAX_INLINE_SIZE = 20 * 1024 * 1024  # 20MB - Gemini 2.5 内联数据限制
+
+# Gemini 2.5 支持的MIME类型 - 基于官方文档
 SUPPORTED_MIME_TYPES = {
-    # 图片
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
-    # 音频
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac',
-    # 视频
-    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm',
-    # 文档
-    'application/pdf', 'text/plain', 'text/csv',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    # 图片 - Gemini 2.5 Flash/Pro原生支持
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+
+    # 音频 - Gemini 2.5 原生音频支持
+    'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac',
+    'audio/aac', 'audio/webm',
+
+    # 视频 - Gemini 2.5 视频理解能力
+    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/quicktime',
+    'video/x-msvideo', 'video/mpeg',
+
+    # 文档 - Gemini 2.5 文档处理能力
+    'application/pdf',
+    'text/plain', 'text/csv', 'text/xml', 'text/html',
+    'application/json',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # docx
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # xlsx
+    'application/vnd.ms-excel',  # xls
+    'application/msword',  # doc
 }
 
 # 确保上传目录存在
@@ -305,20 +348,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Gemini API Proxy...")
     logger.info(f"Available API keys: {len(db.get_available_gemini_keys())}")
     logger.info(f"Environment: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
-
-    # 启动保持唤醒调度器（仅在Render环境）
-    render_url = os.getenv('RENDER_EXTERNAL_URL')
-    if render_url:
-        scheduler = AsyncIOScheduler()
-        scheduler.add_job(
-            keep_alive,
-            'interval',
-            minutes=14,  # 在15分钟睡眠前保持唤醒
-            id='keep_alive',
-            max_instances=1
-        )
-        scheduler.start()
-        logger.info("Keep-alive scheduler started (14min interval)")
+    logger.info("✅ Gemini 2.5 multimodal features optimized")
 
     yield
 
@@ -331,7 +361,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Gemini API Proxy",
-    description="A high-performance proxy for Gemini API with OpenAI compatibility",
+    description="A high-performance proxy for Gemini API with OpenAI compatibility and optimized multimodal support",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -339,7 +369,7 @@ app = FastAPI(
 # 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应限制具体域名
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -368,7 +398,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """处理请求验证错误"""
     logger.warning(f"Request validation error: {exc}")
 
-    # 提取具体的错误信息
     error_details = []
     for error in exc.errors():
         field = " -> ".join(str(x) for x in error["loc"])
@@ -425,12 +454,10 @@ def get_actual_model_name(request_model: str) -> str:
     """获取实际使用的模型名称"""
     supported_models = db.get_supported_models()
 
-    # 如果请求的是支持的模型，直接使用
     if request_model in supported_models:
         logger.info(f"Using requested model: {request_model}")
         return request_model
 
-    # 否则使用默认模型
     default_model = db.get_config('default_model_name', 'gemini-2.5-flash')
     logger.info(f"Unsupported model: {request_model}, using default: {default_model}")
     return default_model
@@ -445,12 +472,9 @@ def inject_prompt_to_messages(messages: List[ChatMessage]) -> List[ChatMessage]:
 
     content = inject_config['content']
     position = inject_config['position']
-
-    # 创建消息副本
     new_messages = messages.copy()
 
     if position == 'system':
-        # 添加或更新system消息
         system_msg = None
         for i, msg in enumerate(new_messages):
             if msg.role == 'system':
@@ -458,15 +482,12 @@ def inject_prompt_to_messages(messages: List[ChatMessage]) -> List[ChatMessage]:
                 break
 
         if system_msg:
-            # 更新现有system消息
             new_content = f"{content}\n\n{system_msg.get_text_content()}"
             new_messages[i] = ChatMessage(role='system', content=new_content)
         else:
-            # 添加新的system消息到开头
             new_messages.insert(0, ChatMessage(role='system', content=content))
 
     elif position == 'user_prefix':
-        # 在第一个user消息前添加
         for i, msg in enumerate(new_messages):
             if msg.role == 'user':
                 original_content = msg.get_text_content()
@@ -475,7 +496,6 @@ def inject_prompt_to_messages(messages: List[ChatMessage]) -> List[ChatMessage]:
                 break
 
     elif position == 'user_suffix':
-        # 在最后一个user消息后添加
         for i in range(len(new_messages) - 1, -1, -1):
             if new_messages[i].role == 'user':
                 original_content = new_messages[i].get_text_content()
@@ -490,16 +510,13 @@ def get_thinking_config(request: ChatCompletionRequest) -> Dict:
     """根据配置生成思考配置"""
     thinking_config = {}
 
-    # 从数据库获取全局配置
     global_thinking_enabled = db.get_config('thinking_enabled', 'true').lower() == 'true'
-    global_thinking_budget = int(db.get_config('thinking_budget', '-1'))  # -1 表示自动
+    global_thinking_budget = int(db.get_config('thinking_budget', '-1'))
     global_include_thoughts = db.get_config('include_thoughts', 'false').lower() == 'true'
 
-    # 如果全局禁用思考，直接返回禁用配置
     if not global_thinking_enabled:
         return {"thinkingBudget": 0}
 
-    # 如果请求中有思考配置，优先使用请求的配置
     if request.thinking_config:
         if request.thinking_config.thinking_budget is not None:
             thinking_config["thinkingBudget"] = request.thinking_config.thinking_budget
@@ -511,7 +528,6 @@ def get_thinking_config(request: ChatCompletionRequest) -> Dict:
         elif global_include_thoughts:
             thinking_config["includeThoughts"] = global_include_thoughts
     else:
-        # 使用全局配置
         if global_thinking_budget >= 0:
             thinking_config["thinkingBudget"] = global_thinking_budget
         if global_include_thoughts:
@@ -520,21 +536,77 @@ def get_thinking_config(request: ChatCompletionRequest) -> Dict:
     return thinking_config
 
 
+def process_multimodal_content(item: Dict) -> Optional[Dict]:
+    """处理多模态内容 - 优化Gemini 2.5格式"""
+    try:
+        # 检查是否有文件数据
+        file_data = item.get('file_data') or item.get('fileData')
+        inline_data = item.get('inline_data') or item.get('inlineData')
+
+        if inline_data:
+            # 内联数据格式 - 符合Gemini 2.5规范
+            mime_type = inline_data.get('mimeType') or inline_data.get('mime_type')
+            data = inline_data.get('data')
+
+            if mime_type and data:
+                return {
+                    "inlineData": {
+                        "mimeType": mime_type,
+                        "data": data
+                    }
+                }
+        elif file_data:
+            # 文件引用格式 - 符合Gemini 2.5规范
+            mime_type = file_data.get('mimeType') or file_data.get('mime_type')
+            file_uri = file_data.get('fileUri') or file_data.get('file_uri')
+
+            if mime_type and file_uri:
+                return {
+                    "fileData": {
+                        "mimeType": mime_type,
+                        "fileUri": file_uri
+                    }
+                }
+
+        # 处理直接的图片URL格式（OpenAI兼容）
+        if item.get('type') == 'image_url' and 'image_url' in item:
+            image_url = item['image_url'].get('url', '')
+            if image_url.startswith('data:'):
+                try:
+                    header, data = image_url.split(',', 1)
+                    mime_type = header.split(';')[0].split(':')[1]
+                    return {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": data
+                        }
+                    }
+                except Exception as e:
+                    logger.warning(f"Failed to parse data URL: {e}")
+            else:
+                logger.warning("HTTP URLs not supported for images, use file upload instead")
+
+        logger.warning(f"Unsupported multimodal content format: {item}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error processing multimodal content: {e}")
+        return None
+
+
 def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
-    """将OpenAI格式转换为Gemini格式，支持多模态内容"""
+    """将OpenAI格式转换为Gemini 2.5格式，优化多模态内容处理"""
     contents = []
 
     for msg in request.messages:
         parts = []
 
         if isinstance(msg.content, str):
-            # 纯文本消息
             if msg.role == "system":
                 parts.append({"text": f"[System]: {msg.content}"})
             else:
                 parts.append({"text": msg.content})
         elif isinstance(msg.content, list):
-            # 多模态消息
             for item in msg.content:
                 if isinstance(item, str):
                     parts.append({"text": item})
@@ -542,34 +614,18 @@ def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
                     if item.get('type') == 'text':
                         parts.append({"text": item.get('text', '')})
                     elif item.get('type') in ['image', 'audio', 'video', 'document']:
-                        # 处理文件内容
-                        file_data = item.get('file_data')
-                        if file_data:
-                            if file_data.get('data'):  # 小文件，使用内联数据
-                                parts.append({
-                                    "inlineData": {
-                                        "mimeType": file_data['mime_type'],
-                                        "data": file_data['data']
-                                    }
-                                })
-                            elif file_data.get('file_uri'):  # 大文件，使用文件URI
-                                parts.append({
-                                    "fileData": {
-                                        "mimeType": file_data['mime_type'],
-                                        "fileUri": file_data['file_uri']
-                                    }
-                                })
+                        multimodal_part = process_multimodal_content(item)
+                        if multimodal_part:
+                            parts.append(multimodal_part)
 
-        # 确定角色
         role = "user" if msg.role in ["system", "user"] else "model"
 
-        if parts:  # 只有当有内容时才添加
+        if parts:
             contents.append({
                 "role": role,
                 "parts": parts
             })
 
-    # 构建基本请求
     gemini_request = {
         "contents": contents,
         "generationConfig": {
@@ -579,12 +635,10 @@ def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
         }
     }
 
-    # 添加思考配置
     thinking_config = get_thinking_config(request)
     if thinking_config:
         gemini_request["generationConfig"]["thinkingConfig"] = thinking_config
 
-    # 添加其他参数
     if request.max_tokens:
         gemini_request["generationConfig"]["maxOutputTokens"] = request.max_tokens
 
@@ -604,7 +658,6 @@ def extract_thoughts_and_content(gemini_response: Dict) -> tuple[str, str]:
 
         for part in parts:
             if "text" in part:
-                # 检查是否为思考部分
                 if part.get("thought", False):
                     thoughts += part["text"]
                 else:
@@ -617,14 +670,11 @@ def gemini_to_openai(gemini_response: Dict, request: ChatCompletionRequest, usag
     """将Gemini响应转换为OpenAI格式"""
     choices = []
 
-    # 提取思考过程和内容
     thoughts, content = extract_thoughts_and_content(gemini_response)
 
     for i, candidate in enumerate(gemini_response.get("candidates", [])):
-        # 构建响应消息
         message_content = content if content else ""
 
-        # 如果有思考过程且配置要求包含，添加到响应中
         if thoughts and request.thinking_config and request.thinking_config.include_thoughts:
             message_content = f"**Thinking:**\n{thoughts}\n\n**Response:**\n{content}"
 
@@ -637,7 +687,6 @@ def gemini_to_openai(gemini_response: Dict, request: ChatCompletionRequest, usag
             "finish_reason": map_finish_reason(candidate.get("finishReason", "STOP"))
         })
 
-    # 构建响应
     response = {
         "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
         "object": "chat.completion",
@@ -666,32 +715,53 @@ def map_finish_reason(gemini_reason: str) -> str:
     return mapping.get(gemini_reason, "stop")
 
 
+def validate_file_for_gemini(file_content: bytes, mime_type: str, filename: str) -> Dict[str, Any]:
+    """验证文件是否符合Gemini 2.5要求"""
+    file_size = len(file_content)
+
+    if mime_type not in SUPPORTED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {mime_type}. Supported types: {', '.join(sorted(SUPPORTED_MIME_TYPES))}"
+        )
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
+        )
+
+    use_inline = file_size <= MAX_INLINE_SIZE
+
+    return {
+        "size": file_size,
+        "mime_type": mime_type,
+        "use_inline": use_inline,
+        "filename": filename
+    }
+
+
 async def select_gemini_key_and_check_limits(model_name: str, excluded_keys: set = None) -> Optional[Dict]:
-    """自适应选择可用的Gemini Key并检查模型限制（支持排除特定key）"""
+    """自适应选择可用的Gemini Key并检查模型限制"""
     if excluded_keys is None:
         excluded_keys = set()
 
     available_keys = db.get_available_gemini_keys()
-
-    # 过滤排除的key
     available_keys = [k for k in available_keys if k['id'] not in excluded_keys]
 
     if not available_keys:
         logger.warning("No available Gemini keys found after exclusions")
         return None
 
-    # 获取模型配置（已经包含计算的总限制）
     model_config = db.get_model_config(model_name)
     if not model_config:
         logger.error(f"Model config not found for: {model_name}")
         return None
 
-    # 记录限制信息
     logger.info(
         f"Model {model_name} limits: RPM={model_config['total_rpm_limit']}, TPM={model_config['total_tpm_limit']}, RPD={model_config['total_rpd_limit']}")
     logger.info(f"Available API keys: {len(available_keys)}")
 
-    # 检查模型级别的限制（使用总限制）
     current_usage = await rate_limiter.get_current_usage(model_name)
 
     if (current_usage['requests'] >= model_config['total_rpm_limit'] or
@@ -700,36 +770,26 @@ async def select_gemini_key_and_check_limits(model_name: str, excluded_keys: set
             f"Model {model_name} has reached rate limits: requests={current_usage['requests']}/{model_config['total_rpm_limit']}, tokens={current_usage['tokens']}/{model_config['total_tpm_limit']}")
         return None
 
-    # 检查RPD限制（使用总限制）
     day_usage = db.get_usage_stats(model_name, 'day')
     if day_usage['requests'] >= model_config['total_rpd_limit']:
         logger.warning(
             f"Model {model_name} has reached daily request limit: {day_usage['requests']}/{model_config['total_rpd_limit']}")
         return None
 
-    # 自适应策略选择Key
     strategy = db.get_config('load_balance_strategy', 'adaptive')
 
     if strategy == 'round_robin':
-        # 简单轮询，选择第一个可用的
         selected_key = available_keys[0]
     elif strategy == 'least_used':
-        # 选择使用量最少的Key（基于Key ID的使用分布）
         selected_key = available_keys[0]
     else:  # adaptive strategy
-        # 自适应策略：综合考虑成功率、响应时间、使用率
         best_key = None
         best_score = -1
 
         for key_info in available_keys:
-            # 计算综合得分
             success_rate = key_info.get('success_rate', 1.0)
             avg_response_time = key_info.get('avg_response_time', 0.0)
-
-            # 响应时间得分（越低越好，转换为0-1分数）
-            time_score = max(0, 1.0 - (avg_response_time / 10.0))  # 假设10秒为最差响应时间
-
-            # 综合得分：成功率权重0.7，响应时间权重0.3
+            time_score = max(0, 1.0 - (avg_response_time / 10.0))
             score = success_rate * 0.7 + time_score * 0.3
 
             if score > best_score:
@@ -740,7 +800,6 @@ async def select_gemini_key_and_check_limits(model_name: str, excluded_keys: set
 
     logger.info(f"Selected API key #{selected_key['id']} for model {model_name} (strategy: {strategy})")
 
-    # 返回选中的Key和模型配置
     return {
         'key_info': selected_key,
         'model_config': model_config
@@ -772,21 +831,19 @@ async def make_gemini_request_with_retry(
                 response_time = time.time() - start_time
 
                 if response.status_code == 200:
-                    # 记录成功的性能指标
                     db.update_key_performance(key_id, True, response_time)
                     return response.json()
                 else:
-                    # 记录失败的性能指标
                     db.update_key_performance(key_id, False, response_time)
                     error_detail = response.json() if response.content else {"error": {"message": "Unknown error"}}
-                    if attempt == max_retries - 1:  # 最后一次尝试
+                    if attempt == max_retries - 1:
                         raise HTTPException(
                             status_code=response.status_code,
                             detail=error_detail.get("error", {}).get("message", "Unknown error")
                         )
                     else:
                         logger.warning(f"Request failed (attempt {attempt + 1}), retrying...")
-                        await asyncio.sleep(2 ** attempt)  # 指数退避
+                        await asyncio.sleep(2 ** attempt)
                         continue
 
         except httpx.TimeoutException as e:
@@ -811,39 +868,19 @@ async def make_gemini_request_with_retry(
     raise HTTPException(status_code=500, detail="Max retries exceeded")
 
 
-# 请求处理函数
 async def make_request_with_failover(
         gemini_request: Dict,
         openai_request: ChatCompletionRequest,
         model_name: str,
-        user_key_info: Dict = None,  # ✅ 添加用户信息参数
+        user_key_info: Dict = None,
         max_key_attempts: int = None,
         excluded_keys: set = None
 ) -> Dict:
-    """
-    请求处理
-
-    Args:
-        gemini_request: 转换后的Gemini请求
-        openai_request: 原始OpenAI请求
-        model_name: 模型名称
-        user_key_info: 用户密钥信息
-        max_key_attempts: 最大尝试key数量，默认为所有可用key
-        excluded_keys: 排除的key ID集合
-
-    Returns:
-        成功的Gemini响应
-
-    Raises:
-        HTTPException: 所有key都失败时抛出
-    """
+    """请求处理"""
     if excluded_keys is None:
         excluded_keys = set()
 
-    # 获取所有可用的key
     available_keys = db.get_available_gemini_keys()
-
-    # 过滤排除的key
     available_keys = [k for k in available_keys if k['id'] not in excluded_keys]
 
     if not available_keys:
@@ -853,7 +890,6 @@ async def make_request_with_failover(
             detail="No available API keys"
         )
 
-    # 如果没有指定最大尝试次数，就尝试所有可用key
     if max_key_attempts is None:
         max_key_attempts = len(available_keys)
     else:
@@ -866,7 +902,6 @@ async def make_request_with_failover(
 
     for attempt in range(max_key_attempts):
         try:
-            # 重新选择可用的key（排除已失败的）
             selection_result = await select_gemini_key_and_check_limits(
                 model_name,
                 excluded_keys=excluded_keys.union(set(failed_keys))
@@ -882,19 +917,16 @@ async def make_request_with_failover(
             logger.info(f"Attempt {attempt + 1}: Using key #{key_info['id']} for {model_name}")
 
             try:
-                # 尝试使用当前key发送请求（包含单key重试）
                 response = await make_gemini_request_with_retry(
                     key_info['key'],
                     key_info['id'],
                     gemini_request,
                     model_name,
-                    max_retries=2  # 每个key内部重试2次
+                    max_retries=2
                 )
 
-                # 成功！记录使用统计
                 logger.info(f"✅ Request successful with key #{key_info['id']} on attempt {attempt + 1}")
 
-                # 估算token使用量并记录
                 total_tokens = 0
                 for candidate in response.get("candidates", []):
                     content = candidate.get("content", {})
@@ -903,7 +935,6 @@ async def make_request_with_failover(
                         if "text" in part:
                             total_tokens += len(part["text"].split())
 
-                # ✅ 记录成功的使用统计到数据库
                 if user_key_info:
                     db.log_usage(
                         gemini_key_id=key_info['id'],
@@ -915,20 +946,15 @@ async def make_request_with_failover(
                     logger.info(
                         f"📊 Logged usage: gemini_key_id={key_info['id']}, user_key_id={user_key_info['id']}, model={model_name}, tokens={total_tokens}")
 
-                # 记录到内存缓存（用于速率限制）
                 await rate_limiter.add_usage(model_name, 1, total_tokens)
-
                 return response
 
             except HTTPException as e:
-                # 记录失败的key
                 failed_keys.append(key_info['id'])
                 last_error = e
 
-                # 更新key性能统计（失败）
                 db.update_key_performance(key_info['id'], False, 0.0)
 
-                # ✅ 记录失败统计到数据库
                 if user_key_info:
                     db.log_usage(
                         gemini_key_id=key_info['id'],
@@ -938,17 +964,14 @@ async def make_request_with_failover(
                         tokens=0
                     )
 
-                # 记录失败统计到内存缓存
                 await rate_limiter.add_usage(model_name, 1, 0)
 
                 logger.warning(f"❌ Key #{key_info['id']} failed with {e.status_code}: {e.detail}")
 
-                # 如果是客户端错误（4xx），可能是请求问题，不再尝试其他key
                 if e.status_code < 500:
                     logger.warning(f"Client error {e.status_code}, stopping failover")
                     raise e
 
-                # 服务器错误或超时，继续尝试下一个key
                 continue
 
         except Exception as e:
@@ -956,7 +979,6 @@ async def make_request_with_failover(
             last_error = HTTPException(status_code=500, detail=str(e))
             continue
 
-    # 所有key都尝试失败了
     failed_count = len(failed_keys)
     logger.error(f"❌ All {failed_count} keys failed for {model_name}")
 
@@ -969,18 +991,15 @@ async def make_request_with_failover(
         )
 
 
-# 流式响应处理函数
 async def stream_with_failover(
         gemini_request: Dict,
         openai_request: ChatCompletionRequest,
         model_name: str,
-        user_key_info: Dict = None,  # ✅ 添加用户信息参数
+        user_key_info: Dict = None,
         max_key_attempts: int = None,
         excluded_keys: set = None
 ) -> AsyncGenerator[bytes, None]:
-    """
-    流式响应处理
-    """
+    """流式响应处理"""
     if excluded_keys is None:
         excluded_keys = set()
 
@@ -1021,7 +1040,6 @@ async def stream_with_failover(
             key_info = selection_result['key_info']
             logger.info(f"Stream attempt {attempt + 1}: Using key #{key_info['id']}")
 
-            # 尝试流式响应
             success = False
             total_tokens = 0
             try:
@@ -1036,21 +1054,18 @@ async def stream_with_failover(
                     yield chunk
                     success = True
 
-                # 如果成功开始流式传输，记录使用统计
                 if success:
-                    # ✅ 记录成功的使用统计到数据库
                     if user_key_info:
                         db.log_usage(
                             gemini_key_id=key_info['id'],
                             user_key_id=user_key_info['id'],
                             model_name=model_name,
                             requests=1,
-                            tokens=total_tokens  # 流式响应中token计算比较复杂，这里暂时用0
+                            tokens=total_tokens
                         )
                         logger.info(
                             f"📊 Logged stream usage: gemini_key_id={key_info['id']}, user_key_id={user_key_info['id']}, model={model_name}")
 
-                    # 记录到内存缓存
                     await rate_limiter.add_usage(model_name, 1, total_tokens)
                     return
 
@@ -1058,10 +1073,8 @@ async def stream_with_failover(
                 failed_keys.append(key_info['id'])
                 logger.warning(f"Stream key #{key_info['id']} failed: {str(e)}")
 
-                # 更新失败统计
                 db.update_key_performance(key_info['id'], False, 0.0)
 
-                # ✅ 记录失败统计到数据库
                 if user_key_info:
                     db.log_usage(
                         gemini_key_id=key_info['id'],
@@ -1071,9 +1084,7 @@ async def stream_with_failover(
                         tokens=0
                     )
 
-                # 如果还有其他key可以尝试，继续
                 if attempt < max_key_attempts - 1:
-                    # 发送重试提示（可选）
                     retry_msg = {
                         'error': {
                             'message': f'Key #{key_info["id"]} failed, trying next key...',
@@ -1084,14 +1095,12 @@ async def stream_with_failover(
                     yield f"data: {json.dumps(retry_msg, ensure_ascii=False)}\n\n".encode('utf-8')
                     continue
                 else:
-                    # 最后一次尝试失败
                     break
 
         except Exception as e:
             logger.error(f"Stream failover error on attempt {attempt + 1}: {str(e)}")
             continue
 
-    # 所有key都失败了
     error_data = {
         'error': {
             'message': f'All {len(failed_keys)} available API keys failed',
@@ -1131,7 +1140,6 @@ async def stream_gemini_response(
                         headers={"x-goog-api-key": gemini_key}
                 ) as response:
                     if response.status_code != 200:
-                        # 记录失败
                         response_time = time.time() - start_time
                         db.update_key_performance(key_id, False, response_time)
 
@@ -1153,21 +1161,18 @@ async def stream_gemini_response(
                     logger.info(f"Stream response started, status: {response.status_code}")
 
                     try:
-                        # 按照官方文档的SSE格式处理
                         async for line in response.aiter_lines():
                             processed_lines += 1
 
                             if not line:
                                 continue
 
-                            # 记录原始行以便调试
-                            if processed_lines <= 5:  # 只记录前几行
+                            if processed_lines <= 5:
                                 logger.debug(f"Stream line {processed_lines}: {line[:100]}...")
 
                             if line.startswith("data: "):
                                 json_str = line[6:]
 
-                                # 检查结束标志
                                 if json_str.strip() == "[DONE]":
                                     logger.info("Received [DONE] signal from stream")
                                     break
@@ -1178,7 +1183,6 @@ async def stream_gemini_response(
                                 try:
                                     data = json.loads(json_str)
 
-                                    # 处理候选响应
                                     for candidate in data.get("candidates", []):
                                         content_data = candidate.get("content", {})
                                         parts = content_data.get("parts", [])
@@ -1186,21 +1190,18 @@ async def stream_gemini_response(
                                         for part in parts:
                                             if "text" in part:
                                                 text = part["text"]
-                                                if not text:  # 跳过空文本
+                                                if not text:
                                                     continue
 
                                                 total_tokens += len(text.split())
                                                 has_content = True
 
-                                                # 检查是否为思考部分
                                                 is_thought = part.get("thought", False)
 
-                                                # 如果是思考部分且配置不包含思考，跳过
                                                 if is_thought and not (openai_request.thinking_config and
                                                                        openai_request.thinking_config.include_thoughts):
                                                     continue
 
-                                                # 思考功能的处理逻辑
                                                 if is_thought and not thinking_sent:
                                                     thinking_header = {
                                                         "id": stream_id,
@@ -1234,7 +1235,6 @@ async def stream_gemini_response(
                                                     thinking_sent = False
                                                     logger.debug("Sent response header")
 
-                                                # 发送文本内容
                                                 chunk_data = {
                                                     "id": stream_id,
                                                     "object": "chat.completion.chunk",
@@ -1249,7 +1249,6 @@ async def stream_gemini_response(
                                                 yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n".encode(
                                                     'utf-8')
 
-                                        # 检查是否结束
                                         finish_reason = candidate.get("finishReason")
                                         if finish_reason:
                                             finish_chunk = {
@@ -1270,7 +1269,6 @@ async def stream_gemini_response(
                                             logger.info(
                                                 f"Stream completed with finish_reason: {finish_reason}, tokens: {total_tokens}")
 
-                                            # 记录成功的使用量和性能指标
                                             response_time = time.time() - start_time
                                             db.update_key_performance(key_id, True, response_time)
                                             await rate_limiter.add_usage(model_name, 1, total_tokens)
@@ -1280,15 +1278,11 @@ async def stream_gemini_response(
                                     logger.warning(f"JSON decode error: {e}, line: {json_str[:200]}...")
                                     continue
 
-                            # 处理其他SSE事件类型（如果需要）
                             elif line.startswith("event: "):
-                                # 可以处理特定事件类型
                                 continue
                             elif line.startswith("id: ") or line.startswith("retry: "):
-                                # SSE元数据，忽略
                                 continue
 
-                        # 如果流正常结束但没有显式的结束信号
                         if has_content:
                             finish_chunk = {
                                 "id": stream_id,
@@ -1307,11 +1301,9 @@ async def stream_gemini_response(
                             logger.info(
                                 f"Stream ended naturally, processed {processed_lines} lines, tokens: {total_tokens}")
 
-                            # 记录成功的性能指标
                             response_time = time.time() - start_time
                             db.update_key_performance(key_id, True, response_time)
 
-                        # 如果确实没有收到任何内容，才回退
                         if not has_content:
                             logger.warning(
                                 f"Stream response had no content after processing {processed_lines} lines, falling back to non-stream")
@@ -1364,10 +1356,9 @@ async def stream_gemini_response(
                                 yield f"data: {json.dumps({'error': {'message': 'Failed to get response', 'type': 'server_error'}}, ensure_ascii=False)}\n\n".encode(
                                     'utf-8')
 
-                        # 记录使用量
                         await rate_limiter.add_usage(model_name, 1, total_tokens)
                         yield "data: [DONE]\n\n".encode('utf-8')
-                        return  # 成功完成
+                        return
 
                     except (httpx.ReadError, httpx.RemoteProtocolError) as e:
                         logger.warning(f"Stream connection error (attempt {attempt + 1}): {str(e)}")
@@ -1420,6 +1411,7 @@ async def root():
         "service": "Gemini API Proxy",
         "status": "running",
         "version": "1.1.0",
+        "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling"],
         "docs": "/docs",
         "health": "/health"
     }
@@ -1438,7 +1430,8 @@ async def health_check():
         "environment": "render" if os.getenv('RENDER_EXTERNAL_URL') else "local",
         "uptime_seconds": int(uptime),
         "request_count": request_count,
-        "version": "1.1.0"
+        "version": "1.1.0",
+        "multimodal_support": "Gemini 2.5 Optimized"
     }
 
 
@@ -1473,7 +1466,7 @@ async def get_status():
         "uptime_seconds": int(time.time() - start_time),
         "total_requests": request_count,
         "thinking_enabled": db.get_thinking_config()['enabled'],
-        "keep_alive_active": scheduler is not None and scheduler.running
+        "multimodal_optimized": True
     }
 
 
@@ -1496,12 +1489,11 @@ async def get_metrics():
 
 @app.get("/v1")
 async def api_v1_info():
-    """v1 API 信息端点 - 提供 API 版本信息和可用端点"""
+    """v1 API 信息端点"""
     available_keys = len(db.get_available_gemini_keys())
     supported_models = db.get_supported_models()
     thinking_config = db.get_thinking_config()
 
-    # 获取当前服务的基础URL
     render_url = os.getenv('RENDER_EXTERNAL_URL')
     base_url = render_url if render_url else 'https://your-service.onrender.com'
 
@@ -1510,7 +1502,7 @@ async def api_v1_info():
         "version": "1.1.0",
         "api_version": "v1",
         "compatibility": "OpenAI API v1",
-        "description": "A high-performance proxy for Gemini API with OpenAI compatibility and multi-key polling",
+        "description": "A high-performance proxy for Gemini API with OpenAI compatibility and optimized multimodal support",
         "status": "operational",
         "base_url": base_url,
         "features": [
@@ -1518,6 +1510,7 @@ async def api_v1_info():
             "OpenAI API compatibility",
             "Rate limiting & usage analytics",
             "Thinking mode support",
+            "Optimized Gemini 2.5 multimodal",
             "Streaming responses",
             "Automatic failover",
             "Real-time monitoring",
@@ -1527,6 +1520,7 @@ async def api_v1_info():
         "endpoints": {
             "chat_completions": "/v1/chat/completions",
             "models": "/v1/models",
+            "files": "/v1/files",
             "api_info": "/v1",
             "health": "/health",
             "status": "/status",
@@ -1541,144 +1535,24 @@ async def api_v1_info():
             "uptime_seconds": int(time.time() - start_time),
             "total_requests": request_count
         },
-        "documentation": {
-            "openapi_json": "/openapi.json",
-            "swagger_ui": "/docs",
-            "redoc": "/redoc",
-            "github": "https://github.com/arain119/gemini-api-proxy"
-        },
-        "example_usage": {
-            "curl": f"curl -X POST '{base_url}/v1/chat/completions' \\\n  -H 'Authorization: Bearer YOUR_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{{\n    \"model\": \"gemini-2.5-flash\",\n    \"messages\": [{{\"role\": \"user\", \"content\": \"Hello!\"}}]\n  }}'",
-            "python": f"import openai\n\nclient = openai.OpenAI(\n    api_key='YOUR_API_KEY',\n    base_url='{base_url}/v1'\n)\n\nresponse = client.chat.completions.create(\n    model='gemini-2.5-flash',\n    messages=[{{'role': 'user', 'content': 'Hello!'}}]\n)",
-            "javascript": f"import OpenAI from 'openai';\n\nconst openai = new OpenAI({{\n  apiKey: 'YOUR_API_KEY',\n  baseURL: '{base_url}/v1'\n}});\n\nconst response = await openai.chat.completions.create({{\n  model: 'gemini-2.5-flash',\n  messages: [{{ role: 'user', content: 'Hello!' }}]\n}});"
-        },
-        "rate_limits": {
-            "info": "Limits scale with number of healthy Gemini API keys",
-            "check_admin": "/admin/models for current limits"
+        "multimodal_support": {
+            "images": ["jpeg", "png", "gif", "webp", "bmp"],
+            "audio": ["mp3", "wav", "ogg", "mp4", "flac", "aac"],
+            "video": ["mp4", "avi", "mov", "webm", "quicktime"],
+            "documents": ["pdf", "txt", "csv", "docx", "xlsx"]
         },
         "timestamp": datetime.now().isoformat()
     }
 
 
-# chat_completions端点
-@app.post("/v1/chat/completions")
-async def chat_completions(
-        request: ChatCompletionRequest,
-        authorization: str = Header(None)
-):
-    try:
-        # 验证API Key
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Invalid authorization header")
-
-        api_key = authorization.replace("Bearer ", "")
-        user_key = db.validate_user_key(api_key)
-
-        if not user_key:
-            raise HTTPException(status_code=401, detail="Invalid API key")
-
-        # ✅ 获取用户密钥信息，用于记录使用统计
-        user_key_info = user_key
-
-        # 基础请求验证
-        if not request.messages or len(request.messages) == 0:
-            raise HTTPException(status_code=422, detail="Messages cannot be empty")
-
-        # 验证消息格式
-        for msg in request.messages:
-            if not hasattr(msg, 'role') or not hasattr(msg, 'content'):
-                raise HTTPException(status_code=422, detail="Invalid message format")
-            if msg.role not in ['system', 'user', 'assistant']:
-                raise HTTPException(status_code=422, detail=f"Invalid role: {msg.role}")
-
-            # 确保content已经被标准化为字符串
-            if not isinstance(msg.content, str):
-                raise HTTPException(status_code=422, detail="Content validation failed")
-
-        # 获取实际使用的模型名称
-        actual_model_name = get_actual_model_name(request.model)
-
-        # 注入prompt（如果启用）
-        request.messages = inject_prompt_to_messages(request.messages)
-
-        # 转换请求格式
-        gemini_request = openai_to_gemini(request)
-
-        # 故障转移机制
-        if request.stream:
-            # ✅ 流式响应使用故障转移，传递用户信息
-            return StreamingResponse(
-                stream_with_failover(
-                    gemini_request,
-                    request,
-                    actual_model_name,
-                    user_key_info=user_key_info,  # 传递用户信息
-                    max_key_attempts=5  # 最多尝试5个key
-                ),
-                media_type="text/event-stream; charset=utf-8"
-            )
-        else:
-            # ✅ 非流式响应使用故障转移，传递用户信息
-            gemini_response = await make_request_with_failover(
-                gemini_request,
-                request,
-                actual_model_name,
-                user_key_info=user_key_info,  # 传递用户信息
-                max_key_attempts=5  # 最多尝试5个key
-            )
-
-            # 计算token使用量
-            total_tokens = 0
-            for candidate in gemini_response.get("candidates", []):
-                content = candidate.get("content", {})
-                parts = content.get("parts", [])
-                for part in parts:
-                    if "text" in part:
-                        total_tokens += len(part["text"].split())
-
-            # 转换响应格式
-            usage_info = {
-                "prompt_tokens": len(str(request.messages).split()),
-                "completion_tokens": total_tokens,
-                "total_tokens": len(str(request.messages).split()) + total_tokens
-            }
-
-            openai_response = gemini_to_openai(gemini_response, request, usage_info)
-            return JSONResponse(content=openai_response)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/v1/models")
-async def list_models():
-    """列出可用的模型"""
-    models = db.get_supported_models()
-
-    model_list = []
-    for model in models:
-        model_list.append({
-            "id": model,
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": "google"
-        })
-
-    return {"object": "list", "data": model_list}
-
-
-# 文件上传相关端点
+# 优化的文件上传端点
 @app.post("/v1/files")
 async def upload_file(
         file: UploadFile = File(...),
         authorization: str = Header(None)
 ):
-    """上传文件用于多模态对话"""
+    """上传文件用于多模态对话 - 优化Gemini 2.5支持"""
     try:
-        # 验证API Key
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization header")
 
@@ -1688,62 +1562,63 @@ async def upload_file(
         if not user_key:
             raise HTTPException(status_code=401, detail="Invalid API key")
 
-        # 检查文件大小
         file_content = await file.read()
-        if len(file_content) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
-            )
 
-        # 检查MIME类型
         mime_type = file.content_type or mimetypes.guess_type(file.filename)[0]
-        if mime_type not in SUPPORTED_MIME_TYPES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type: {mime_type}. Supported types: {', '.join(SUPPORTED_MIME_TYPES)}"
-            )
+        if not mime_type:
+            ext = os.path.splitext(file.filename)[1].lower()
+            mime_type_map = {
+                '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+                '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg',
+                '.mp4': 'video/mp4', '.avi': 'video/avi', '.mov': 'video/quicktime',
+                '.pdf': 'application/pdf', '.txt': 'text/plain', '.csv': 'text/csv',
+                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }
+            mime_type = mime_type_map.get(ext, 'application/octet-stream')
 
-        # 生成文件ID
+        validation_result = validate_file_for_gemini(file_content, mime_type, file.filename)
+
         file_id = f"file-{uuid.uuid4().hex}"
-
-        # 判断是否为小文件（20MB以下使用内联数据）
-        is_small_file = len(file_content) <= 20 * 1024 * 1024
 
         file_info = {
             "id": file_id,
             "object": "file",
-            "bytes": len(file_content),
+            "bytes": validation_result["size"],
             "created_at": int(time.time()),
             "filename": file.filename,
             "purpose": "multimodal",
             "mime_type": mime_type,
-            "is_small_file": is_small_file
+            "use_inline": validation_result["use_inline"]
         }
 
-        if is_small_file:
-            # 小文件：存储base64编码的数据
+        if validation_result["use_inline"]:
             file_info["data"] = base64.b64encode(file_content).decode('utf-8')
+            file_info["format"] = "inlineData"
         else:
-            # 大文件：保存到磁盘并存储文件路径
             file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
             with open(file_path, "wb") as f:
                 f.write(file_content)
             file_info["file_path"] = file_path
             file_info["file_uri"] = f"file://{os.path.abspath(file_path)}"
+            file_info["format"] = "fileData"
 
-        # 存储文件信息
         file_storage[file_id] = file_info
 
-        logger.info(f"File uploaded: {file_id}, size: {len(file_content)} bytes, type: {mime_type}")
+        logger.info(
+            f"File uploaded: {file_id}, size: {validation_result['size']} bytes, "
+            f"type: {mime_type}, format: {file_info['format']}"
+        )
 
         return {
             "id": file_id,
             "object": "file",
-            "bytes": len(file_content),
+            "bytes": validation_result["size"],
             "created_at": file_info["created_at"],
             "filename": file.filename,
-            "purpose": "multimodal"
+            "purpose": "multimodal",
+            "format": file_info["format"]
         }
 
     except HTTPException:
@@ -1757,7 +1632,6 @@ async def upload_file(
 async def list_files(authorization: str = Header(None)):
     """列出已上传的文件"""
     try:
-        # 验证API Key
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization header")
 
@@ -1794,7 +1668,6 @@ async def list_files(authorization: str = Header(None)):
 async def get_file(file_id: str, authorization: str = Header(None)):
     """获取文件信息"""
     try:
-        # 验证API Key
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization header")
 
@@ -1828,7 +1701,6 @@ async def get_file(file_id: str, authorization: str = Header(None)):
 async def delete_file(file_id: str, authorization: str = Header(None)):
     """删除文件"""
     try:
-        # 验证API Key
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization header")
 
@@ -1843,11 +1715,9 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
         file_info = file_storage[file_id]
 
-        # 如果是大文件，删除磁盘文件
         if "file_path" in file_info and os.path.exists(file_info["file_path"]):
             os.remove(file_info["file_path"])
 
-        # 从存储中删除
         del file_storage[file_id]
 
         logger.info(f"File deleted: {file_id}")
@@ -1863,6 +1733,119 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
     except Exception as e:
         logger.error(f"Delete file failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# chat_completions端点
+@app.post("/v1/chat/completions")
+async def chat_completions(
+        request: ChatCompletionRequest,
+        authorization: str = Header(None)
+):
+    try:
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+        api_key = authorization.replace("Bearer ", "")
+        user_key = db.validate_user_key(api_key)
+
+        if not user_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        user_key_info = user_key
+
+        if not request.messages or len(request.messages) == 0:
+            raise HTTPException(status_code=422, detail="Messages cannot be empty")
+
+        # 验证消息格式和多模态内容
+        total_content_size = 0
+        for msg in request.messages:
+            if not hasattr(msg, 'role') or not hasattr(msg, 'content'):
+                raise HTTPException(status_code=422, detail="Invalid message format")
+            if msg.role not in ['system', 'user', 'assistant']:
+                raise HTTPException(status_code=422, detail=f"Invalid role: {msg.role}")
+
+            # 检查多模态内容大小
+            if isinstance(msg.content, list):
+                for item in msg.content:
+                    if isinstance(item, dict) and item.get('type') in ['image', 'audio', 'video', 'document']:
+                        inline_data = item.get('inline_data') or item.get('inlineData')
+                        if inline_data and 'data' in inline_data:
+                            total_content_size += len(inline_data['data']) * 3 // 4
+
+        # 检查总请求大小（Gemini 2.5限制20MB）
+        if total_content_size > MAX_INLINE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Total multimodal content size exceeds {MAX_INLINE_SIZE // (1024 * 1024)}MB limit"
+            )
+
+        actual_model_name = get_actual_model_name(request.model)
+        request.messages = inject_prompt_to_messages(request.messages)
+        gemini_request = openai_to_gemini(request)
+
+        has_multimodal = any(msg.has_multimodal_content() for msg in request.messages)
+        if has_multimodal:
+            logger.info(f"Processing multimodal request for model {actual_model_name}")
+
+        if request.stream:
+            return StreamingResponse(
+                stream_with_failover(
+                    gemini_request,
+                    request,
+                    actual_model_name,
+                    user_key_info=user_key_info,
+                    max_key_attempts=5
+                ),
+                media_type="text/event-stream; charset=utf-8"
+            )
+        else:
+            gemini_response = await make_request_with_failover(
+                gemini_request,
+                request,
+                actual_model_name,
+                user_key_info=user_key_info,
+                max_key_attempts=5
+            )
+
+            total_tokens = 0
+            for candidate in gemini_response.get("candidates", []):
+                content = candidate.get("content", {})
+                parts = content.get("parts", [])
+                for part in parts:
+                    if "text" in part:
+                        total_tokens += len(part["text"].split())
+
+            usage_info = {
+                "prompt_tokens": len(str(request.messages).split()),
+                "completion_tokens": total_tokens,
+                "total_tokens": len(str(request.messages).split()) + total_tokens
+            }
+
+            openai_response = gemini_to_openai(gemini_response, request, usage_info)
+            return JSONResponse(content=openai_response)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/v1/models")
+async def list_models():
+    """列出可用的模型"""
+    models = db.get_supported_models()
+
+    model_list = []
+    for model in models:
+        model_list.append({
+            "id": model,
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "google"
+        })
+
+    return {"object": "list", "data": model_list}
 
 
 # 健康检测相关端点
@@ -1883,17 +1866,14 @@ async def check_all_keys_health():
         results = []
         healthy_count = 0
 
-        # 并发检测所有keys
         tasks = []
         for key_info in active_keys:
             task = check_gemini_key_health(key_info['key'])
             tasks.append((key_info['id'], task))
 
-        # 等待所有检测完成
         for key_id, task in tasks:
             health_result = await task
 
-            # 更新数据库中的健康状态
             db.update_key_performance(
                 key_id,
                 health_result['healthy'],
@@ -2070,11 +2050,9 @@ async def get_model_config(model_name: str):
 async def update_model_config(model_name: str, request: dict):
     """更新指定模型的配置"""
     try:
-        # 验证模型是否存在
         if model_name not in db.get_supported_models():
             raise HTTPException(status_code=404, detail=f"Model {model_name} not supported")
 
-        # 提取允许更新的字段
         allowed_fields = ['single_api_rpm_limit', 'single_api_tpm_limit', 'single_api_rpd_limit', 'status']
         update_data = {}
 
@@ -2085,7 +2063,6 @@ async def update_model_config(model_name: str, request: dict):
         if not update_data:
             raise HTTPException(status_code=422, detail="No valid fields to update")
 
-        # 更新模型配置
         success = db.update_model_config(model_name, **update_data)
 
         if success:
@@ -2127,42 +2104,34 @@ async def add_gemini_key(request: dict):
     if not input_keys:
         return {"success": False, "message": "请提供API密钥"}
 
-    # 检测是否包含分隔符，支持批量添加
-    separators = [',', ';', '\n', '\r\n', '\r', '\t']  # 逗号、分号、换行符、制表符
+    separators = [',', ';', '\n', '\r\n', '\r', '\t']
     has_separator = any(sep in input_keys for sep in separators)
 
-    # 如果包含分隔符或多个空格，进行分割
-    if has_separator or '  ' in input_keys:  # 两个或更多空格也视为分隔符
-        # 首先按换行符分割
+    if has_separator or '  ' in input_keys:
         lines = input_keys.replace('\r\n', '\n').replace('\r', '\n').split('\n')
 
         keys_to_add = []
         for line in lines:
-            # 再按其他分隔符分割每一行
             line_keys = []
             for sep in [',', ';', '\t']:
                 if sep in line:
                     line_keys.extend([k.strip() for k in line.split(sep)])
                     break
             else:
-                # 如果没有找到分隔符，检查是否有多个空格
-                if '  ' in line:  # 多个空格
+                if '  ' in line:
                     line_keys.extend([k.strip() for k in line.split()])
                 else:
                     line_keys.append(line.strip())
 
             keys_to_add.extend(line_keys)
 
-        # 清理空字符串
         keys_to_add = [key for key in keys_to_add if key]
 
         logger.info(f"检测到批量添加模式，将添加 {len(keys_to_add)} 个密钥")
 
     else:
-        # 单个密钥
         keys_to_add = [input_keys]
 
-    # 验证和添加密钥
     results = {
         "success": True,
         "total_processed": len(keys_to_add),
@@ -2176,7 +2145,6 @@ async def add_gemini_key(request: dict):
     for i, key in enumerate(keys_to_add, 1):
         key = key.strip()
 
-        # 验证密钥格式
         if not key:
             continue
 
@@ -2185,12 +2153,11 @@ async def add_gemini_key(request: dict):
             results["failed_adds"] += 1
             continue
 
-        if len(key) < 30 or len(key) > 50:  # Gemini API Key 长度通常在35-40字符
+        if len(key) < 30 or len(key) > 50:
             results["invalid_keys"].append(f"#{i}: {key[:20]}... (密钥长度异常)")
             results["failed_adds"] += 1
             continue
 
-        # 尝试添加到数据库
         try:
             if db.add_gemini_key(key):
                 results["successful_adds"] += 1
@@ -2204,7 +2171,6 @@ async def add_gemini_key(request: dict):
             results["details"].append(f"❌ #{i}: {key[:10]}...{key[-4:]} 添加失败 - {str(e)}")
             logger.error(f"添加Gemini密钥 #{i} 失败: {str(e)}")
 
-    # 生成返回消息
     if results["successful_adds"] > 0:
         message_parts = [f"成功添加 {results['successful_adds']} 个密钥"]
 
@@ -2212,14 +2178,11 @@ async def add_gemini_key(request: dict):
             message_parts.append(f"失败 {results['failed_adds']} 个")
 
         results["message"] = "、".join(message_parts)
-
-        # 如果有部分成功，整体仍视为成功
         results["success"] = True
     else:
         results["success"] = False
         results["message"] = f"所有 {results['total_processed']} 个密钥添加失败"
 
-    # 详细日志
     logger.info(
         f"批量添加结果: 处理{results['total_processed']}个，成功{results['successful_adds']}个，失败{results['failed_adds']}个")
 
@@ -2341,5 +2304,5 @@ def run_api_server(port: int = 8000):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting Gemini API Proxy on port {port}")
+    logger.info(f"Starting Gemini API Proxy with optimized multimodal support on port {port}")
     run_api_server(port)

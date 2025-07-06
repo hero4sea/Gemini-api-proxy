@@ -5,7 +5,6 @@ import requests
 import json
 import os
 import time
-import threading
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -196,28 +195,17 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 修复的CSS样式 - 保持外观但移除交互干扰，添加修复代码 ---
+# --- 玻璃拟态风格CSS ---
 st.markdown("""
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
 <style>
-    /* 全局字体和基础设置 - 手机端优化 */
+    /* 全局字体和基础设置 */
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        width: 100%;
-        max-width: 100vw;
-        overflow-x: hidden;
-        box-sizing: border-box;
     }
 
-    *, *:before, *:after {
-        box-sizing: border-box;
-    }
-
-    /* 页面背景 - 手机端优化 */
+    /* 页面背景 */
     .stApp {
         background: linear-gradient(135deg, 
             #e0e7ff 0%, 
@@ -229,11 +217,7 @@ st.markdown("""
         background-size: 400% 400%;
         animation: gradient-shift 20s ease infinite;
         min-height: 100vh;
-        width: 100%;
-        max-width: 100vw;
         overflow-x: hidden;
-        padding: 0;
-        margin: 0;
     }
 
     @keyframes gradient-shift {
@@ -242,105 +226,23 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* 主内容区域 - 手机端优化 */
+    /* 主内容区域 */
     .block-container {
         background: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-radius: 16px;
+        border-radius: 24px;
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
             0 20px 60px rgba(0, 0, 0, 0.05),
             0 8px 32px rgba(0, 0, 0, 0.03),
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        padding: 1rem;
-        margin: 0.5rem;
-        width: calc(100% - 1rem);
-        max-width: calc(100vw - 1rem);
-        box-sizing: border-box;
-        overflow-x: hidden;
+        padding: 2rem 2.5rem;
+        margin: 1.5rem;
+        max-width: 1440px;
         position: relative;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* 移动端响应式设计 */
-    @media screen and (max-width: 768px) {
-        .block-container {
-            padding: 0.75rem;
-            margin: 0.25rem;
-            width: calc(100% - 0.5rem);
-            max-width: calc(100vw - 0.5rem);
-            border-radius: 12px;
-        }
-
-        /* 移动端标题大小调整 */
-        h1 {
-            font-size: 1.75rem !important;
-            line-height: 1.2 !important;
-            margin-bottom: 1rem !important;
-        }
-
-        h2 {
-            font-size: 1.5rem !important;
-            line-height: 1.3 !important;
-            margin-top: 1.5rem !important;
-            margin-bottom: 0.75rem !important;
-        }
-
-        h3 {
-            font-size: 1.125rem !important;
-            line-height: 1.4 !important;
-            margin-top: 1rem !important;
-            margin-bottom: 0.5rem !important;
-        }
-
-        /* 移动端度量卡片调整 */
-        [data-testid="metric-container"] {
-            padding: 1rem 1.25rem;
-            margin: 0.5rem 0;
-            border-radius: 16px;
-        }
-
-        /* 移动端按钮调整 */
-        .stButton > button {
-            width: 100%;
-            min-height: 44px;
-            font-size: 0.875rem;
-            padding: 0.75rem 1rem;
-        }
-
-        /* 移动端输入框调整 */
-        .stTextInput > div > div > input,
-        .stNumberInput > div > div > input,
-        .stSelectbox > div > div > select,
-        .stTextArea > div > div > textarea {
-            font-size: 16px !important; /* 防止iOS缩放 */
-            min-height: 44px !important;
-        }
-    }
-
-    @media screen and (max-width: 480px) {
-        .block-container {
-            padding: 0.5rem;
-            margin: 0.125rem;
-            width: calc(100% - 0.25rem);
-            max-width: calc(100vw - 0.25rem);
-        }
-
-        h1 {
-            font-size: 1.5rem !important;
-        }
-
-        /* 超小屏幕的列布局调整 */
-        .stColumns {
-            gap: 0.5rem !important;
-        }
-
-        .stColumns > div {
-            padding: 0 0.25rem !important;
-            min-width: 0 !important;
-            flex: 1 1 auto !important;
-        }
+        overflow: visible;
+        min-height: auto;
     }
 
     .block-container::before {
@@ -357,12 +259,12 @@ st.markdown("""
         );
     }
 
-    /* 度量卡片玻璃效果 - 手机端优化 */
+    /* 度量卡片玻璃效果 */
     [data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        padding: 1.25rem 1.5rem;
+        padding: 1.5rem 1.75rem;
         border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.5);
         box-shadow: 
@@ -372,9 +274,6 @@ st.markdown("""
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
-        width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
     }
 
     [data-testid="metric-container"]::before {
@@ -392,7 +291,7 @@ st.markdown("""
     }
 
     [data-testid="metric-container"]:hover {
-        transform: translateY(-2px) scale(1.01);
+        transform: translateY(-4px) scale(1.02);
         box-shadow: 
             0 20px 60px rgba(0, 0, 0, 0.08),
             0 8px 32px rgba(0, 0, 0, 0.05),
@@ -409,11 +308,10 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.08em;
         margin-bottom: 0.5rem;
-        word-wrap: break-word;
     }
 
     [data-testid="metric-container"] > div:nth-child(2) {
-        font-size: 2rem;
+        font-size: 2.25rem;
         font-weight: 700;
         color: #1f2937;
         line-height: 1.1;
@@ -421,7 +319,6 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        word-wrap: break-word;
     }
 
     [data-testid="metric-container"] > div:nth-child(3) {
@@ -429,10 +326,9 @@ st.markdown("""
         font-weight: 500;
         margin-top: 0.75rem;
         color: #6b7280;
-        word-wrap: break-word;
     }
 
-    /* 侧边栏设计 - 保持美观但不强制控制位置 */
+    /* 侧边栏设计 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -449,7 +345,6 @@ st.markdown("""
             0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         position: relative;
         overflow: hidden;
-        /* 移除强制控制：transform, position: fixed 等 */
     }
 
     /* 侧边栏动态背景 */
@@ -477,14 +372,12 @@ st.markdown("""
 
     /* 侧边栏内容区域 */
     section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
-        padding: 1.5rem 1rem;
+        padding: 2rem 1.5rem;
         height: 100%;
         display: flex;
         flex-direction: column;
         position: relative;
         z-index: 2;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     /* Logo区域玻璃效果 */
@@ -492,12 +385,12 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 0.875rem;
-        padding: 1.25rem 1rem;
-        margin-bottom: 1.5rem;
+        padding: 1.5rem 1.25rem;
+        margin-bottom: 2rem;
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-radius: 20px;
+        border-radius: 24px;
         border: 1px solid rgba(255, 255, 255, 0.15);
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.08),
@@ -505,8 +398,6 @@ st.markdown("""
         position: relative;
         overflow: hidden;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .sidebar-logo::before {
@@ -525,7 +416,7 @@ st.markdown("""
     }
 
     .sidebar-logo:hover {
-        transform: translateY(-2px) scale(1.01);
+        transform: translateY(-2px) scale(1.02);
         box-shadow: 
             0 16px 48px rgba(0, 0, 0, 0.12),
             inset 0 1px 0 rgba(255, 255, 255, 0.25);
@@ -537,11 +428,10 @@ st.markdown("""
     }
 
     .sidebar-logo-icon {
-        font-size: 2rem;
+        font-size: 2.5rem;
         line-height: 1;
         filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.8));
         animation: pulse-glow 3s ease-in-out infinite;
-        flex-shrink: 0;
     }
 
     @keyframes pulse-glow {
@@ -550,19 +440,17 @@ st.markdown("""
     }
 
     .sidebar-logo-title {
-        font-size: 1.25rem;
+        font-size: 1.375rem;
         font-weight: 700;
         letter-spacing: -0.025em;
         color: white;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-        word-wrap: break-word;
     }
 
     .sidebar-logo-subtitle {
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
         color: rgba(255, 255, 255, 0.8);
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        word-wrap: break-word;
     }
 
     /* 玻璃分割线 */
@@ -604,7 +492,6 @@ st.markdown("""
         margin-bottom: 0.75rem;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
         position: relative;
-        word-wrap: break-word;
     }
 
     .sidebar-section-title::after {
@@ -620,66 +507,84 @@ st.markdown("""
         );
     }
 
-    /* 导航容器 - 保持Streamlit原生行为 */
+    /* 导航容器 */
     section[data-testid="stSidebar"] .stRadio {
-        background: transparent;
-        padding: 0;
-        margin: 0;
-        border: none;
-        width: 100%;
-        box-sizing: border-box;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
     }
 
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.625rem;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-        width: 100%;
-        box-sizing: border-box;
+        gap: 0.625rem !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
-    /* 导航项玻璃效果 - 保持交互性 */
+    /* 导航项玻璃效果 */
     section[data-testid="stSidebar"] .stRadio > div > label {
-        font-size: 1rem;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.9);
-        padding: 1rem 1.25rem;
-        border-radius: 18px;
-        cursor: pointer;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: 0.5rem 0;
-        position: relative;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        width: 100%;
-        box-sizing: border-box;
-        overflow: hidden;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        padding: 1.125rem 1.5rem !important;
+        border-radius: 18px !important;
+        cursor: pointer !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 1rem !important;
+        margin: 0.5rem 0 !important;
+        position: relative !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
         box-shadow: 
             0 4px 16px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        word-wrap: break-word;
-        min-width: 0;
+            inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
     }
 
-    /* 导航项悬停效果 */
+    /* 导航项内容发光边框 */
+    section[data-testid="stSidebar"] .stRadio > div > label::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 18px;
+        padding: 1px;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.25) 0%, 
+            rgba(255, 255, 255, 0.08) 25%,
+            transparent 50%,
+            rgba(255, 255, 255, 0.08) 75%,
+            rgba(255, 255, 255, 0.25) 100%
+        );
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    /* 悬停效果 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        color: white;
-        transform: translateX(6px) translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.12) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        color: white !important;
+        transform: translateX(6px) translateY(-2px) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
         box-shadow: 
             0 12px 32px rgba(0, 0, 0, 0.1),
             0 4px 16px rgba(99, 102, 241, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    }
+
+    section[data-testid="stSidebar"] .stRadio > div > label:hover::before {
+        opacity: 1;
     }
 
     /* 选中状态玻璃效果 */
@@ -688,18 +593,18 @@ st.markdown("""
             rgba(99, 102, 241, 0.3) 0%, 
             rgba(168, 85, 247, 0.25) 50%,
             rgba(99, 102, 241, 0.3) 100%
-        );
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        color: white;
-        font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        ) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
         box-shadow: 
             0 12px 40px rgba(99, 102, 241, 0.25),
             0 6px 20px rgba(0, 0, 0, 0.1),
             inset 0 1px 0 rgba(255, 255, 255, 0.25),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-        transform: translateX(4px);
+            inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
+        transform: translateX(4px) !important;
     }
 
     /* 选中状态发光边框 */
@@ -736,19 +641,15 @@ st.markdown("""
         }
     }
 
-    /* 隐藏radio按钮但保持功能 */
+    /* 隐藏radio按钮 */
     section[data-testid="stSidebar"] .stRadio input[type="radio"] {
-        opacity: 0;
-        position: absolute;
-        pointer-events: none;
+        display: none !important;
     }
 
     /* 状态指示器玻璃卡片 */
     .sidebar-status {
         margin-top: auto;
         padding-top: 2rem;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .sidebar-status-card {
@@ -757,16 +658,14 @@ st.markdown("""
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 20px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
         box-shadow: 
             0 8px 24px rgba(0, 0, 0, 0.08),
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .sidebar-status-card::before {
@@ -798,7 +697,6 @@ st.markdown("""
         color: rgba(255, 255, 255, 0.75);
         margin-bottom: 0.75rem;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        word-wrap: break-word;
     }
 
     .sidebar-status-content {
@@ -850,9 +748,6 @@ st.markdown("""
         color: white;
         font-weight: 500;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        word-wrap: break-word;
-        flex: 1;
-        min-width: 0;
     }
 
     /* 版本信息玻璃效果 */
@@ -861,8 +756,6 @@ st.markdown("""
         border-top: 1px solid rgba(255, 255, 255, 0.12);
         margin-top: 1.5rem;
         position: relative;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .sidebar-footer::before {
@@ -884,8 +777,6 @@ st.markdown("""
         flex-direction: column;
         gap: 0.5rem;
         padding: 0 0.75rem;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .sidebar-footer-item {
@@ -895,8 +786,6 @@ st.markdown("""
         align-items: center;
         gap: 0.75rem;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        flex-wrap: wrap;
-        word-wrap: break-word;
     }
 
     .sidebar-footer-link {
@@ -907,7 +796,6 @@ st.markdown("""
         border-radius: 8px;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        word-wrap: break-word;
     }
 
     .sidebar-footer-link:hover {
@@ -917,215 +805,7 @@ st.markdown("""
         transform: translateY(-1px);
     }
 
-    /* === 修复侧边栏收起时的白边问题 === */
-
-    /* 当侧边栏收起时，调整主容器 */
-    .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) .block-container,
-    .stApp:has(section[data-testid="stSidebar"]:not([aria-expanded="true"])) .block-container {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-
-    /* 修复侧边栏收起状态下的边距 */
-    .stApp > div:first-child {
-        margin-left: 0 !important;
-        transition: margin-left 0.3s ease;
-    }
-
-    /* 侧边栏收起时的主内容区域 */
-    div[data-testid="stAppViewContainer"] {
-        transition: margin-left 0.3s ease;
-    }
-
-    /* 当侧边栏收起时，移除左边距 */
-    .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) div[data-testid="stAppViewContainer"] {
-        margin-left: 0 !important;
-    }
-
-    /* === 恢复表格的圆角边框 === */
-
-    /* DataFrame 表格样式 */
-    .stDataFrame {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.08),
-            0 2px 8px rgba(0, 0, 0, 0.04) !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        background: rgba(255, 255, 255, 0.4) !important;
-    }
-
-    /* DataFrame 内部表格 */
-    .stDataFrame > div {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        background: transparent !important;
-    }
-
-    /* 表格容器 */
-    .stDataFrame table {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        border-collapse: separate !important;
-        border-spacing: 0 !important;
-        background: rgba(255, 255, 255, 0.6) !important;
-        backdrop-filter: blur(8px) !important;
-        -webkit-backdrop-filter: blur(8px) !important;
-    }
-
-    /* 表格头部 */
-    .stDataFrame thead th {
-        background: rgba(99, 102, 241, 0.15) !important;
-        color: #374151 !important;
-        font-weight: 600 !important;
-        padding: 1rem 1.25rem !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
-        text-align: left !important;
-        font-size: 0.875rem !important;
-        letter-spacing: 0.05em !important;
-    }
-
-    /* 表格头部第一个和最后一个单元格的圆角 */
-    .stDataFrame thead th:first-child {
-        border-top-left-radius: 16px !important;
-    }
-
-    .stDataFrame thead th:last-child {
-        border-top-right-radius: 16px !important;
-        border-right: none !important;
-    }
-
-    /* 表格数据行 */
-    .stDataFrame tbody td {
-        background: rgba(255, 255, 255, 0.3) !important;
-        color: #1f2937 !important;
-        padding: 0.875rem 1.25rem !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
-        font-size: 0.875rem !important;
-        transition: all 0.2s ease !important;
-    }
-
-    /* 表格数据行最后一列 */
-    .stDataFrame tbody td:last-child {
-        border-right: none !important;
-    }
-
-    /* 表格最后一行 */
-    .stDataFrame tbody tr:last-child td {
-        border-bottom: none !important;
-    }
-
-    /* 表格最后一行的圆角 */
-    .stDataFrame tbody tr:last-child td:first-child {
-        border-bottom-left-radius: 16px !important;
-    }
-
-    .stDataFrame tbody tr:last-child td:last-child {
-        border-bottom-right-radius: 16px !important;
-    }
-
-    /* 表格行悬停效果 */
-    .stDataFrame tbody tr:hover td {
-        background: rgba(99, 102, 241, 0.1) !important;
-        transform: scale(1.01) !important;
-    }
-
-    /* 表格索引列样式 */
-    .stDataFrame tbody th {
-        background: rgba(99, 102, 241, 0.08) !important;
-        color: #4f46e5 !important;
-        font-weight: 600 !important;
-        padding: 0.875rem 1rem !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
-        font-size: 0.8125rem !important;
-    }
-
-    /* === 额外的响应式优化 === */
-
-    /* 移动端侧边栏优化 */
-    @media screen and (max-width: 768px) {
-        /* 移动端侧边栏收起时的优化 */
-        .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) .block-container {
-            margin: 0.25rem !important;
-            padding: 0.75rem !important;
-            width: calc(100% - 0.5rem) !important;
-            max-width: calc(100vw - 0.5rem) !important;
-        }
-
-        /* 移动端表格优化 */
-        .stDataFrame {
-            border-radius: 12px !important;
-            font-size: 0.8125rem !important;
-        }
-
-        .stDataFrame thead th,
-        .stDataFrame tbody td,
-        .stDataFrame tbody th {
-            padding: 0.625rem 0.75rem !important;
-            font-size: 0.8125rem !important;
-        }
-
-        .stDataFrame thead th:first-child {
-            border-top-left-radius: 12px !important;
-        }
-
-        .stDataFrame thead th:last-child {
-            border-top-right-radius: 12px !important;
-        }
-
-        .stDataFrame tbody tr:last-child td:first-child {
-            border-bottom-left-radius: 12px !important;
-        }
-
-        .stDataFrame tbody tr:last-child td:last-child {
-            border-bottom-right-radius: 12px !important;
-        }
-    }
-
-    /* === 其他表格组件的圆角修复 === */
-
-    /* Metric 容器的表格样式（如果有的话） */
-    div[data-testid="metric-container"] table {
-        border-radius: 12px !important;
-        overflow: hidden !important;
-    }
-
-    /* Expander 内部的表格 */
-    div[data-testid="stExpander"] .stDataFrame {
-        margin: 1rem 0 !important;
-        box-shadow: 
-            0 4px 16px rgba(0, 0, 0, 0.06),
-            0 1px 4px rgba(0, 0, 0, 0.03) !important;
-    }
-
-    /* === 平滑过渡效果 === */
-
-    /* 为布局变化添加平滑过渡 */
-    .block-container,
-    div[data-testid="stAppViewContainer"],
-    section[data-testid="stSidebar"] {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-
-    /* 表格的平滑效果 */
-    .stDataFrame,
-    .stDataFrame table,
-    .stDataFrame thead th,
-    .stDataFrame tbody td,
-    .stDataFrame tbody th {
-        transition: all 0.2s ease !important;
-    }
-
-    /* 其余样式保持不变 */
+    /* 按钮玻璃效果 */
     .stButton > button {
         border-radius: 14px;
         font-weight: 500;
@@ -1143,16 +823,26 @@ st.markdown("""
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         position: relative;
         overflow: hidden;
+    }
+
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
         width: 100%;
-        min-height: 44px;
-        box-sizing: border-box;
-        white-space: nowrap;
-        text-overflow: ellipsis;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.3) 50%, 
+            transparent
+        );
+        transition: left 0.6s ease;
     }
 
     .stButton > button:hover {
         background: rgba(99, 102, 241, 0.2);
-        transform: translateY(-2px) scale(1.01);
+        transform: translateY(-3px) scale(1.02);
         box-shadow: 
             0 12px 36px rgba(99, 102, 241, 0.25),
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
@@ -1160,55 +850,64 @@ st.markdown("""
         color: #4338ca;
     }
 
-    /* 输入框和其他组件样式保持不变 */
+    .stButton > button:hover::before {
+        left: 100%;
+    }
+
+    .stButton > button:active {
+        transform: translateY(-1px) scale(0.98);
+    }
+
+    /* 输入框玻璃效果 */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
     .stTextArea > div > div > textarea {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-radius: 12px;
-        font-size: 0.9375rem;
-        padding: 0.875rem 1.25rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.6) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(99, 102, 241, 0.2) !important;
+        border-radius: 12px !important;
+        font-size: 0.9375rem !important;
+        padding: 0.875rem 1.25rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: 
             0 8px 24px rgba(0, 0, 0, 0.05),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        color: #1f2937;
-        width: 100%;
-        min-height: 44px;
-        box-sizing: border-box;
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        color: #1f2937 !important;
+    }
+
+    .stTextInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {
+        color: #6b7280 !important;
     }
 
     .stTextInput > div > div > input:focus,
     .stNumberInput > div > div > input:focus,
     .stSelectbox > div > div > select:focus,
     .stTextArea > div > div > textarea:focus {
-        background: rgba(255, 255, 255, 0.8);
-        border-color: rgba(99, 102, 241, 0.5);
+        background: rgba(255, 255, 255, 0.8) !important;
+        border-color: rgba(99, 102, 241, 0.5) !important;
         box-shadow: 
             0 0 0 3px rgba(99, 102, 241, 0.1),
             0 12px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        outline: none;
+            inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+        outline: none !important;
         transform: translateY(-1px);
     }
 
-    /* 状态标签样式 */
+    /* 健康状态标签玻璃效果 */
     .status-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.8125rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 24px;
+        font-size: 0.875rem;
         font-weight: 500;
         line-height: 1;
         white-space: nowrap;
-        min-width: 3rem;
-        max-width: 100%;
+        min-width: 4rem;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.4);
@@ -1216,9 +915,13 @@ st.markdown("""
             0 6px 20px rgba(0, 0, 0, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-sizing: border-box;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    }
+
+    .status-badge:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 
+            0 12px 32px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
     }
 
     .status-healthy {
@@ -1251,11 +954,187 @@ st.markdown("""
         border-color: rgba(107, 114, 128, 0.3);
     }
 
-    /* 其他组件样式保持不变... */
+    /* 密钥卡片玻璃效果 */
+    div[data-testid="stHorizontalBlock"] {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 
+            0 10px 32px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        position: relative;
+        overflow: hidden;
+    }
+
+    div[data-testid="stHorizontalBlock"]::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.8) 50%, 
+            transparent
+        );
+    }
+
+    div[data-testid="stHorizontalBlock"]:hover {
+        transform: translateY(-3px) scale(1.01);
+        box-shadow: 
+            0 16px 48px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        border-color: rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* 密钥代码显示 */
+    .key-code {
+        background: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 0.875rem 1.25rem;
+        border-radius: 12px;
+        font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
+        font-size: 0.9375rem;
+        color: #1f2937;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .key-id {
+        font-weight: 600;
+        color: #374151;
+        min-width: 3rem;
+    }
+
+    .key-meta {
+        font-size: 0.8125rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    /* 标签页玻璃效果 */
+    .stTabs [data-testid="stTabBar"] {
+        gap: 2rem;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        padding: 0;
+        margin-bottom: 2rem;
+        background: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 16px 16px 0 0;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-bottom: none;
+        box-shadow: 
+            0 4px 16px rgba(0, 0, 0, 0.04),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    .stTabs [data-testid="stTabBar"] button {
+        font-weight: 500;
+        color: #6b7280;
+        padding: 1.25rem 1.75rem;
+        border-bottom: 2px solid transparent;
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 12px 12px 0 0;
+        background: transparent;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .stTabs [data-testid="stTabBar"] button:hover {
+        background: rgba(255, 255, 255, 0.4);
+        color: #374151;
+        transform: translateY(-1px);
+    }
+
+    .stTabs [data-testid="stTabBar"] button[aria-selected="true"] {
+        color: #1f2937;
+        border-bottom-color: #6366f1;
+        background: rgba(255, 255, 255, 0.5);
+        box-shadow: 
+            0 -4px 12px rgba(99, 102, 241, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    /* Alert消息玻璃效果 */
+    [data-testid="stAlert"] {
+        border: none !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 
+            0 8px 24px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        padding: 1rem 1.25rem !important;
+        margin: 1rem 0 !important;
+    }
+
+    [data-testid="stAlert"][kind="info"] {
+        background: rgba(59, 130, 246, 0.1) !important;
+        color: #1e40af !important;
+        border-color: rgba(59, 130, 246, 0.3) !important;
+    }
+
+    [data-testid="stAlert"][kind="success"] {
+        background: rgba(16, 185, 129, 0.1) !important;
+        color: #065f46 !important;
+        border-color: rgba(16, 185, 129, 0.3) !important;
+    }
+
+    [data-testid="stAlert"][kind="warning"] {
+        background: rgba(245, 158, 11, 0.1) !important;
+        color: #92400e !important;
+        border-color: rgba(245, 158, 11, 0.3) !important;
+    }
+
+    [data-testid="stAlert"][kind="error"] {
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: #991b1b !important;
+        border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+
+    /* 图表容器玻璃效果 */
+    .js-plotly-plot .plotly {
+        border-radius: 20px;
+        overflow: hidden;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        background: rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 
+            0 12px 40px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    /* 表格玻璃效果 */
+    .stDataFrame {
+        border-radius: 16px;
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.05),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    /* 标题样式 */
     h1, h2, h3 {
         color: #1f2937;
-        word-wrap: break-word;
-        line-height: 1.2;
     }
 
     h1 {
@@ -1263,65 +1142,115 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 2.25rem;
+        font-size: 2.5rem;
         font-weight: 700;
         letter-spacing: -0.025em;
         margin-bottom: 0.5rem;
     }
 
-    .key-code {
-        background: rgba(255, 255, 255, 0.3);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
-        font-size: 0.875rem;
-        color: #1f2937;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        width: 100%;
-        box-sizing: border-box;
-        white-space: nowrap;
-    }
-
-    .key-id {
+    h2 {
+        font-size: 1.875rem;
         font-weight: 600;
-        color: #374151;
-        min-width: 2.5rem;
-        flex-shrink: 0;
+        letter-spacing: -0.02em;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
     }
 
-    .key-meta {
-        font-size: 0.75rem;
+    h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* 页面副标题 */
+    .page-subtitle {
+        font-size: 1rem;
         color: #6b7280;
-        margin-top: 0.5rem;
-        word-wrap: break-word;
-        line-height: 1.4;
+        margin-bottom: 2rem;
+        font-weight: 400;
+    }
+
+    /* 分割线玻璃效果 */
+    hr {
+        margin: 2rem 0 !important;
+        border: none !important;
+        height: 1px !important;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(99, 102, 241, 0.3) 20%, 
+            rgba(99, 102, 241, 0.5) 50%, 
+            rgba(99, 102, 241, 0.3) 80%, 
+            transparent
+        ) !important;
+        position: relative;
+    }
+
+    hr::after {
+        content: '';
+        position: absolute;
+        top: 1px;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.3) 50%, 
+            transparent
+        );
+    }
+
+    .main .block-container {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .stApp > div {
+        overflow: visible !important;
+    }
+
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .stApp {
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 
     /* 自定义滚动条 */
     ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
     }
 
     ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 3px;
+        border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb {
         background: rgba(99, 102, 241, 0.3);
-        border-radius: 3px;
+        border-radius: 4px;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
     }
 
     ::-webkit-scrollbar-thumb:hover {
         background: rgba(99, 102, 241, 0.5);
+    }
+
+    /* 选择文本样式 */
+    ::selection {
+        background: rgba(99, 102, 241, 0.2);
+        color: #1f2937;
+    }
+
+    ::-moz-selection {
+        background: rgba(99, 102, 241, 0.2);
+        color: #1f2937;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1345,7 +1274,7 @@ def get_service_status():
     return {'online': False, 'active_keys': 0, 'healthy_keys': 0}
 
 
-# --- 修复的侧边栏 - 保持原生Streamlit行为 ---
+# --- 玻璃拟态侧边栏 ---
 with st.sidebar:
     # Logo区域
     st.markdown('''
@@ -1363,31 +1292,24 @@ with st.sidebar:
     # 导航标题
     st.markdown('<div class="sidebar-section-title">主菜单</div>', unsafe_allow_html=True)
 
-    # 修复的导航 - 使用简单的radio但保持美观
-    nav_options = [
-        "🏠 控制台",
-        "⚙️ 模型配置",
-        "🔑 密钥管理",
-        "🔧 系统设置"
-    ]
-
-    # 使用标准的radio组件，让Streamlit原生处理交互
-    page_display = st.radio(
-        "选择页面",
-        nav_options,
-        index=0,
-        key="main_navigation",
-        label_visibility="collapsed"
-    )
-
-    # 转换显示值为实际页面值
-    page_mapping = {
+    # 创建带图标的导航选项
+    nav_options = {
         "🏠 控制台": "控制台",
         "⚙️ 模型配置": "模型配置",
         "🔑 密钥管理": "密钥管理",
         "🔧 系统设置": "系统设置"
     }
-    page = page_mapping[page_display]
+
+    # 使用自定义HTML为导航项添加图标
+    page_display = st.radio(
+        "导航",
+        list(nav_options.keys()),
+        label_visibility="collapsed",
+        key="nav_radio"
+    )
+
+    # 转换显示值为实际页面值
+    page = nav_options[page_display]
 
     # 添加状态指示器
     st.markdown('<div class="sidebar-status">', unsafe_allow_html=True)
@@ -1541,8 +1463,8 @@ if page == "控制台":
         if model_data:
             df = pd.DataFrame(model_data)
 
-            # 创建图表 - 手机端优化
-            col1, col2 = st.columns(2, gap="large")
+            # 创建图表
+            col1, col2 = st.columns(2)
 
             with col1:
                 fig_rpm = go.Figure()
@@ -1557,20 +1479,20 @@ if page == "控制台":
                     customdata=df[['RPM Used', 'RPM Limit']].values
                 ))
                 fig_rpm.update_layout(
-                    title="每分钟请求数",
-                    title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
+                    title="每分钟请求数 (RPM)",
+                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=280,
+                    height=340,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=11),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
                     yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=40, r=40, t=50, b=40)
+                    margin=dict(l=0, r=0, t=50, b=0)
                 )
                 st.plotly_chart(fig_rpm, use_container_width=True)
 
@@ -1587,20 +1509,20 @@ if page == "控制台":
                     customdata=df[['RPD Used', 'RPD Limit']].values
                 ))
                 fig_rpd.update_layout(
-                    title="每日请求数",
-                    title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
+                    title="每日请求数 (RPD)",
+                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=280,
+                    height=340,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=11),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
                     yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=40, r=40, t=50, b=40)
+                    margin=dict(l=0, r=0, t=50, b=0)
                 )
                 st.plotly_chart(fig_rpd, use_container_width=True)
 
@@ -2014,6 +1936,7 @@ elif page == "系统设置":
         st.error("无法获取配置数据")
         st.stop()
 
+    # 只保留核心功能标签，移除保活管理
     tab1, tab2, tab3, tab4 = st.tabs(["思考模式", "提示词注入", "负载均衡", "系统信息"])
 
     with tab1:
@@ -2172,44 +2095,25 @@ elif page == "系统设置":
             st.text(f"CPU: {status_data.get('cpu_percent', 0):.1f}%")
             st.text(f"运行: {status_data.get('uptime_seconds', 0) // 3600} 小时")
 
-# --- 简化的JavaScript - 只保留必要功能 ---
-st.markdown("""
-<script>
-// 简化版JavaScript - 移除侧边栏控制，只保留必要功能
-(function() {
-    // 防止双击缩放
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (event) {
-        const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-            event.preventDefault();
-        }
-        lastTouchEnd = now;
-    }, false);
+        # 添加简化的服务状态信息
+        st.markdown("##### 服务状态")
+        st.text(f"环境: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
+        st.text(f"后端地址: {API_BASE_URL}")
 
-    // 防止页面缩放
-    document.addEventListener('gesturestart', function (e) {
-        e.preventDefault();
-    });
-
-    document.addEventListener('gesturechange', function (e) {
-        e.preventDefault();
-    });
-
-    document.addEventListener('gestureend', function (e) {
-        e.preventDefault();
-    });
-})();
-</script>
-""", unsafe_allow_html=True)
+        # 多模态支持信息
+        st.markdown("##### 多模态支持")
+        st.text("✅ Gemini 2.5 图片、音频、视频分析")
+        st.text("✅ 文档处理 (PDF, Word, Excel)")
+        st.text("✅ 智能文件大小处理")
+        st.text("✅ 内联数据 + 文件引用双模式")
 
 # --- 页脚 ---
 st.markdown(
     f"""
-    <div style='text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.05); border-radius: 16px 16px 0 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); word-wrap: break-word;'>
+    <div style='text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.05); border-radius: 16px 16px 0 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: rgba(255, 255, 255, 0.8); text-decoration: none; transition: all 0.3s ease; padding: 0.25rem 0.5rem; border-radius: 6px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);' onmouseover='this.style.color="white"; this.style.background="rgba(255, 255, 255, 0.1)"; this.style.textShadow="0 0 8px rgba(255, 255, 255, 0.5)";' onmouseout='this.style.color="rgba(255, 255, 255, 0.8)"; this.style.background="transparent"; this.style.textShadow="none";'>健康检查</a> · 
         <span style='color: rgba(255, 255, 255, 0.6);'>{API_BASE_URL}</span> ·
-        <span style='color: rgba(255, 255, 255, 0.6);'>v1.2</span>
+        <span style='color: rgba(255, 255, 255, 0.6);'>v1.1</span>
     </div>
     """,
     unsafe_allow_html=True
