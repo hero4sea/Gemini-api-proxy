@@ -5,13 +5,15 @@ import uuid
 import logging
 import os
 import sys
+import base64
+import mimetypes
 from datetime import datetime
 from typing import Dict, List, Optional, AsyncGenerator, Union, Any
 from contextlib import asynccontextmanager
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request, Header, File, UploadFile, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,10 +51,25 @@ class ThinkingConfig(BaseModel):
         return v
 
 
+# 文件数据模型
+class FileData(BaseModel):
+    file_id: str
+    mime_type: str
+    data: Optional[str] = None  # base64编码的文件数据（小文件）
+    file_uri: Optional[str] = None  # 文件URI（大文件）
+    size: Optional[int] = None
+    filename: Optional[str] = None
+
+# 多模态内容部分
+class ContentPart(BaseModel):
+    type: str  # "text", "image", "audio", "video", "document"
+    text: Optional[str] = None
+    file_data: Optional[FileData] = None
+
 # 请求/响应模型
 class ChatMessage(BaseModel):
     role: str
-    content: Union[str, List[Dict[str, Any]]]  # 支持字符串和数组格式
+    content: Union[str, List[Union[str, Dict[str, Any], ContentPart]]]  # 支持多模态内容
 
     class Config:
         # 允许额外字段，提高兼容性
@@ -64,24 +81,36 @@ class ChatMessage(BaseModel):
         if isinstance(v, str):
             return v
         elif isinstance(v, list):
-            # 将数组格式转换为字符串
-            text_parts = []
-            for item in v:
-                if isinstance(item, dict):
-                    if item.get('type') == 'text' and 'text' in item:
-                        text_parts.append(item['text'])
-                    elif 'text' in item:  # 兼容其他可能的格式
-                        text_parts.append(item['text'])
-                elif isinstance(item, str):
-                    text_parts.append(item)
-            return ' '.join(text_parts) if text_parts else ""
+            # 保持原始格式以支持多模态
+            return v
         else:
             raise ValueError("content must be string or array of content objects")
 
     def get_text_content(self) -> str:
         """获取纯文本内容"""
-        # 由于validator已经将content标准化为字符串，这里直接返回
-        return self.content if isinstance(self.content, str) else str(self.content)
+        if isinstance(self.content, str):
+            return self.content
+        elif isinstance(self.content, list):
+            text_parts = []
+            for item in self.content:
+                if isinstance(item, str):
+                    text_parts.append(item)
+                elif isinstance(item, dict):
+                    if item.get('type') == 'text' and 'text' in item:
+                        text_parts.append(item['text'])
+                    elif 'text' in item:
+                        text_parts.append(item['text'])
+            return ' '.join(text_parts) if text_parts else ""
+        else:
+            return str(self.content)
+    
+    def has_multimodal_content(self) -> bool:
+        """检查是否包含多模态内容"""
+        if isinstance(self.content, list):
+            for item in self.content:
+                if isinstance(item, dict) and item.get('type') in ['image', 'audio', 'video', 'document']:
+                    return True
+        return False
 
 
 class ChatCompletionRequest(BaseModel):
@@ -243,6 +272,28 @@ async def check_gemini_key_health(api_key: str, timeout: int = 10) -> Dict[str, 
 db = Database()
 rate_limiter = RateLimitCache()
 scheduler = None
+
+# 文件存储配置
+UPLOAD_DIR = "uploads"
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+SUPPORTED_MIME_TYPES = {
+    # 图片
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+    # 音频
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac',
+    # 视频
+    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm',
+    # 文档
+    'application/pdf', 'text/plain', 'text/csv',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+}
+
+# 确保上传目录存在
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 文件存储字典（内存存储，生产环境建议使用数据库）
+file_storage: Dict[str, Dict] = {}
 
 
 @asynccontextmanager
@@ -468,28 +519,52 @@ def get_thinking_config(request: ChatCompletionRequest) -> Dict:
 
 
 def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
-    """将OpenAI格式转换为Gemini格式"""
+    """将OpenAI格式转换为Gemini格式，支持多模态内容"""
     contents = []
 
     for msg in request.messages:
-        # 确保获取文本内容
-        text_content = msg.get_text_content()
-
-        if msg.role == "system":
-            # Gemini没有system角色，将其转换为user消息
+        parts = []
+        
+        if isinstance(msg.content, str):
+            # 纯文本消息
+            if msg.role == "system":
+                parts.append({"text": f"[System]: {msg.content}"})
+            else:
+                parts.append({"text": msg.content})
+        elif isinstance(msg.content, list):
+            # 多模态消息
+            for item in msg.content:
+                if isinstance(item, str):
+                    parts.append({"text": item})
+                elif isinstance(item, dict):
+                    if item.get('type') == 'text':
+                        parts.append({"text": item.get('text', '')})
+                    elif item.get('type') in ['image', 'audio', 'video', 'document']:
+                        # 处理文件内容
+                        file_data = item.get('file_data')
+                        if file_data:
+                            if file_data.get('data'):  # 小文件，使用内联数据
+                                parts.append({
+                                    "inlineData": {
+                                        "mimeType": file_data['mime_type'],
+                                        "data": file_data['data']
+                                    }
+                                })
+                            elif file_data.get('file_uri'):  # 大文件，使用文件URI
+                                parts.append({
+                                    "fileData": {
+                                        "mimeType": file_data['mime_type'],
+                                        "fileUri": file_data['file_uri']
+                                    }
+                                })
+        
+        # 确定角色
+        role = "user" if msg.role in ["system", "user"] else "model"
+        
+        if parts:  # 只有当有内容时才添加
             contents.append({
-                "role": "user",
-                "parts": [{"text": f"[System]: {text_content}"}]
-            })
-        elif msg.role == "user":
-            contents.append({
-                "role": "user",
-                "parts": [{"text": text_content}]
-            })
-        elif msg.role == "assistant":
-            contents.append({
-                "role": "model",
-                "parts": [{"text": text_content}]
+                "role": role,
+                "parts": parts
             })
 
     # 构建基本请求
@@ -1536,6 +1611,201 @@ async def list_models():
         })
 
     return {"object": "list", "data": model_list}
+
+
+# 文件上传相关端点
+@app.post("/v1/files")
+async def upload_file(
+    file: UploadFile = File(...),
+    authorization: str = Header(None)
+):
+    """上传文件用于多模态对话"""
+    try:
+        # 验证API Key
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+        api_key = authorization.replace("Bearer ", "")
+        user_key = db.validate_user_key(api_key)
+
+        if not user_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        # 检查文件大小
+        file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413, 
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+
+        # 检查MIME类型
+        mime_type = file.content_type or mimetypes.guess_type(file.filename)[0]
+        if mime_type not in SUPPORTED_MIME_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {mime_type}. Supported types: {', '.join(SUPPORTED_MIME_TYPES)}"
+            )
+
+        # 生成文件ID
+        file_id = f"file-{uuid.uuid4().hex}"
+        
+        # 判断是否为小文件（20MB以下使用内联数据）
+        is_small_file = len(file_content) <= 20 * 1024 * 1024
+        
+        file_info = {
+            "id": file_id,
+            "object": "file",
+            "bytes": len(file_content),
+            "created_at": int(time.time()),
+            "filename": file.filename,
+            "purpose": "multimodal",
+            "mime_type": mime_type,
+            "is_small_file": is_small_file
+        }
+        
+        if is_small_file:
+            # 小文件：存储base64编码的数据
+            file_info["data"] = base64.b64encode(file_content).decode('utf-8')
+        else:
+            # 大文件：保存到磁盘并存储文件路径
+            file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+            file_info["file_path"] = file_path
+            file_info["file_uri"] = f"file://{os.path.abspath(file_path)}"
+        
+        # 存储文件信息
+        file_storage[file_id] = file_info
+        
+        logger.info(f"File uploaded: {file_id}, size: {len(file_content)} bytes, type: {mime_type}")
+        
+        return {
+            "id": file_id,
+            "object": "file",
+            "bytes": len(file_content),
+            "created_at": file_info["created_at"],
+            "filename": file.filename,
+            "purpose": "multimodal"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"File upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/v1/files")
+async def list_files(authorization: str = Header(None)):
+    """列出已上传的文件"""
+    try:
+        # 验证API Key
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+        api_key = authorization.replace("Bearer ", "")
+        user_key = db.validate_user_key(api_key)
+
+        if not user_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        files = []
+        for file_id, file_info in file_storage.items():
+            files.append({
+                "id": file_id,
+                "object": "file",
+                "bytes": file_info["bytes"],
+                "created_at": file_info["created_at"],
+                "filename": file_info["filename"],
+                "purpose": file_info["purpose"]
+            })
+        
+        return {
+            "object": "list",
+            "data": files
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"List files failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/v1/files/{file_id}")
+async def get_file(file_id: str, authorization: str = Header(None)):
+    """获取文件信息"""
+    try:
+        # 验证API Key
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+        api_key = authorization.replace("Bearer ", "")
+        user_key = db.validate_user_key(api_key)
+
+        if not user_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        if file_id not in file_storage:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_info = file_storage[file_id]
+        return {
+            "id": file_id,
+            "object": "file",
+            "bytes": file_info["bytes"],
+            "created_at": file_info["created_at"],
+            "filename": file_info["filename"],
+            "purpose": file_info["purpose"]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get file failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/v1/files/{file_id}")
+async def delete_file(file_id: str, authorization: str = Header(None)):
+    """删除文件"""
+    try:
+        # 验证API Key
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+
+        api_key = authorization.replace("Bearer ", "")
+        user_key = db.validate_user_key(api_key)
+
+        if not user_key:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+        if file_id not in file_storage:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_info = file_storage[file_id]
+        
+        # 如果是大文件，删除磁盘文件
+        if "file_path" in file_info and os.path.exists(file_info["file_path"]):
+            os.remove(file_info["file_path"])
+        
+        # 从存储中删除
+        del file_storage[file_id]
+        
+        logger.info(f"File deleted: {file_id}")
+        
+        return {
+            "id": file_id,
+            "object": "file",
+            "deleted": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete file failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 健康检测相关端点

@@ -9,7 +9,7 @@ import threading
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
-import schedule
+
 
 # --- 页面配置 ---
 st.set_page_config(
@@ -33,145 +33,7 @@ if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
 
 
-# --- 保活机制 ---
-class KeepAliveManager:
-    def __init__(self):
-        self.scheduler_thread = None
-        self.is_running = False
-        self.render_url = os.getenv('RENDER_EXTERNAL_URL')
-        self.backend_url = API_BASE_URL
 
-    def keep_alive_backend(self):
-        """保活后端API服务"""
-        try:
-            response = requests.get(f"{self.backend_url}/wake", timeout=10)
-            if response.status_code == 200:
-                logger.info("Backend keep-alive ping sent successfully")
-                return True
-        except Exception as e:
-            logger.warning(f"Backend keep-alive ping failed: {e}")
-            return False
-
-    def keep_alive_frontend(self):
-        """保活前端服务（如果在Render环境）"""
-        if not self.render_url:
-            return True
-
-        try:
-            # 向自己发送请求保活
-            response = requests.get(f"{self.render_url}/", timeout=10)
-            if response.status_code == 200:
-                logger.info("Frontend keep-alive ping sent successfully")
-                return True
-        except Exception as e:
-            logger.warning(f"Frontend keep-alive ping failed: {e}")
-            return False
-
-    def combined_keep_alive_task(self):
-        """组合保活任务"""
-        logger.info("Executing keep-alive tasks...")
-
-        # 保活后端
-        backend_success = self.keep_alive_backend()
-
-        # 保活前端（仅在Render环境）
-        frontend_success = True
-        if self.render_url:
-            frontend_success = self.keep_alive_frontend()
-
-        # 记录结果
-        if backend_success and frontend_success:
-            logger.info("Keep-alive tasks completed successfully")
-        else:
-            logger.warning(f"Keep-alive partial failure - Backend: {backend_success}, Frontend: {frontend_success}")
-
-    def run_scheduler_loop(self):
-        """调度器循环（运行在后台线程）"""
-        while self.is_running:
-            try:
-                schedule.run_pending()
-                time.sleep(60)  # 每分钟检查一次
-            except Exception as e:
-                logger.error(f"Scheduler loop error: {e}")
-                time.sleep(60)
-
-    def start_keep_alive_scheduler(self):
-        """启动保活调度器"""
-        # 检测是否为Render环境或需要保活的环境
-        need_keepalive = (
-                self.render_url or  # Render环境
-                'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', '') or  # Streamlit Cloud
-                os.getenv('ENABLE_KEEPALIVE', '').lower() == 'true'  # 手动启用
-        )
-
-        if not need_keepalive:
-            logger.info("Keep-alive not needed in current environment")
-            return False
-
-        if self.is_running:
-            logger.warning("Keep-alive scheduler already running")
-            return False
-
-        try:
-            # 设置每14分钟执行一次（在15分钟睡眠前保持唤醒）
-            schedule.every(14).minutes.do(self.combined_keep_alive_task)
-
-            # 立即执行一次
-            self.combined_keep_alive_task()
-
-            # 启动后台线程
-            self.is_running = True
-            self.scheduler_thread = threading.Thread(
-                target=self.run_scheduler_loop,
-                daemon=True,
-                name="KeepAliveScheduler"
-            )
-            self.scheduler_thread.start()
-
-            logger.info("Keep-alive scheduler started (14min interval)")
-
-            # 记录环境信息
-            if self.render_url:
-                logger.info(f"Render URL detected: {self.render_url}")
-            logger.info(f"Backend URL: {self.backend_url}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to start keep-alive scheduler: {e}")
-            self.is_running = False
-            return False
-
-    def stop_scheduler(self):
-        """停止调度器"""
-        if self.is_running:
-            self.is_running = False
-            schedule.clear()  # 清除所有定时任务
-            logger.info("Keep-alive scheduler stopped")
-
-    def get_status(self):
-        """获取保活状态"""
-        return {
-            'running': self.is_running,
-            'render_url': self.render_url,
-            'backend_url': self.backend_url,
-            'thread_alive': self.scheduler_thread.is_alive() if self.scheduler_thread else False,
-            'scheduled_jobs': len(schedule.jobs)
-        }
-
-
-# 全局保活管理器
-if 'keep_alive_manager' not in st.session_state:
-    st.session_state.keep_alive_manager = KeepAliveManager()
-
-# 启动保活机制（只启动一次）
-if 'keep_alive_started' not in st.session_state:
-    st.session_state.keep_alive_started = True
-    success = st.session_state.keep_alive_manager.start_keep_alive_scheduler()
-    if success:
-        logger.info("Keep-alive system initialized")
-    else:
-        logger.info("Keep-alive system not started (not needed or failed)")
 
 
 # --- API调用函数 ---
@@ -338,7 +200,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 玻璃拟态风格CSS （修复图表重叠和添加侧边栏滑动功能）---
+# --- 玻璃拟态风格CSS ---
 st.markdown("""
 <style>
     /* 全局字体和基础设置 */
@@ -471,7 +333,7 @@ st.markdown("""
         color: #6b7280;
     }
 
-    /* 侧边栏设计（添加滑动功能） */
+    /* 侧边栏设计 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -497,7 +359,7 @@ st.markdown("""
         transform: translateX(-100%);
     }
 
-    /* 主内容区域调整（当侧边栏收起时） */
+    /* 主内容区域调整 */
     .main .block-container {
         transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -506,7 +368,42 @@ st.markdown("""
         margin-left: 0 !important;
     }
 
+    /* 侧边栏滑动指示器 */
+    section[data-testid="stSidebar"]::after {
+        content: '⟨';
+        position: absolute;
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        width: 30px;
+        height: 60px;
+        border-radius: 0 15px 15px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6366f1;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    }
 
+    section[data-testid="stSidebar"]:hover::after {
+        background: rgba(99, 102, 241, 0.1);
+        color: #4f46e5;
+    }
+
+    section[data-testid="stSidebar"].collapsed::after {
+        content: '⟩';
+        left: -15px;
+        right: auto;
+        border-radius: 15px 0 0 15px;
+    }
 
     /* 侧边栏动态背景 */
     section[data-testid="stSidebar"]::before {
@@ -1267,7 +1164,7 @@ st.markdown("""
         border-color: rgba(239, 68, 68, 0.3) !important;
     }
 
-    /* 图表容器玻璃效果（彻底修复重叠问题） */
+    /* 图表容器玻璃效果（修复重叠问题） */
     .js-plotly-plot .plotly {
         border-radius: 20px;
         overflow: hidden;
@@ -1279,38 +1176,15 @@ st.markdown("""
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         margin: 0.5rem;
-        max-width: 100%;
-        box-sizing: border-box;
     }
 
-    /* 修复图表容器宽度限制 */
-    .js-plotly-plot {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important;
-    }
-
-    /* 列容器间距调整（彻底解决图表重叠） */
+    /* 列容器间距调整（解决图表重叠） */
     .stColumns {
-        gap: 2rem !important;
-        display: flex !important;
-        flex-wrap: nowrap !important;
+        gap: 1rem !important;
     }
 
     .stColumns > div {
-        padding: 0 1rem !important;
-        flex: 1 1 0% !important;
-        min-width: 0 !important;
-        max-width: 50% !important;
-        box-sizing: border-box !important;
-    }
-
-    /* 确保图表内容不溢出 */
-    .stColumns > div > div {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
+        padding: 0 0.5rem !important;
     }
 
     /* 表格玻璃效果 */
@@ -1449,15 +1323,13 @@ st.markdown("""
 </style>
 
 <script>
-// 侧边栏滑动功能（修复版本）
+// 侧边栏滑动功能
 (function() {
     let startX = 0;
-    let startY = 0;
     let currentX = 0;
     let sidebar = null;
     let isCollapsed = false;
     let startTime = 0;
-    let isSwipeDetected = false;
 
     // 等待DOM加载完成
     function initializeSidebar() {
@@ -1472,6 +1344,20 @@ st.markdown("""
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
+        // 添加鼠标事件监听（用于桌面端测试）
+        sidebar.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // 点击收起/展开按钮
+        sidebar.addEventListener('click', function(e) {
+            const rect = sidebar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            if (clickX > rect.width - 20) { // 点击右边缘20px区域
+                toggleSidebar();
+            }
+        });
+
         console.log('Sidebar swipe functionality initialized');
     }
 
@@ -1479,17 +1365,16 @@ st.markdown("""
         if (!sidebar) return;
 
         startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
         startTime = Date.now();
-        isSwipeDetected = false;
 
-        // 检查是否在有效的滑动区域
+        // 如果侧边栏已收起且触摸在左边缘，允许展开
+        if (isCollapsed && startX < 20) {
+            return;
+        }
+
+        // 如果侧边栏展开且触摸在侧边栏内，允许收起
         const sidebarRect = sidebar.getBoundingClientRect();
-        const touchInSidebar = startX >= sidebarRect.left && startX <= sidebarRect.right;
-        const touchAtEdge = isCollapsed && startX < 30; // 收起时在左边缘30px内
-
-        if (!touchInSidebar && !touchAtEdge) {
-            startX = 0; // 重置，表示不处理这次触摸
+        if (!isCollapsed && startX >= sidebarRect.left && startX <= sidebarRect.right) {
             return;
         }
     }
@@ -1498,16 +1383,11 @@ st.markdown("""
         if (!sidebar || startX === 0) return;
 
         currentX = e.touches[0].clientX;
-        const currentY = e.touches[0].clientY;
         const deltaX = currentX - startX;
-        const deltaY = currentY - startY;
 
-        // 检测是否为水平滑动（而不是垂直滚动）
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-            isSwipeDetected = true;
-            // 阻止默认行为，防止页面滚动
+        // 防止页面滚动
+        if (Math.abs(deltaX) > 10) {
             e.preventDefault();
-            e.stopPropagation();
         }
     }
 
@@ -1519,26 +1399,67 @@ st.markdown("""
         const deltaTime = Date.now() - startTime;
         const velocity = Math.abs(deltaX) / deltaTime;
 
-        // 只有在检测到水平滑动时才处理
-        if (isSwipeDetected) {
-            // 快速滑动或滑动距离足够大时触发
-            if (velocity > 0.3 || Math.abs(deltaX) > 80) {
-                if (deltaX < -50 && !isCollapsed) {
-                    // 向左滑动收起
-                    toggleSidebar();
-                } else if (deltaX > 50 && isCollapsed) {
-                    // 向右滑动展开
-                    toggleSidebar();
-                }
+        // 快速滑动或滑动距离足够大时触发
+        if (velocity > 0.5 || Math.abs(deltaX) > 100) {
+            if (deltaX < -50 && !isCollapsed) {
+                // 向左滑动收起
+                toggleSidebar();
+            } else if (deltaX > 50 && isCollapsed) {
+                // 向右滑动展开
+                toggleSidebar();
             }
         }
 
-        // 重置状态
         startX = 0;
-        startY = 0;
         currentX = 0;
         startTime = 0;
-        isSwipeDetected = false;
+    }
+
+    // 鼠标事件处理（桌面端）
+    let isDragging = false;
+
+    function handleMouseDown(e) {
+        if (!sidebar) return;
+
+        const rect = sidebar.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+
+        // 只在右边缘附近才允许拖拽
+        if (clickX > rect.width - 30) {
+            isDragging = true;
+            startX = e.clientX;
+            startTime = Date.now();
+            e.preventDefault();
+        }
+    }
+
+    function handleMouseMove(e) {
+        if (!isDragging || !sidebar) return;
+
+        currentX = e.clientX;
+        e.preventDefault();
+    }
+
+    function handleMouseUp(e) {
+        if (!isDragging || !sidebar) return;
+
+        const endX = e.clientX;
+        const deltaX = endX - startX;
+        const deltaTime = Date.now() - startTime;
+        const velocity = Math.abs(deltaX) / deltaTime;
+
+        if (velocity > 0.3 || Math.abs(deltaX) > 80) {
+            if (deltaX < -40 && !isCollapsed) {
+                toggleSidebar();
+            } else if (deltaX > 40 && isCollapsed) {
+                toggleSidebar();
+            }
+        }
+
+        isDragging = false;
+        startX = 0;
+        currentX = 0;
+        startTime = 0;
     }
 
     function toggleSidebar() {
@@ -2252,7 +2173,7 @@ elif page == "系统设置":
         st.error("无法获取配置数据")
         st.stop()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["思考模式", "提示词注入", "负载均衡", "保活管理", "系统信息"])
+    tab1, tab2, tab3, tab4 = st.tabs(["思考模式", "提示词注入", "负载均衡", "系统信息"])
 
     with tab1:
         st.markdown("#### 思考模式配置")
@@ -2394,42 +2315,6 @@ elif page == "系统设置":
                 st.success(f"策略已更新为: {strategy_options[strategy]}")
 
     with tab4:
-        st.markdown("#### 保活管理")
-        st.markdown("防止服务休眠")
-
-        keep_alive_status = st.session_state.keep_alive_manager.get_status()
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("状态", "运行中" if keep_alive_status['running'] else "已停止")
-        with col2:
-            st.metric("线程", "活跃" if keep_alive_status['thread_alive'] else "停止")
-        with col3:
-            st.metric("任务数", keep_alive_status['scheduled_jobs'])
-
-        with st.expander("详细信息"):
-            if keep_alive_status['render_url']:
-                st.text(f"Render URL: {keep_alive_status['render_url']}")
-            st.text(f"后端地址: {keep_alive_status['backend_url']}")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if not keep_alive_status['running']:
-                if st.button("启动保活", type="primary", use_container_width=True):
-                    if st.session_state.keep_alive_manager.start_keep_alive_scheduler():
-                        st.success("保活服务已启动")
-                        time.sleep(1)
-                        st.rerun()
-        with col2:
-            if keep_alive_status['running']:
-                if st.button("停止保活", use_container_width=True):
-                    st.session_state.keep_alive_manager.stop_scheduler()
-                    st.success("保活服务已停止")
-                    time.sleep(1)
-                    st.rerun()
-
-    with tab5:
         st.markdown("#### 系统信息")
 
         col1, col2 = st.columns(2)
