@@ -10,7 +10,6 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-
 # --- 页面配置 ---
 st.set_page_config(
     page_title="Gemini API Proxy",
@@ -31,9 +30,6 @@ API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
 if 'streamlit.io' in os.getenv('STREAMLIT_SERVER_HEADLESS', ''):
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-app.onrender.com')
-
-
-
 
 
 # --- API调用函数 ---
@@ -200,18 +196,27 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 玻璃拟态风格CSS ---
+# --- 移动端优化的玻璃拟态风格CSS ---
 st.markdown("""
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
 <style>
-    /* 全局字体和基础设置 */
-    html, body, [class*="css"] {
+    /* 全局设置 - 防止水平滚动 */
+    html, body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Microsoft YaHei UI", sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
     }
 
-    /* 页面背景 */
+    /* Streamlit 根容器优化 */
     .stApp {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
         background: linear-gradient(135deg, 
             #e0e7ff 0%, 
             #f3e8ff 25%, 
@@ -222,7 +227,6 @@ st.markdown("""
         background-size: 400% 400%;
         animation: gradient-shift 20s ease infinite;
         min-height: 100vh;
-        overflow-x: hidden;
     }
 
     @keyframes gradient-shift {
@@ -231,46 +235,81 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* 主内容区域 */
+    /* 主内容区域 - 移动端优化 */
     .block-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 1rem !important;
+        margin: 0 !important;
         background: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-radius: 24px;
+        border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 
             0 20px 60px rgba(0, 0, 0, 0.05),
             0 8px 32px rgba(0, 0, 0, 0.03),
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        padding: 2rem 2.5rem;
-        margin: 1.5rem;
-        max-width: 1440px;
         position: relative;
-        overflow: visible;
-        min-height: auto;
+        overflow-x: hidden !important;
+        box-sizing: border-box;
     }
 
-    .block-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.6) 50%, 
-            transparent
-        );
+    /* 移动端媒体查询 */
+    @media (max-width: 768px) {
+        .block-container {
+            padding: 0.75rem !important;
+            margin: 0.5rem 0 !important;
+            border-radius: 12px;
+        }
+
+        /* 调整列间距 */
+        .stColumns {
+            gap: 0.5rem !important;
+        }
+
+        .stColumns > div {
+            padding: 0 0.25rem !important;
+            min-width: 0 !important;
+            flex-shrink: 1 !important;
+        }
     }
 
-    /* 度量卡片玻璃效果 */
+    @media (max-width: 480px) {
+        .block-container {
+            padding: 0.5rem !important;
+            margin: 0.25rem 0 !important;
+            border-radius: 8px;
+        }
+
+        .stColumns {
+            gap: 0.25rem !important;
+        }
+
+        .stColumns > div {
+            padding: 0 0.125rem !important;
+        }
+    }
+
+    /* 确保所有容器不超出屏幕 */
+    div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"],
+    .stTabs,
+    .stForm,
+    .stExpander {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 度量卡片移动端优化 */
     [data-testid="metric-container"] {
         background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        padding: 1.5rem 1.75rem;
-        border-radius: 20px;
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.5);
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.05),
@@ -279,62 +318,30 @@ st.markdown("""
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
     }
 
-    [data-testid="metric-container"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.8) 50%, 
-            transparent
-        );
+    @media (max-width: 768px) {
+        [data-testid="metric-container"] {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+        }
+
+        [data-testid="metric-container"] > div:nth-child(1) {
+            font-size: 0.75rem;
+        }
+
+        [data-testid="metric-container"] > div:nth-child(2) {
+            font-size: 1.5rem;
+        }
     }
 
-    [data-testid="metric-container"]:hover {
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.08),
-            0 8px 32px rgba(0, 0, 0, 0.05),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
-        border-color: rgba(255, 255, 255, 0.6);
-        background: rgba(255, 255, 255, 0.5);
-    }
-
-    /* 度量值样式 */
-    [data-testid="metric-container"] > div:nth-child(1) {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 0.5rem;
-    }
-
-    [data-testid="metric-container"] > div:nth-child(2) {
-        font-size: 2.25rem;
-        font-weight: 700;
-        color: #1f2937;
-        line-height: 1.1;
-        background: linear-gradient(135deg, #1f2937 0%, #4f46e5 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    [data-testid="metric-container"] > div:nth-child(3) {
-        font-size: 0.8125rem;
-        font-weight: 500;
-        margin-top: 0.75rem;
-        color: #6b7280;
-    }
-
-    /* 侧边栏设计 */
+    /* 侧边栏移动端优化 */
     section[data-testid="stSidebar"] {
+        width: 100% !important;
+        max-width: 280px !important;
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
             rgba(168, 85, 247, 0.08) 25%,
@@ -345,110 +352,31 @@ st.markdown("""
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
         border-right: 1px solid rgba(255, 255, 255, 0.15);
-        box-shadow: 
-            4px 0 32px rgba(0, 0, 0, 0.08),
-            0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        touch-action: pan-y;
+        box-shadow: 4px 0 32px rgba(0, 0, 0, 0.08);
+        overflow-x: hidden !important;
     }
 
-    /* 侧边栏收起状态 */
-    section[data-testid="stSidebar"].collapsed {
-        transform: translateX(-100%);
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] {
+            max-width: 240px !important;
+        }
+
+        section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
+            padding: 1rem 1rem;
+        }
     }
 
-    /* 主内容区域调整 */
-    .main .block-container {
-        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    section[data-testid="stSidebar"].collapsed ~ .main .block-container {
-        margin-left: 0 !important;
-    }
-
-    /* 侧边栏滑动指示器 */
-    section[data-testid="stSidebar"]::after {
-        content: '⟨';
-        position: absolute;
-        right: -15px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        width: 30px;
-        height: 60px;
-        border-radius: 0 15px 15px 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        color: #6366f1;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        z-index: 1000;
-        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-    }
-
-    section[data-testid="stSidebar"]:hover::after {
-        background: rgba(99, 102, 241, 0.1);
-        color: #4f46e5;
-    }
-
-    section[data-testid="stSidebar"].collapsed::after {
-        content: '⟩';
-        left: -15px;
-        right: auto;
-        border-radius: 15px 0 0 15px;
-    }
-
-    /* 侧边栏动态背景 */
-    section[data-testid="stSidebar"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: 
-            radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.2) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 40% 60%, rgba(59, 130, 246, 0.18) 0%, transparent 50%);
-        opacity: 0.7;
-        animation: float 20s ease-in-out infinite alternate;
-        pointer-events: none;
-    }
-
-    @keyframes float {
-        0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0.7; }
-        50% { transform: translate(-10px, -10px) rotate(1deg); opacity: 0.9; }
-        100% { transform: translate(5px, -5px) rotate(-1deg); opacity: 0.7; }
-    }
-
-    /* 侧边栏内容区域 */
-    section[data-testid="stSidebar"] > div:nth-child(1) > div:nth-child(2) {
-        padding: 2rem 1.5rem;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        z-index: 2;
-    }
-
-    /* Logo区域玻璃效果 */
+    /* 侧边栏Logo区域移动端优化 */
     .sidebar-logo {
         display: flex;
         align-items: center;
-        gap: 0.875rem;
-        padding: 1.5rem 1.25rem;
-        margin-bottom: 2rem;
+        gap: 0.75rem;
+        padding: 1rem 1rem;
+        margin-bottom: 1.5rem;
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-radius: 24px;
+        border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.15);
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.08),
@@ -458,419 +386,58 @@ st.markdown("""
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .sidebar-logo::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.15) 50%, 
-            transparent
-        );
-        transition: left 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    @media (max-width: 768px) {
+        .sidebar-logo {
+            padding: 0.75rem 0.75rem;
+            margin-bottom: 1rem;
+            border-radius: 12px;
+            gap: 0.5rem;
+        }
+
+        .sidebar-logo-icon {
+            font-size: 2rem !important;
+        }
+
+        .sidebar-logo-title {
+            font-size: 1.125rem !important;
+        }
+
+        .sidebar-logo-subtitle {
+            font-size: 0.8125rem !important;
+        }
     }
 
-    .sidebar-logo:hover {
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 
-            0 16px 48px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        background: rgba(255, 255, 255, 0.12);
-    }
-
-    .sidebar-logo:hover::before {
-        left: 100%;
-    }
-
-    .sidebar-logo-icon {
-        font-size: 2.5rem;
-        line-height: 1;
-        filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.8));
-        animation: pulse-glow 3s ease-in-out infinite;
-    }
-
-    @keyframes pulse-glow {
-        0%, 100% { filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.8)); }
-        50% { filter: drop-shadow(0 0 24px rgba(99, 102, 241, 1)); }
-    }
-
-    .sidebar-logo-title {
-        font-size: 1.375rem;
-        font-weight: 700;
-        letter-spacing: -0.025em;
-        color: white;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-    }
-
-    .sidebar-logo-subtitle {
-        font-size: 0.875rem;
-        color: rgba(255, 255, 255, 0.8);
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    /* 玻璃分割线 */
-    .sidebar-divider {
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.25) 20%, 
-            rgba(255, 255, 255, 0.5) 50%, 
-            rgba(255, 255, 255, 0.25) 80%, 
-            transparent
-        );
-        margin: 1.5rem 0;
-        position: relative;
-    }
-
-    .sidebar-divider::after {
-        content: '';
-        position: absolute;
-        top: 1px;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.15) 50%, 
-            transparent
-        );
-    }
-
-    /* 导航区域标题 */
-    .sidebar-section-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.7);
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        padding: 0 1rem 1rem 1rem;
-        margin-bottom: 0.75rem;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-        position: relative;
-    }
-
-    .sidebar-section-title::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 1rem;
-        right: 1rem;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            rgba(255, 255, 255, 0.25), 
-            rgba(255, 255, 255, 0.08)
-        );
-    }
-
-    /* 导航容器 */
-    section[data-testid="stSidebar"] .stRadio {
-        background: transparent !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border: none !important;
-    }
-
-    section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0.625rem !important;
-        background: transparent !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-
-    /* 导航项玻璃效果 */
+    /* 导航项移动端优化 */
     section[data-testid="stSidebar"] .stRadio > div > label {
-        font-size: 1rem !important;
-        font-weight: 500 !important;
-        color: rgba(255, 255, 255, 0.9) !important;
-        padding: 1.125rem 1.5rem !important;
-        border-radius: 18px !important;
-        cursor: pointer !important;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 1rem !important;
-        margin: 0.5rem 0 !important;
-        position: relative !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
+        font-size: 0.9375rem !important;
+        padding: 0.875rem 1.125rem !important;
+        border-radius: 14px !important;
         width: 100% !important;
         box-sizing: border-box !important;
+        word-wrap: break-word !important;
+        white-space: nowrap !important;
         overflow: hidden !important;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
-        box-shadow: 
-            0 4px 16px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+        text-overflow: ellipsis !important;
     }
 
-    /* 导航项内容发光边框 */
-    section[data-testid="stSidebar"] .stRadio > div > label::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 18px;
-        padding: 1px;
-        background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.25) 0%, 
-            rgba(255, 255, 255, 0.08) 25%,
-            transparent 50%,
-            rgba(255, 255, 255, 0.08) 75%,
-            rgba(255, 255, 255, 0.25) 100%
-        );
-        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-        opacity: 0;
-        transition: opacity 0.4s ease;
-    }
-
-    /* 悬停效果 */
-    section[data-testid="stSidebar"] .stRadio > div > label:hover {
-        background: rgba(255, 255, 255, 0.12) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-        color: white !important;
-        transform: translateX(6px) translateY(-2px) !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 
-            0 12px 32px rgba(0, 0, 0, 0.1),
-            0 4px 16px rgba(99, 102, 241, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    }
-
-    section[data-testid="stSidebar"] .stRadio > div > label:hover::before {
-        opacity: 1;
-    }
-
-    /* 选中状态玻璃效果 */
-    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label {
-        background: linear-gradient(135deg, 
-            rgba(99, 102, 241, 0.3) 0%, 
-            rgba(168, 85, 247, 0.25) 50%,
-            rgba(99, 102, 241, 0.3) 100%
-        ) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 
-            0 12px 40px rgba(99, 102, 241, 0.25),
-            0 6px 20px rgba(0, 0, 0, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
-        transform: translateX(4px) !important;
-    }
-
-    /* 选中状态发光边框 */
-    section[data-testid="stSidebar"] .stRadio input[type="radio"]:checked + label::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 4px;
-        height: 100%;
-        border-radius: 0 2px 2px 0;
-        background: linear-gradient(180deg, 
-            #6366f1 0%, 
-            #a855f7 50%,
-            #6366f1 100%
-        );
-        box-shadow: 
-            0 0 16px rgba(99, 102, 241, 1),
-            0 0 32px rgba(99, 102, 241, 0.6);
-        animation: glow-pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes glow-pulse {
-        0%, 100% { 
-            box-shadow: 
-                0 0 16px rgba(99, 102, 241, 1),
-                0 0 32px rgba(99, 102, 241, 0.6);
-        }
-        50% { 
-            box-shadow: 
-                0 0 24px rgba(99, 102, 241, 1),
-                0 0 48px rgba(99, 102, 241, 0.8),
-                0 0 64px rgba(99, 102, 241, 0.4);
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] .stRadio > div > label {
+            font-size: 0.875rem !important;
+            padding: 0.75rem 1rem !important;
+            border-radius: 12px !important;
         }
     }
 
-    /* 隐藏radio按钮 */
-    section[data-testid="stSidebar"] .stRadio input[type="radio"] {
-        display: none !important;
-    }
-
-    /* 状态指示器玻璃卡片 */
-    .sidebar-status {
-        margin-top: auto;
-        padding-top: 2rem;
-    }
-
-    .sidebar-status-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin-bottom: 1.25rem;
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .sidebar-status-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.4) 50%, 
-            transparent
-        );
-    }
-
-    .sidebar-status-card:hover {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-        box-shadow: 
-            0 12px 32px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    }
-
-    .sidebar-status-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.75);
-        margin-bottom: 0.75rem;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-
-    .sidebar-status-content {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .sidebar-status-indicator {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        position: relative;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
-    }
-
-    .sidebar-status-indicator.online {
-        background: #10b981;
-        box-shadow: 
-            0 0 16px rgba(16, 185, 129, 0.8),
-            0 0 0 2px rgba(255, 255, 255, 0.25);
-        animation: online-pulse 2s ease-in-out infinite;
-    }
-
-    .sidebar-status-indicator.offline {
-        background: #ef4444;
-        box-shadow: 
-            0 0 16px rgba(239, 68, 68, 0.8),
-            0 0 0 2px rgba(255, 255, 255, 0.25);
-    }
-
-    @keyframes online-pulse {
-        0%, 100% { 
-            box-shadow: 
-                0 0 16px rgba(16, 185, 129, 0.8),
-                0 0 0 2px rgba(255, 255, 255, 0.25);
-        }
-        50% { 
-            box-shadow: 
-                0 0 24px rgba(16, 185, 129, 1),
-                0 0 40px rgba(16, 185, 129, 0.6),
-                0 0 0 2px rgba(255, 255, 255, 0.35);
-        }
-    }
-
-    .sidebar-status-text {
-        font-size: 1rem;
-        color: white;
-        font-weight: 500;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-
-    /* 版本信息玻璃效果 */
-    .sidebar-footer {
-        padding-top: 1.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
-        margin-top: 1.5rem;
-        position: relative;
-    }
-
-    .sidebar-footer::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.25) 50%, 
-            transparent
-        );
-    }
-
-    .sidebar-footer-content {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        padding: 0 0.75rem;
-    }
-
-    .sidebar-footer-item {
-        font-size: 0.875rem;
-        color: rgba(255, 255, 255, 0.6);
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    }
-
-    .sidebar-footer-link {
-        color: rgba(255, 255, 255, 0.75);
-        text-decoration: none;
-        transition: all 0.3s ease;
-        padding: 0.375rem 0.75rem;
-        border-radius: 8px;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-    }
-
-    .sidebar-footer-link:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.12);
-        text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
-        transform: translateY(-1px);
-    }
-
-    /* 按钮玻璃效果 */
+    /* 按钮移动端优化 */
     .stButton > button {
-        border-radius: 14px;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 12px;
         font-weight: 500;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid rgba(99, 102, 241, 0.3);
-        font-size: 0.9375rem;
-        padding: 0.75rem 1.5rem;
+        font-size: 0.875rem;
+        padding: 0.625rem 1rem;
         letter-spacing: 0.02em;
         background: rgba(99, 102, 241, 0.1);
         color: #4f46e5;
@@ -881,91 +448,65 @@ st.markdown("""
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         position: relative;
         overflow: hidden;
+        box-sizing: border-box;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 
-    .stButton > button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.3) 50%, 
-            transparent
-        );
-        transition: left 0.6s ease;
+    @media (max-width: 768px) {
+        .stButton > button {
+            font-size: 0.8125rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 10px;
+        }
     }
 
-    .stButton > button:hover {
-        background: rgba(99, 102, 241, 0.2);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-            0 12px 36px rgba(99, 102, 241, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        border-color: rgba(99, 102, 241, 0.4);
-        color: #4338ca;
-    }
-
-    .stButton > button:hover::before {
-        left: 100%;
-    }
-
-    .stButton > button:active {
-        transform: translateY(-1px) scale(0.98);
-    }
-
-    /* 输入框玻璃效果 */
+    /* 输入框移动端优化 */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
     .stTextArea > div > div > textarea {
+        width: 100% !important;
+        max-width: 100% !important;
         background: rgba(255, 255, 255, 0.6) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
         border: 1px solid rgba(99, 102, 241, 0.2) !important;
-        border-radius: 12px !important;
-        font-size: 0.9375rem !important;
-        padding: 0.875rem 1.25rem !important;
+        border-radius: 10px !important;
+        font-size: 0.875rem !important;
+        padding: 0.75rem 1rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: 
             0 8px 24px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
         color: #1f2937 !important;
+        box-sizing: border-box !important;
     }
 
-    .stTextInput > div > div > input::placeholder,
-    .stTextArea > div > div > textarea::placeholder {
-        color: #6b7280 !important;
+    @media (max-width: 768px) {
+        .stTextInput > div > div > input,
+        .stNumberInput > div > div > input,
+        .stSelectbox > div > div > select,
+        .stTextArea > div > div > textarea {
+            font-size: 0.8125rem !important;
+            padding: 0.625rem 0.875rem !important;
+            border-radius: 8px !important;
+        }
     }
 
-    .stTextInput > div > div > input:focus,
-    .stNumberInput > div > div > input:focus,
-    .stSelectbox > div > div > select:focus,
-    .stTextArea > div > div > textarea:focus {
-        background: rgba(255, 255, 255, 0.8) !important;
-        border-color: rgba(99, 102, 241, 0.5) !important;
-        box-shadow: 
-            0 0 0 3px rgba(99, 102, 241, 0.1),
-            0 12px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
-        outline: none !important;
-        transform: translateY(-1px);
-    }
-
-    /* 健康状态标签玻璃效果 */
+    /* 健康状态标签移动端优化 */
     .status-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.625rem 1.25rem;
-        border-radius: 24px;
-        font-size: 0.875rem;
+        padding: 0.5rem 0.875rem;
+        border-radius: 16px;
+        font-size: 0.8125rem;
         font-weight: 500;
         line-height: 1;
         white-space: nowrap;
-        min-width: 4rem;
+        min-width: 3rem;
+        max-width: 100%;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.4);
@@ -973,200 +514,136 @@ st.markdown("""
             0 6px 20px rgba(0, 0, 0, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .status-badge:hover {
-        transform: translateY(-2px) scale(1.05);
-        box-shadow: 
-            0 12px 32px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    @media (max-width: 768px) {
+        .status-badge {
+            padding: 0.375rem 0.625rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            min-width: 2.5rem;
+        }
     }
 
-    .status-healthy {
-        background: rgba(16, 185, 129, 0.15);
-        color: #065f46;
-        border-color: rgba(16, 185, 129, 0.3);
-    }
-
-    .status-unhealthy {
-        background: rgba(239, 68, 68, 0.15);
-        color: #991b1b;
-        border-color: rgba(239, 68, 68, 0.3);
-    }
-
-    .status-unknown {
-        background: rgba(245, 158, 11, 0.15);
-        color: #92400e;
-        border-color: rgba(245, 158, 11, 0.3);
-    }
-
-    .status-active {
-        background: rgba(59, 130, 246, 0.15);
-        color: #1e40af;
-        border-color: rgba(59, 130, 246, 0.3);
-    }
-
-    .status-inactive {
-        background: rgba(107, 114, 128, 0.15);
-        color: #374151;
-        border-color: rgba(107, 114, 128, 0.3);
-    }
-
-    /* 密钥卡片玻璃效果 */
+    /* 密钥卡片移动端优化 */
     div[data-testid="stHorizontalBlock"] {
         background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin: 1rem 0;
+        border-radius: 16px;
+        padding: 1rem;
+        margin: 0.75rem 0;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 
             0 10px 32px rgba(0, 0, 0, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
         position: relative;
         overflow: hidden;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
     }
 
-    div[data-testid="stHorizontalBlock"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.8) 50%, 
-            transparent
-        );
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 12px;
+        }
     }
 
-    div[data-testid="stHorizontalBlock"]:hover {
-        transform: translateY(-3px) scale(1.01);
-        box-shadow: 
-            0 16px 48px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.6);
-        border-color: rgba(255, 255, 255, 0.6);
-        background: rgba(255, 255, 255, 0.5);
-    }
-
-    /* 密钥代码显示 */
+    /* 密钥代码显示移动端优化 */
     .key-code {
         background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        padding: 0.875rem 1.25rem;
-        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
         font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
         color: #1f2937;
         overflow: hidden;
         text-overflow: ellipsis;
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+        .key-code {
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+        }
     }
 
     .key-id {
         font-weight: 600;
         color: #374151;
-        min-width: 3rem;
+        min-width: 2rem;
+        white-space: nowrap;
     }
 
     .key-meta {
-        font-size: 0.8125rem;
+        font-size: 0.75rem;
         color: #6b7280;
-        margin-top: 0.5rem;
+        margin-top: 0.375rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    /* 标签页玻璃效果 */
+    @media (max-width: 768px) {
+        .key-meta {
+            font-size: 0.6875rem;
+        }
+    }
+
+    /* 标签页移动端优化 */
     .stTabs [data-testid="stTabBar"] {
-        gap: 2rem;
+        gap: 1rem;
         border-bottom: 1px solid rgba(99, 102, 241, 0.2);
         padding: 0;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border-radius: 16px 16px 0 0;
+        border-radius: 12px 12px 0 0;
         border: 1px solid rgba(255, 255, 255, 0.4);
         border-bottom: none;
         box-shadow: 
             0 4px 16px rgba(0, 0, 0, 0.04),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
     }
 
-    .stTabs [data-testid="stTabBar"] button {
-        font-weight: 500;
-        color: #6b7280;
-        padding: 1.25rem 1.75rem;
-        border-bottom: 2px solid transparent;
-        font-size: 1rem;
-        letter-spacing: 0.02em;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 12px 12px 0 0;
-        background: transparent;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+    @media (max-width: 768px) {
+        .stTabs [data-testid="stTabBar"] {
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .stTabs [data-testid="stTabBar"] button {
+            font-size: 0.875rem;
+            padding: 1rem 1.25rem;
+            min-width: auto;
+            white-space: nowrap;
+        }
     }
 
-    .stTabs [data-testid="stTabBar"] button:hover {
-        background: rgba(255, 255, 255, 0.4);
-        color: #374151;
-        transform: translateY(-1px);
-    }
-
-    .stTabs [data-testid="stTabBar"] button[aria-selected="true"] {
-        color: #1f2937;
-        border-bottom-color: #6366f1;
-        background: rgba(255, 255, 255, 0.5);
-        box-shadow: 
-            0 -4px 12px rgba(99, 102, 241, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    }
-
-    /* Alert消息玻璃效果 */
-    [data-testid="stAlert"] {
-        border: none !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
-        box-shadow: 
-            0 8px 24px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-        padding: 1rem 1.25rem !important;
-        margin: 1rem 0 !important;
-    }
-
-    [data-testid="stAlert"][kind="info"] {
-        background: rgba(59, 130, 246, 0.1) !important;
-        color: #1e40af !important;
-        border-color: rgba(59, 130, 246, 0.3) !important;
-    }
-
-    [data-testid="stAlert"][kind="success"] {
-        background: rgba(16, 185, 129, 0.1) !important;
-        color: #065f46 !important;
-        border-color: rgba(16, 185, 129, 0.3) !important;
-    }
-
-    [data-testid="stAlert"][kind="warning"] {
-        background: rgba(245, 158, 11, 0.1) !important;
-        color: #92400e !important;
-        border-color: rgba(245, 158, 11, 0.3) !important;
-    }
-
-    [data-testid="stAlert"][kind="error"] {
-        background: rgba(239, 68, 68, 0.1) !important;
-        color: #991b1b !important;
-        border-color: rgba(239, 68, 68, 0.3) !important;
-    }
-
-    /* 图表容器玻璃效果（修复重叠问题） */
+    /* 图表容器移动端优化 */
     .js-plotly-plot .plotly {
-        border-radius: 20px;
+        border-radius: 16px;
         overflow: hidden;
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
@@ -1175,22 +652,23 @@ st.markdown("""
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        margin: 0.5rem;
+        margin: 0.25rem;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
     }
 
-    /* 列容器间距调整（解决图表重叠） */
-    .stColumns {
-        gap: 1rem !important;
+    @media (max-width: 768px) {
+        .js-plotly-plot .plotly {
+            border-radius: 12px;
+            margin: 0.125rem;
+        }
     }
 
-    .stColumns > div {
-        padding: 0 0.5rem !important;
-    }
-
-    /* 表格玻璃效果 */
+    /* 表格移动端优化 */
     .stDataFrame {
-        border-radius: 16px;
-        overflow: hidden;
+        border-radius: 12px;
+        overflow: auto;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         background: rgba(255, 255, 255, 0.3);
@@ -1198,116 +676,139 @@ st.markdown("""
         box-shadow: 
             0 8px 32px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
     }
 
-    /* 标题样式 */
-    h1, h2, h3 {
-        color: #1f2937;
-    }
-
+    /* 标题移动端优化 */
     h1 {
         background: linear-gradient(135deg, #1f2937 0%, #4f46e5 50%, #7c3aed 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        font-size: 2.5rem;
+        font-size: 2rem;
         font-weight: 700;
         letter-spacing: -0.025em;
         margin-bottom: 0.5rem;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
     }
 
-    h2 {
-        font-size: 1.875rem;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 1.75rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+        }
+
+        h3 {
+            font-size: 1.125rem;
+        }
     }
 
-    h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-    }
-
-    /* 页面副标题 */
+    /* 页面副标题移动端优化 */
     .page-subtitle {
-        font-size: 1rem;
+        font-size: 0.9375rem;
         color: #6b7280;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         font-weight: 400;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
     }
 
-    /* 分割线玻璃效果 */
-    hr {
-        margin: 2rem 0 !important;
+    @media (max-width: 768px) {
+        .page-subtitle {
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+    }
+
+    /* Alert消息移动端优化 */
+    [data-testid="stAlert"] {
         border: none !important;
-        height: 1px !important;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(99, 102, 241, 0.3) 20%, 
-            rgba(99, 102, 241, 0.5) 50%, 
-            rgba(99, 102, 241, 0.3) 80%, 
-            transparent
-        ) !important;
-        position: relative;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 
+            0 8px 24px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        padding: 0.875rem 1rem !important;
+        margin: 0.75rem 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
     }
 
-    hr::after {
-        content: '';
-        position: absolute;
-        top: 1px;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255, 255, 255, 0.3) 50%, 
-            transparent
-        );
-    }
-
-    .main .block-container {
-        max-height: none !important;
-        overflow: visible !important;
-    }
-
-    .stApp > div {
-        overflow: visible !important;
-    }
-
-    body {
-        overflow-x: hidden;
-        overflow-y: auto;
-    }
-
-    .stApp {
-        overflow-x: hidden;
-        overflow-y: auto;
+    @media (max-width: 768px) {
+        [data-testid="stAlert"] {
+            padding: 0.75rem 0.875rem !important;
+            margin: 0.5rem 0 !important;
+            border-radius: 10px !important;
+        }
     }
 
     /* 自定义滚动条 */
     ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
     }
 
     ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
+        border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb {
         background: rgba(99, 102, 241, 0.3);
-        border-radius: 4px;
+        border-radius: 3px;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
     }
 
     ::-webkit-scrollbar-thumb:hover {
         background: rgba(99, 102, 241, 0.5);
+    }
+
+    /* 禁用水平滚动 */
+    * {
+        box-sizing: border-box;
+    }
+
+    *:not(pre):not(code) {
+        overflow-x: hidden !important;
+    }
+
+    /* 确保flex容器不超出 */
+    .stColumns {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .stColumns > div {
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        flex-shrink: 1 !important;
+    }
+
+    /* Form容器优化 */
+    .stForm {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Expander优化 */
+    .streamlit-expanderHeader {
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
     }
 
     /* 选择文本样式 */
@@ -1320,176 +821,14 @@ st.markdown("""
         background: rgba(99, 102, 241, 0.2);
         color: #1f2937;
     }
+
+    /* 防止图片和视频超出容器 */
+    img, video, iframe {
+        max-width: 100% !important;
+        height: auto !important;
+        box-sizing: border-box !important;
+    }
 </style>
-
-<script>
-// 侧边栏滑动功能
-(function() {
-    let startX = 0;
-    let currentX = 0;
-    let sidebar = null;
-    let isCollapsed = false;
-    let startTime = 0;
-
-    // 等待DOM加载完成
-    function initializeSidebar() {
-        sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (!sidebar) {
-            setTimeout(initializeSidebar, 100);
-            return;
-        }
-
-        // 添加触摸事件监听
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: false });
-
-        // 添加鼠标事件监听（用于桌面端测试）
-        sidebar.addEventListener('mousedown', handleMouseDown);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-
-        // 点击收起/展开按钮
-        sidebar.addEventListener('click', function(e) {
-            const rect = sidebar.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            if (clickX > rect.width - 20) { // 点击右边缘20px区域
-                toggleSidebar();
-            }
-        });
-
-        console.log('Sidebar swipe functionality initialized');
-    }
-
-    function handleTouchStart(e) {
-        if (!sidebar) return;
-
-        startX = e.touches[0].clientX;
-        startTime = Date.now();
-
-        // 如果侧边栏已收起且触摸在左边缘，允许展开
-        if (isCollapsed && startX < 20) {
-            return;
-        }
-
-        // 如果侧边栏展开且触摸在侧边栏内，允许收起
-        const sidebarRect = sidebar.getBoundingClientRect();
-        if (!isCollapsed && startX >= sidebarRect.left && startX <= sidebarRect.right) {
-            return;
-        }
-    }
-
-    function handleTouchMove(e) {
-        if (!sidebar || startX === 0) return;
-
-        currentX = e.touches[0].clientX;
-        const deltaX = currentX - startX;
-
-        // 防止页面滚动
-        if (Math.abs(deltaX) > 10) {
-            e.preventDefault();
-        }
-    }
-
-    function handleTouchEnd(e) {
-        if (!sidebar || startX === 0) return;
-
-        const endX = e.changedTouches[0].clientX;
-        const deltaX = endX - startX;
-        const deltaTime = Date.now() - startTime;
-        const velocity = Math.abs(deltaX) / deltaTime;
-
-        // 快速滑动或滑动距离足够大时触发
-        if (velocity > 0.5 || Math.abs(deltaX) > 100) {
-            if (deltaX < -50 && !isCollapsed) {
-                // 向左滑动收起
-                toggleSidebar();
-            } else if (deltaX > 50 && isCollapsed) {
-                // 向右滑动展开
-                toggleSidebar();
-            }
-        }
-
-        startX = 0;
-        currentX = 0;
-        startTime = 0;
-    }
-
-    // 鼠标事件处理（桌面端）
-    let isDragging = false;
-
-    function handleMouseDown(e) {
-        if (!sidebar) return;
-
-        const rect = sidebar.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-
-        // 只在右边缘附近才允许拖拽
-        if (clickX > rect.width - 30) {
-            isDragging = true;
-            startX = e.clientX;
-            startTime = Date.now();
-            e.preventDefault();
-        }
-    }
-
-    function handleMouseMove(e) {
-        if (!isDragging || !sidebar) return;
-
-        currentX = e.clientX;
-        e.preventDefault();
-    }
-
-    function handleMouseUp(e) {
-        if (!isDragging || !sidebar) return;
-
-        const endX = e.clientX;
-        const deltaX = endX - startX;
-        const deltaTime = Date.now() - startTime;
-        const velocity = Math.abs(deltaX) / deltaTime;
-
-        if (velocity > 0.3 || Math.abs(deltaX) > 80) {
-            if (deltaX < -40 && !isCollapsed) {
-                toggleSidebar();
-            } else if (deltaX > 40 && isCollapsed) {
-                toggleSidebar();
-            }
-        }
-
-        isDragging = false;
-        startX = 0;
-        currentX = 0;
-        startTime = 0;
-    }
-
-    function toggleSidebar() {
-        if (!sidebar) return;
-
-        isCollapsed = !isCollapsed;
-
-        if (isCollapsed) {
-            sidebar.classList.add('collapsed');
-        } else {
-            sidebar.classList.remove('collapsed');
-        }
-
-        // 添加一个短暂的延迟，确保动画播放
-        setTimeout(() => {
-            // 触发窗口resize事件，让Streamlit重新计算布局
-            window.dispatchEvent(new Event('resize'));
-        }, 300);
-
-        console.log('Sidebar toggled:', isCollapsed ? 'collapsed' : 'expanded');
-    }
-
-    // 开始初始化
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeSidebar);
-    } else {
-        initializeSidebar();
-    }
-})();
-</script>
 """, unsafe_allow_html=True)
 
 
@@ -1609,7 +948,6 @@ if page == "控制台":
         st.stop()
 
     # 健康状态提示和刷新按钮
-    st.markdown('<div class="health-status-row">', unsafe_allow_html=True)
     col1, col2 = st.columns([11, 1])
 
     with col1:
@@ -1630,8 +968,6 @@ if page == "控制台":
         if st.button("⟳", help="刷新数据", key="refresh_dashboard"):
             st.cache_data.clear()
             st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # 核心指标
     st.markdown("### 核心指标")
@@ -1700,8 +1036,9 @@ if page == "控制台":
         if model_data:
             df = pd.DataFrame(model_data)
 
-            # 创建图表 - 修复重叠问题
-            col1, col2 = st.columns(2, gap="large")
+            # 移动端友好的图表布局
+            # 在移动端使用单列布局，桌面端使用双列
+            col1, col2 = st.columns(2)
 
             with col1:
                 fig_rpm = go.Figure()
@@ -1717,19 +1054,19 @@ if page == "控制台":
                 ))
                 fig_rpm.update_layout(
                     title="每分钟请求数 (RPM)",
-                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
+                    title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPM %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=320,
+                    height=280,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=10),
                     yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=40, r=40, t=50, b=40)
+                    margin=dict(l=30, r=30, t=40, b=30)
                 )
                 st.plotly_chart(fig_rpm, use_container_width=True)
 
@@ -1747,19 +1084,19 @@ if page == "控制台":
                 ))
                 fig_rpd.update_layout(
                     title="每日请求数 (RPD)",
-                    title_font=dict(size=16, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
+                    title_font=dict(size=14, color='#1f2937', family='-apple-system, BlinkMacSystemFont'),
                     yaxis_title="使用率 (%)",
                     yaxis_range=[0, max(100, df['RPD %'].max() * 1.2) if len(df) > 0 else 100],
-                    height=320,
+                    height=280,
                     showlegend=False,
                     plot_bgcolor='rgba(255, 255, 255, 0.3)',
                     paper_bgcolor='rgba(255, 255, 255, 0.3)',
-                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=12),
+                    font=dict(family='-apple-system, BlinkMacSystemFont', color='#374151', size=10),
                     yaxis=dict(gridcolor='rgba(107, 114, 128, 0.2)', zerolinecolor='rgba(107, 114, 128, 0.3)',
                                color='#374151'),
                     xaxis=dict(linecolor='rgba(107, 114, 128, 0.3)', color='#374151'),
                     bargap=0.4,
-                    margin=dict(l=40, r=40, t=50, b=40)
+                    margin=dict(l=30, r=30, t=40, b=30)
                 )
                 st.plotly_chart(fig_rpd, use_container_width=True)
 
@@ -1909,14 +1246,14 @@ elif page == "密钥管理":
                 if invalid_count > 0:
                     st.warning(f"发现 {invalid_count} 个数据不完整的密钥，已跳过显示")
 
-                # 渲染有效的密钥
+                # 渲染有效的密钥 - 移动端优化布局
                 for key_info in valid_keys:
                     try:
                         # 创建一个容器来包含整个密钥卡片
                         container = st.container()
                         with container:
-                            # 使用列布局来实现卡片内的元素
-                            col1, col2, col3, col4, col5, col6 = st.columns([0.5, 3.5, 0.9, 0.9, 0.8, 0.8])
+                            # 移动端友好的布局：使用响应式列
+                            col1, col2, col3, col4, col5, col6 = st.columns([0.5, 3, 1, 1, 0.8, 0.8])
 
                             with col1:
                                 st.markdown(f'<div class="key-id">#{key_info.get("id", "N/A")}</div>',
@@ -2037,8 +1374,8 @@ response = client.chat.completions.create(
                 for key_info in user_keys:
                     container = st.container()
                     with container:
-                        # 使用列布局来实现卡片内的元素
-                        col1, col2, col3, col4, col5 = st.columns([0.5, 3.5, 0.9, 0.8, 0.8])
+                        # 移动端友好的布局
+                        col1, col2, col3, col4, col5 = st.columns([0.5, 3, 1, 0.8, 0.8])
 
                         with col1:
                             st.markdown(f'<div class="key-id">#{key_info["id"]}</div>', unsafe_allow_html=True)
@@ -2109,7 +1446,9 @@ elif page == "模型配置":
             continue
 
         with st.form(f"model_config_{model}"):
-            col1, col2, col3, col4 = st.columns(4)
+            # 移动端友好的列布局
+            col1, col2 = st.columns(2)
+            col3, col4 = st.columns(2)
 
             with col1:
                 rpm = st.number_input(
@@ -2334,10 +1673,10 @@ elif page == "系统设置":
 # --- 页脚 ---
 st.markdown(
     f"""
-    <div style='text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.05); border-radius: 16px 16px 0 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);'>
+    <div style='text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.8125rem; margin-top: 4rem; padding: 2rem 1rem; border-top: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.05); border-radius: 16px 16px 0 0; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); width: 100%; max-width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;'>
         <a href='{API_BASE_URL}/health' target='_blank' style='color: rgba(255, 255, 255, 0.8); text-decoration: none; transition: all 0.3s ease; padding: 0.25rem 0.5rem; border-radius: 6px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);' onmouseover='this.style.color="white"; this.style.background="rgba(255, 255, 255, 0.1)"; this.style.textShadow="0 0 8px rgba(255, 255, 255, 0.5)";' onmouseout='this.style.color="rgba(255, 255, 255, 0.8)"; this.style.background="transparent"; this.style.textShadow="none";'>健康检查</a> · 
-        <span style='color: rgba(255, 255, 255, 0.6);'>{API_BASE_URL}</span> ·
-        <span style='color: rgba(255, 255, 255, 0.6);'>v1.1</span>
+        <span style='color: rgba(255, 255, 255, 0.6); word-break: break-all;'>{API_BASE_URL}</span> ·
+        <span style='color: rgba(255, 255, 255, 0.6);'>v1.2</span>
     </div>
     """,
     unsafe_allow_html=True
