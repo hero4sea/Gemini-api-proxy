@@ -3071,175 +3071,429 @@ elif page == "系统设置":
             if st.form_submit_button("保存策略", type="primary", use_container_width=True):
                 st.success(f"策略已更新为: {strategy_options[strategy]}")
 
-    with tab4:  # 新增：自动清理标签页
-        st.markdown("#### 自动清理异常API Key")
-        st.markdown("连续多天检测异常的API Key将被自动移除，避免影响服务质量")
+    with tab4:  # 自动清理标签页 - 完整重写版
+        st.markdown("#### 🧹 自动清理异常API Key")
+        st.markdown("智能识别并自动移除连续异常的API Key，确保服务质量和稳定性")
 
-        # 获取当前配置
+        # 获取当前配置和状态
         cleanup_status = get_cached_cleanup_status()
 
         if not cleanup_status or not cleanup_status.get('success'):
-            st.error("无法获取自动清理状态")
+            st.error("❌ 无法获取自动清理状态，请检查后端服务连接")
         else:
-            # 显示当前状态
-            col1, col2 = st.columns([2, 1])
+            # === 顶部状态概览 ===
+            st.markdown("##### 📊 清理状态概览")
+
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                # 配置表单
-                with st.form("auto_cleanup_config"):
-                    cleanup_enabled = st.checkbox(
-                        "启用自动清理",
-                        value=cleanup_status.get('auto_cleanup_enabled', False),
-                        help="启用后将自动移除连续异常的API Key"
-                    )
+                # 自动清理状态
+                is_enabled = cleanup_status.get('auto_cleanup_enabled', False)
+                status_color = "#10b981" if is_enabled else "#ef4444"
+                status_text = "已启用" if is_enabled else "已禁用"
+                status_icon = "🟢" if is_enabled else "🔴"
 
-                    col_a, col_b = st.columns(2)
+                st.markdown(f'''
+                <div class="status-card-style">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.2rem;">{status_icon}</span>
+                        <span style="font-weight: 600; color: #374151;">自动清理</span>
+                    </div>
+                    <div style="color: {status_color}; font-weight: 500; font-size: 1.1rem;">
+                        {status_text}
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
 
-                    with col_a:
-                        days_threshold = st.number_input(
-                            "连续异常天数阈值",
-                            min_value=1,
-                            max_value=30,
-                            value=cleanup_status.get('days_threshold', 3),
-                            help="连续异常超过此天数的Key将被自动移除"
-                        )
+            with col2:
+                # 阈值配置
+                days_threshold = cleanup_status.get('days_threshold', 3)
+                min_checks = cleanup_status.get('min_checks_per_day', 5)
 
-                    with col_b:
-                        min_checks_per_day = st.number_input(
-                            "每日最少检测次数",
-                            min_value=1,
-                            max_value=100,
-                            value=cleanup_status.get('min_checks_per_day', 5),
-                            help="只有每天检测次数达到此值才会被纳入清理考虑"
-                        )
+                st.markdown(f'''
+                <div class="status-card-style">
+                    <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                        清理阈值
+                    </div>
+                    <div style="color: #6366f1; font-weight: 500;">
+                        连续 {days_threshold} 天异常
+                    </div>
+                    <div style="color: #6b7280; font-size: 0.875rem;">
+                        需日检≥{min_checks}次
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
 
-                    st.info(f"🕐 自动清理时间：每天凌晨02:00 UTC")
+            with col3:
+                # 风险Keys数量
+                at_risk_keys = cleanup_status.get('at_risk_keys', [])
+                risk_count = len(at_risk_keys)
+                risk_color = "#ef4444" if risk_count > 0 else "#10b981"
+                risk_icon = "⚠️" if risk_count > 0 else "✅"
 
-                    col_save, col_manual = st.columns(2)
+                st.markdown(f'''
+                <div class="status-card-style">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.2rem;">{risk_icon}</span>
+                        <span style="font-weight: 600; color: #374151;">风险Keys</span>
+                    </div>
+                    <div style="color: {risk_color}; font-weight: 500; font-size: 1.1rem;">
+                        {risk_count} 个
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
 
-                    with col_save:
-                        if st.form_submit_button("保存配置", type="primary", use_container_width=True):
-                            config_data = {
-                                'enabled': cleanup_enabled,
-                                'days_threshold': days_threshold,
-                                'min_checks_per_day': min_checks_per_day
-                            }
+            with col4:
+                # 下次清理时间
+                next_cleanup = "每日 02:00 UTC"
 
-                            result = update_cleanup_config(config_data)
+                st.markdown(f'''
+                <div class="status-card-style">
+                    <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                        下次清理
+                    </div>
+                    <div style="color: #8b5cf6; font-weight: 500;">
+                        🕐 {next_cleanup}
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
+
+            # === 风险预警区域 ===
+            if at_risk_keys:
+                st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
+
+                # 风险等级统计
+                critical_keys = [k for k in at_risk_keys if k.get('consecutive_unhealthy_days', 0) >= days_threshold]
+                warning_keys = [k for k in at_risk_keys if k.get('consecutive_unhealthy_days', 0) < days_threshold]
+
+                col1, col2 = st.columns([2, 1])
+
+                with col1:
+                    st.markdown(f"##### ⚠️ 风险API Key预警 ({len(at_risk_keys)} 个)")
+
+                    if critical_keys:
+                        st.error(f"🔥 {len(critical_keys)} 个Key将在下次清理时被移除")
+
+                    if warning_keys:
+                        st.warning(f"⚠️ {len(warning_keys)} 个Key处于风险状态")
+
+                with col2:
+                    # 快速操作按钮
+                    if st.button("🔄 立即检测健康状态", use_container_width=True):
+                        with st.spinner("检测中..."):
+                            result = check_all_keys_health()
                             if result and result.get('success'):
-                                st.success("配置已保存")
+                                st.success("✅ " + result['message'])
                                 st.cache_data.clear()
                                 time.sleep(1)
                                 st.rerun()
                             else:
-                                st.error("保存失败")
+                                st.error("❌ 健康检测失败")
 
-                    with col_manual:
-                        if st.form_submit_button("立即执行清理", use_container_width=True):
-                            with st.spinner("执行中..."):
-                                result = manual_cleanup()
-                                if result and result.get('success'):
-                                    st.success("手动清理已完成")
-                                    st.cache_data.clear()
-                                    time.sleep(1)
-                                    st.rerun()
-                                else:
-                                    st.error("清理失败")
+                # 风险Keys详细列表
+                st.markdown("**风险Keys详情：**")
 
-            with col2:
-                # 状态信息卡片
-                status_card_style = """
-                <div style="
-                    background: rgba(255, 255, 255, 0.4);
-                    backdrop-filter: blur(16px);
-                    border: 1px solid rgba(255, 255, 255, 0.5);
-                    border-radius: 16px;
-                    padding: 1.25rem;
-                    margin-bottom: 1rem;
-                ">
-                """
-
-                # 自动清理状态
-                status_color = "#10b981" if cleanup_status.get('auto_cleanup_enabled') else "#ef4444"
-                status_text = "已启用" if cleanup_status.get('auto_cleanup_enabled') else "已禁用"
-
-                st.markdown(f"""
-                {status_card_style}
-                    <div style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">
-                        自动清理状态
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="width: 8px; height: 8px; border-radius: 50%; background: {status_color};"></div>
-                        <span style="color: #1f2937; font-weight: 500;">{status_text}</span>
-                    </div>
+                # 表头
+                st.markdown('''
+                <div style="display: grid; grid-template-columns: 0.5fr 2.5fr 1fr 1fr 1.5fr; gap: 1rem; padding: 0.75rem 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+                    <div>ID</div>
+                    <div>API Key</div>
+                    <div>异常天数</div>
+                    <div>风险等级</div>
+                    <div>预计清理时间</div>
                 </div>
-                """, unsafe_allow_html=True)
+                ''', unsafe_allow_html=True)
 
-            # 风险提醒
-            at_risk_keys = cleanup_status.get('at_risk_keys', [])
-            if at_risk_keys:
-                st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
-                st.markdown("#### ⚠️ 风险API Key")
-                st.warning(f"发现 {len(at_risk_keys)} 个API Key存在连续异常风险")
-
+                # 数据行
                 for key in at_risk_keys:
-                    container = st.container()
-                    with container:
-                        col1, col2, col3, col4 = st.columns([0.5, 2.5, 1.5, 1.5])
+                    key_id = key.get('id', 'N/A')
+                    key_preview = key.get('key', 'Unknown')
+                    consecutive_days = key.get('consecutive_unhealthy_days', 0)
+                    days_until_removal = key.get('days_until_removal', 0)
 
-                        with col1:
-                            st.markdown(f'<div class="key-id">#{key["id"]}</div>', unsafe_allow_html=True)
+                    # 风险等级判断
+                    if consecutive_days >= days_threshold:
+                        risk_level = "🔥 极高"
+                        risk_color = "#ef4444"
+                        time_text = "下次清理"
+                        time_color = "#ef4444"
+                    elif consecutive_days >= days_threshold - 1:
+                        risk_level = "🟡 高"
+                        risk_color = "#f59e0b"
+                        time_text = f"{days_until_removal}天后"
+                        time_color = "#f59e0b"
+                    else:
+                        risk_level = "🟡 中"
+                        risk_color = "#f59e0b"
+                        time_text = f"{days_until_removal}天后"
+                        time_color = "#6b7280"
 
-                        with col2:
-                            st.markdown(f'''
-                            <div class="key-code">{key["key"]}</div>
-                            ''', unsafe_allow_html=True)
+                    st.markdown(f'''
+                    <div style="display: grid; grid-template-columns: 0.5fr 2.5fr 1fr 1fr 1.5fr; gap: 1rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px; margin-bottom: 0.5rem; align-items: center;">
+                        <div style="font-weight: 500;">#{key_id}</div>
+                        <div style="font-family: monospace; background: rgba(255, 255, 255, 0.3); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">{key_preview}</div>
+                        <div style="text-align: center; font-weight: 500; color: {risk_color};">{consecutive_days}天</div>
+                        <div style="color: {risk_color}; font-weight: 500;">{risk_level}</div>
+                        <div style="color: {time_color}; font-weight: 500;">{time_text}</div>
+                    </div>
+                    ''', unsafe_allow_html=True)
 
-                        with col3:
-                            days = key["consecutive_unhealthy_days"]
-                            if days >= cleanup_status.get('days_threshold', 3):
-                                status_class = "status-unhealthy"
-                                status_text = f"将被清理"
-                            else:
-                                status_class = "status-unknown"
-                                status_text = f"异常{days}天"
+                # 风险说明
+                with st.expander("🔍 查看风险评估详情"):
+                    st.markdown(f"""
+                    **风险评估标准：**
+                    - 🟢 **安全**：连续异常天数 < {days_threshold - 1} 天
+                    - 🟡 **警告**：连续异常天数 = {days_threshold - 1} 天（距离清理1天）
+                    - 🔥 **极高**：连续异常天数 ≥ {days_threshold} 天（下次清理将被移除）
 
-                            st.markdown(f'''
-                            <span class="status-badge {status_class}">
-                                {status_text}
-                            </span>
-                            ''', unsafe_allow_html=True)
+                    **异常判定标准：**
+                    - 单日成功率 < 10%
+                    - 单日检测次数 ≥ {min_checks} 次
+                    - 连续多天满足上述条件
 
-                        with col4:
-                            remaining = key.get("days_until_removal", 0)
-                            if remaining <= 0:
-                                st.markdown('<span style="color: #ef4444; font-weight: 500;">即将清理</span>',
-                                            unsafe_allow_html=True)
-                            else:
-                                st.markdown(
-                                    f'<span style="color: #f59e0b; font-weight: 500;">{remaining}天后清理</span>',
-                                    unsafe_allow_html=True)
+                    **保护机制：**
+                    - 自动保留至少1个健康Key
+                    - 检测次数不足的Key不会被误删
+                    - 被清理的Key可手动恢复
+                    """)
+
             else:
-                st.success("✅ 当前没有风险API Key")
+                # 无风险状态
+                st.success("✅ 当前所有API Key状态良好，无清理风险")
 
-            # 清理规则说明
-            with st.expander("📋 清理规则说明"):
+            # === 配置管理区域 ===
+            st.markdown('<hr style="margin: 2rem 0;">', unsafe_allow_html=True)
+            st.markdown("##### ⚙️ 清理配置管理")
+
+            # 配置表单
+            with st.form("auto_cleanup_config_form"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown("**基础设置**")
+
+                    cleanup_enabled = st.checkbox(
+                        "🔧 启用自动清理",
+                        value=cleanup_status.get('auto_cleanup_enabled', False),
+                        help="启用后将在每日凌晨2点自动检查并移除连续异常的API Key"
+                    )
+
+                    days_threshold = st.slider(
+                        "📅 连续异常天数阈值",
+                        min_value=1,
+                        max_value=10,
+                        value=cleanup_status.get('days_threshold', 3),
+                        help="连续异常超过此天数的Key将被自动移除"
+                    )
+
+                    min_checks_per_day = st.slider(
+                        "🔍 每日最少检测次数",
+                        min_value=1,
+                        max_value=50,
+                        value=cleanup_status.get('min_checks_per_day', 5),
+                        help="只有每天检测次数达到此值的Key才会被纳入清理考虑，避免因检测不足导致误删"
+                    )
+
+                with col2:
+                    st.markdown("**清理预览**")
+
+                    # 预计影响分析
+                    if cleanup_enabled:
+                        estimated_removals = len(
+                            [k for k in at_risk_keys if k.get('consecutive_unhealthy_days', 0) >= days_threshold])
+
+                        if estimated_removals > 0:
+                            st.error(f"⚠️ 当前配置下将清理 {estimated_removals} 个Key")
+                        else:
+                            st.success("✅ 当前配置下无Key需要清理")
+
+                        # 清理时间提醒
+                        st.info("🕐 清理执行时间：每天凌晨 02:00 UTC")
+
+                        # 紧急情况处理
+                        if estimated_removals > 0:
+                            st.warning("💡 如需立即处理异常Key，可使用下方「立即执行清理」按钮")
+                    else:
+                        st.info("❌ 自动清理已禁用")
+
+                # 操作按钮区域
+                st.markdown("**操作选项**")
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    save_config = st.form_submit_button(
+                        "💾 保存配置",
+                        type="primary",
+                        use_container_width=True
+                    )
+
+                with col2:
+                    manual_cleanup = st.form_submit_button(
+                        "🧹 立即执行清理",
+                        use_container_width=True
+                    )
+
+                with col3:
+                    test_mode = st.form_submit_button(
+                        "🔍 模拟清理（不执行）",
+                        use_container_width=True
+                    )
+
+                # 处理表单提交
+                if save_config:
+                    config_data = {
+                        'enabled': cleanup_enabled,
+                        'days_threshold': days_threshold,
+                        'min_checks_per_day': min_checks_per_day
+                    }
+
+                    result = update_cleanup_config(config_data)
+                    if result and result.get('success'):
+                        st.success("✅ 配置保存成功")
+                        st.info("⏰ 新配置将在下次定时清理时生效")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("❌ 配置保存失败，请重试")
+
+                if manual_cleanup:
+                    if at_risk_keys:
+                        # 执行前确认
+                        st.warning("⚠️ 即将执行清理操作，这将影响以下Keys：")
+                        critical_keys = [k for k in at_risk_keys if
+                                         k.get('consecutive_unhealthy_days', 0) >= days_threshold]
+
+                        for key in critical_keys:
+                            st.write(f"- Key #{key.get('id')}: {key.get('key')}")
+
+                        with st.spinner("执行清理中...请稍候"):
+                            result = manual_cleanup()
+                            if result and result.get('success'):
+                                st.success("✅ 手动清理已完成")
+                                st.info("🔄 建议刷新页面查看最新状态")
+                                st.cache_data.clear()
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("❌ 清理执行失败")
+                    else:
+                        st.info("✅ 当前无需清理的Keys")
+
+                if test_mode:
+                    # 模拟清理模式
+                    st.markdown("##### 🧪 清理模拟结果")
+
+                    if at_risk_keys:
+                        critical_keys = [k for k in at_risk_keys if
+                                         k.get('consecutive_unhealthy_days', 0) >= days_threshold]
+
+                        if critical_keys:
+                            st.markdown("**将被清理的Keys：**")
+                            for key in critical_keys:
+                                st.write(
+                                    f"🗑️ Key #{key.get('id')}: {key.get('key')} (异常{key.get('consecutive_unhealthy_days')}天)")
+                        else:
+                            st.success("✅ 模拟结果：无Keys需要清理")
+                    else:
+                        st.success("✅ 模拟结果：无Keys需要清理")
+
+            # === 高级设置与监控 ===
+            st.markdown('<hr style="margin: 2rem 0;">', unsafe_allow_html=True)
+
+            with st.expander("🔧 高级设置与监控"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown("**清理历史**")
+
+                    # 这里可以添加清理历史记录的显示
+                    # 由于后端没有专门的清理历史表，可以通过健康检测历史推断
+                    st.info("💡 清理历史功能开发中，当前可通过健康检测记录查看Key状态变化")
+
+                    if st.button("📊 查看健康检测记录", use_container_width=True):
+                        st.info("🔗 请前往「密钥管理」页面查看详细的健康状态记录")
+
+                with col2:
+                    st.markdown("**紧急恢复**")
+
+                    st.markdown("""
+                    如果重要的Key被误删，可以通过以下方式恢复：
+
+                    1. **手动恢复**：在密钥管理页面重新激活被禁用的Key
+                    2. **重新添加**：重新添加相同的API Key
+                    3. **调整阈值**：提高清理阈值以降低误删风险
+                    """)
+
+                    if st.button("🚨 紧急停用自动清理", use_container_width=True):
+                        emergency_config = {
+                            'enabled': False,
+                            'days_threshold': cleanup_status.get('days_threshold', 3),
+                            'min_checks_per_day': cleanup_status.get('min_checks_per_day', 5)
+                        }
+
+                        result = update_cleanup_config(emergency_config)
+                        if result and result.get('success'):
+                            st.success("🛡️ 自动清理已紧急停用")
+                            st.cache_data.clear()
+                            time.sleep(1)
+                            st.rerun()
+
+            # === 规则说明 ===
+            with st.expander("📋 自动清理规则详细说明"):
                 st.markdown("""
-                **自动清理触发条件：**
-                1. 连续N天检测为异常状态（成功率 < 10%）
-                2. 每天检测次数 ≥ 最少检测次数
-                3. 启用自动清理功能
+                ### 🎯 清理触发条件
 
-                **清理动作：**
-                - 将API Key状态设置为禁用
-                - 健康状态标记为 `auto_removed`
-                - 保留历史记录，可手动重新激活
+                一个API Key会被自动清理，必须**同时满足**以下所有条件：
 
-                **安全保护：**
-                - 至少保留1个健康的API Key
-                - 检测次数不足的Key不会被清理
-                - 可随时手动恢复被清理的Key
+                1. **连续异常天数** ≥ 设定阈值（默认3天）
+                2. **每日检测次数** ≥ 最少检测次数（默认5次）
+                3. **异常判定标准**：单日成功率 < 10%
+                4. **自动清理功能已启用**
+
+                ### 🛡️ 安全保护机制
+
+                - **保留策略**：始终保留至少1个健康的API Key，确保服务不中断
+                - **检测保护**：检测次数不足的Key不会被清理，避免因监控数据不足导致误删
+                - **软删除**：被清理的Key只是禁用状态，数据仍保留，可随时手动恢复
+                - **历史保存**：所有健康检测历史都会保留，便于问题排查
+
+                ### ⏰ 执行时间
+
+                - **定时清理**：每天凌晨 02:00 UTC 自动执行
+                - **手动清理**：管理员可随时手动触发清理操作
+                - **实时监控**：每小时进行健康检测，及时发现异常
+
+                ### 🔄 恢复方法
+
+                1. **快速恢复**：在密钥管理页面找到被禁用的Key，点击「激活」按钮
+                2. **重新添加**：如果Key已删除，可重新添加相同的API Key
+                3. **批量操作**：支持批量恢复多个被误删的Key
+
+                ### 📊 监控指标
+
+                - **成功率**：API请求成功的比例
+                - **响应时间**：API响应的平均时间
+                - **连续失败次数**：连续失败的请求数量
+                - **每日检测次数**：系统每天对Key进行的健康检测次数
+
+                ### ⚙️ 建议配置
+
+                - **保守配置**：阈值 5-7 天，适合稳定环境
+                - **激进配置**：阈值 2-3 天，适合对质量要求极高的场景
+                - **宽松配置**：阈值 7-10 天，适合测试环境或Key资源紧张时
                 """)
+
+            # === 底部提示 ===
+            st.markdown('<hr style="margin: 1.5rem 0;">', unsafe_allow_html=True)
+
+            # 根据当前状态给出相应提示
+            if not cleanup_status.get('auto_cleanup_enabled', False):
+                st.info("💡 **提示**：当前自动清理功能已禁用。启用后可自动维护API Key质量，提高服务稳定性。")
+            elif len(at_risk_keys) > 0:
+                st.warning("⚠️ **注意**：检测到风险API Key，建议及时处理以维护服务质量。")
+            else:
+                st.success("✅ **状态良好**：所有API Key运行正常，自动清理功能正在守护您的服务质量。")
 
     with tab5:
         st.markdown("#### 系统信息")
