@@ -1115,6 +1115,208 @@ st.markdown("""
     ::-webkit-scrollbar-thumb:hover {
         background: rgba(99, 102, 241, 0.5);
     }
+/* 当侧边栏收起时，调整主容器 */
+    .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) .block-container,
+    .stApp:has(section[data-testid="stSidebar"]:not([aria-expanded="true"])) .block-container {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    /* 修复侧边栏收起状态下的边距 */
+    .stApp > div:first-child {
+        margin-left: 0 !important;
+        transition: margin-left 0.3s ease;
+    }
+    
+    /* 侧边栏收起时的主内容区域 */
+    div[data-testid="stAppViewContainer"] {
+        transition: margin-left 0.3s ease;
+    }
+    
+    /* 当侧边栏收起时，移除左边距 */
+    .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) div[data-testid="stAppViewContainer"] {
+        margin-left: 0 !important;
+    }
+    
+    /* === 恢复表格的圆角边框 === */
+    
+    /* DataFrame 表格样式 */
+    .stDataFrame {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: 
+            0 8px 24px rgba(0, 0, 0, 0.08),
+            0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        background: rgba(255, 255, 255, 0.4) !important;
+    }
+    
+    /* DataFrame 内部表格 */
+    .stDataFrame > div {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        background: transparent !important;
+    }
+    
+    /* 表格容器 */
+    .stDataFrame table {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        background: rgba(255, 255, 255, 0.6) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+    
+    /* 表格头部 */
+    .stDataFrame thead th {
+        background: rgba(99, 102, 241, 0.15) !important;
+        color: #374151 !important;
+        font-weight: 600 !important;
+        padding: 1rem 1.25rem !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-align: left !important;
+        font-size: 0.875rem !important;
+        letter-spacing: 0.05em !important;
+    }
+    
+    /* 表格头部第一个和最后一个单元格的圆角 */
+    .stDataFrame thead th:first-child {
+        border-top-left-radius: 16px !important;
+    }
+    
+    .stDataFrame thead th:last-child {
+        border-top-right-radius: 16px !important;
+        border-right: none !important;
+    }
+    
+    /* 表格数据行 */
+    .stDataFrame tbody td {
+        background: rgba(255, 255, 255, 0.3) !important;
+        color: #1f2937 !important;
+        padding: 0.875rem 1.25rem !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    /* 表格数据行最后一列 */
+    .stDataFrame tbody td:last-child {
+        border-right: none !important;
+    }
+    
+    /* 表格最后一行 */
+    .stDataFrame tbody tr:last-child td {
+        border-bottom: none !important;
+    }
+    
+    /* 表格最后一行的圆角 */
+    .stDataFrame tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 16px !important;
+    }
+    
+    .stDataFrame tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 16px !important;
+    }
+    
+    /* 表格行悬停效果 */
+    .stDataFrame tbody tr:hover td {
+        background: rgba(99, 102, 241, 0.1) !important;
+        transform: scale(1.01) !important;
+    }
+    
+    /* 表格索引列样式 */
+    .stDataFrame tbody th {
+        background: rgba(99, 102, 241, 0.08) !important;
+        color: #4f46e5 !important;
+        font-weight: 600 !important;
+        padding: 0.875rem 1rem !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+        font-size: 0.8125rem !important;
+    }
+    
+    /* === 额外的响应式优化 === */
+    
+    /* 移动端侧边栏优化 */
+    @media screen and (max-width: 768px) {
+        /* 移动端侧边栏收起时的优化 */
+        .stApp:has(section[data-testid="stSidebar"][aria-expanded="false"]) .block-container {
+            margin: 0.25rem !important;
+            padding: 0.75rem !important;
+            width: calc(100% - 0.5rem) !important;
+            max-width: calc(100vw - 0.5rem) !important;
+        }
+        
+        /* 移动端表格优化 */
+        .stDataFrame {
+            border-radius: 12px !important;
+            font-size: 0.8125rem !important;
+        }
+        
+        .stDataFrame thead th,
+        .stDataFrame tbody td,
+        .stDataFrame tbody th {
+            padding: 0.625rem 0.75rem !important;
+            font-size: 0.8125rem !important;
+        }
+        
+        .stDataFrame thead th:first-child {
+            border-top-left-radius: 12px !important;
+        }
+        
+        .stDataFrame thead th:last-child {
+            border-top-right-radius: 12px !important;
+        }
+        
+        .stDataFrame tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 12px !important;
+        }
+        
+        .stDataFrame tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 12px !important;
+        }
+    }
+    
+    /* Metric 容器的表格样式（如果有的话） */
+    div[data-testid="metric-container"] table {
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
+    
+    /* Expander 内部的表格 */
+    div[data-testid="stExpander"] .stDataFrame {
+        margin: 1rem 0 !important;
+        box-shadow: 
+            0 4px 16px rgba(0, 0, 0, 0.06),
+            0 1px 4px rgba(0, 0, 0, 0.03) !important;
+    }
+    
+    /* 为布局变化添加平滑过渡 */
+    .block-container,
+    div[data-testid="stAppViewContainer"],
+    section[data-testid="stSidebar"] {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    /* 表格的平滑效果 */
+    .stDataFrame,
+    .stDataFrame table,
+    .stDataFrame thead th,
+    .stDataFrame tbody td,
+    .stDataFrame tbody th {
+        transition: all 0.2s ease !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
