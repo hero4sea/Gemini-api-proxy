@@ -51,7 +51,7 @@ class ThinkingConfig(BaseModel):
         return v
 
 
-# 优化的文件数据模型 - 符合Gemini 2.5 API规范
+# 件数据模型
 class InlineData(BaseModel):
     """内联数据模型 - 用于小文件(<20MB)"""
     mime_type: Optional[str] = None  # 兼容旧字段名
@@ -88,9 +88,8 @@ class FileData(BaseModel):
         super().__init__(**data)
 
 
-# 多模态内容部分 - 优化后的模型
+# 多模态内容
 class ContentPart(BaseModel):
-    """内容部分模型 - 支持Gemini 2.5所有内容类型"""
     type: str  # "text", "image", "audio", "video", "document"
     text: Optional[str] = None
 
@@ -116,11 +115,10 @@ class ContentPart(BaseModel):
 
         super().__init__(**data)
 
-
-# 请求/响应模型
+# 请求/响应
 class ChatMessage(BaseModel):
     role: str
-    content: Union[str, List[Union[str, Dict[str, Any], ContentPart]]]  # 支持多模态内容
+    content: Union[str, List[Union[str, Dict[str, Any], ContentPart]]]
 
     class Config:
         extra = "allow"
@@ -322,7 +320,7 @@ async def keep_alive_ping():
         logger.warning(f"🔴 Keep-alive ping failed: {e}")
 
 
-# 新增：每小时健康检测函数
+# 每小时健康检测函数
 async def record_hourly_health_check():
     """每小时记录一次健康检测结果"""
     try:
@@ -354,7 +352,7 @@ async def record_hourly_health_check():
         logger.error(f"❌ Hourly health check failed: {e}")
 
 
-# 新增：自动清理函数
+# 自动清理函数
 async def auto_cleanup_failed_keys():
     """每日自动清理连续异常的API key"""
     try:
@@ -394,20 +392,20 @@ UPLOAD_DIR = "uploads"
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_INLINE_SIZE = 20 * 1024 * 1024  # 20MB - Gemini 2.5 内联数据限制
 
-# Gemini 2.5 支持的MIME类型 - 基于官方文档
+# Gemini 2.5 支持的MIME类型
 SUPPORTED_MIME_TYPES = {
-    # 图片 - Gemini 2.5 Flash/Pro原生支持
+    # 图片
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
 
-    # 音频 - Gemini 2.5 原生音频支持
+    # 音频
     'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/flac',
     'audio/aac', 'audio/webm',
 
-    # 视频 - Gemini 2.5 视频理解能力
+    # 视频
     'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm', 'video/quicktime',
     'video/x-msvideo', 'video/mpeg',
 
-    # 文档 - Gemini 2.5 文档处理能力
+    # 文档
     'application/pdf',
     'text/plain', 'text/csv', 'text/xml', 'text/html',
     'application/json',
@@ -486,15 +484,15 @@ async def delete_file_from_gemini(file_uri: str, gemini_key: str) -> bool:
 
 
 async def cleanup_expired_files():
-    """清理过期的文件（Gemini文件有2天有效期）"""
+    """清理过期的文件"""
     try:
         current_time = time.time()
         expired_files = []
         
         for file_id, file_info in list(file_storage.items()):
-            # 检查文件是否超过2天（Gemini文件有效期）
+            # 检查文件是否超过1天
             file_age = current_time - file_info.get('created_at', 0)
-            if file_age > 2 * 24 * 3600:  # 2天
+            if file_age > 1 * 24 * 3600:
                 expired_files.append(file_id)
         
         cleaned_count = 0
@@ -502,7 +500,7 @@ async def cleanup_expired_files():
             try:
                 file_info = file_storage[file_id]
                 
-                # 如果文件存储在Gemini，尝试删除（可能已经过期）
+                # 如果文件存储在Gemini，尝试删除
                 if "gemini_file_uri" in file_info and "gemini_key_used" in file_info:
                     await delete_file_from_gemini(file_info["gemini_file_uri"], file_info["gemini_key_used"])
                 
@@ -535,7 +533,7 @@ async def lifespan(app: FastAPI):
     logger.info("✅ Gemini 2.5 multimodal features optimized")
 
     # 检查是否启用保活功能
-    enable_keep_alive = os.getenv('ENABLE_KEEP_ALIVE', 'false').lower() == 'true'
+    enable_keep_alive = os.getenv('ENABLE_KEEP_ALIVE', 'true').lower() == 'true'
     keep_alive_interval = int(os.getenv('KEEP_ALIVE_INTERVAL', '10'))  # 默认10分钟
 
     if enable_keep_alive:
@@ -562,7 +560,7 @@ async def lifespan(app: FastAPI):
                 max_instances=1
             )
 
-            # 新增：每小时健康检测任务
+            # 每小时健康检测任务
             scheduler.add_job(
                 record_hourly_health_check,
                 'interval',
@@ -572,7 +570,7 @@ async def lifespan(app: FastAPI):
                 coalesce=True
             )
 
-            # 新增：每天凌晨2点自动清理任务
+            # 每天凌晨2点自动清理任务
             scheduler.add_job(
                 auto_cleanup_failed_keys,
                 'cron',
@@ -583,7 +581,7 @@ async def lifespan(app: FastAPI):
                 coalesce=True
             )
             
-            # 新增：每天凌晨3点清理过期文件
+            # 每天凌晨3点清理过期文件
             scheduler.add_job(
                 cleanup_expired_files,
                 'cron',
@@ -619,7 +617,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Gemini API Proxy",
     description="A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, auto keep-alive and auto-cleanup",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan
 )
 
@@ -794,14 +792,14 @@ def get_thinking_config(request: ChatCompletionRequest) -> Dict:
 
 
 def process_multimodal_content(item: Dict) -> Optional[Dict]:
-    """处理多模态内容 - 优化Gemini 2.5格式"""
+    """处理多模态内容"""
     try:
         # 检查是否有文件数据
         file_data = item.get('file_data') or item.get('fileData')
         inline_data = item.get('inline_data') or item.get('inlineData')
 
         if inline_data:
-            # 内联数据格式 - 符合Gemini 2.5规范
+            # 内联数据格式
             mime_type = inline_data.get('mimeType') or inline_data.get('mime_type')
             data = inline_data.get('data')
 
@@ -813,7 +811,7 @@ def process_multimodal_content(item: Dict) -> Optional[Dict]:
                     }
                 }
         elif file_data:
-            # 文件引用格式 - 符合Gemini 2.5规范
+            # 文件引用格式
             mime_type = file_data.get('mimeType') or file_data.get('mime_type')
             file_uri = file_data.get('fileUri') or file_data.get('file_uri')
 
@@ -886,7 +884,7 @@ def process_multimodal_content(item: Dict) -> Optional[Dict]:
 
 
 def openai_to_gemini(request: ChatCompletionRequest) -> Dict:
-    """将OpenAI格式转换为Gemini 2.5格式，优化多模态内容处理"""
+    """将OpenAI格式转换为Gemini格式，"""
     contents = []
 
     for msg in request.messages:
@@ -1701,7 +1699,7 @@ async def root():
     return {
         "service": "Gemini API Proxy",
         "status": "running",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "features": ["Gemini 2.5 Multimodal", "OpenAI Compatible", "Smart Polling", "Auto Keep-Alive", "Auto-Cleanup"],
         "keep_alive": keep_alive_enabled,
         "auto_cleanup": db.get_auto_cleanup_config()['enabled'],
@@ -1723,7 +1721,7 @@ async def health_check():
         "environment": "render" if os.getenv('RENDER_EXTERNAL_URL') else "local",
         "uptime_seconds": int(uptime),
         "request_count": request_count,
-        "version": "1.1.0",
+        "version": "1.2.0",
         "multimodal_support": "Gemini 2.5 Optimized",
         "keep_alive_enabled": keep_alive_enabled,
         "auto_cleanup_enabled": db.get_auto_cleanup_config()['enabled']
@@ -1753,7 +1751,7 @@ async def get_status():
     return {
         "service": "Gemini API Proxy",
         "status": "running",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "render_url": os.getenv('RENDER_EXTERNAL_URL'),
         "python_version": sys.version,
         "models": db.get_supported_models(),
@@ -1801,7 +1799,7 @@ async def api_v1_info():
 
     return {
         "service": "Gemini API Proxy",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "api_version": "v1",
         "compatibility": "OpenAI API v1",
         "description": "A high-performance proxy for Gemini API with OpenAI compatibility, optimized multimodal support, auto keep-alive and auto-cleanup",
@@ -1852,13 +1850,13 @@ async def api_v1_info():
     }
 
 
-# 优化的文件上传端点
+# 文件上传端点
 @app.post("/v1/files")
 async def upload_file(
         file: UploadFile = File(...),
         authorization: str = Header(None)
 ):
-    """上传文件用于多模态对话 - 优化Gemini 2.5支持"""
+    """上传文件用于多模态对话"""
     try:
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid authorization header")
@@ -2255,7 +2253,7 @@ async def get_health_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 新增：自动清理管理端点
+# 自动清理管理端点
 @app.get("/admin/cleanup/status")
 async def get_cleanup_status():
     """获取自动清理状态"""

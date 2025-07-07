@@ -162,7 +162,9 @@ def get_cached_cleanup_status():
 
 # --- 移动端检测和手势控制函数 ---
 def is_mobile():
-    """检测是否为移动端并添加滑动手势控制"""
+    """检测是否为移动端
+       滑动手势控制
+    """
     return """
     <script>
     // 移动端检测
@@ -186,7 +188,7 @@ def is_mobile():
         }
 
         init() {
-            // 使用更长的延迟确保DOM完全加载
+            // 确保DOM完全加载
             this.waitForSidebar();
         }
 
@@ -489,7 +491,7 @@ def format_health_status(health_status: str) -> str:
     return status_map.get(health_status, health_status)
 
 
-# --- 移动端优化的玻璃拟态风格CSS ---
+# --- 玻璃拟态风格CSS ---
 st.markdown("""
 <style>
     /* 移动端检测脚本 */
@@ -525,7 +527,7 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* 主内容区域 - 移动端优化 */
+    /* 主内容区域 */
     .block-container {
         background: rgba(255, 255, 255, 0.25);
         backdrop-filter: blur(20px);
@@ -544,7 +546,7 @@ st.markdown("""
         min-height: auto;
     }
 
-    /* 移动端媒体查询 */
+    /* 媒体查询 */
     @media (max-width: 768px) {
         .block-container {
             padding: 1rem;
@@ -552,12 +554,12 @@ st.markdown("""
             border-radius: 16px;
         }
 
-        /* 移动端隐藏侧边栏按钮优化 */
+        /* 隐藏侧边栏按钮 */
         .stSidebar .stButton {
             margin-bottom: 0.5rem;
         }
 
-        /* 移动端标题优化 */
+        /* 标题 */
         h1 {
             font-size: 1.875rem !important;
             margin-bottom: 1rem !important;
@@ -575,13 +577,13 @@ st.markdown("""
             margin-bottom: 0.5rem !important;
         }
 
-        /* 移动端卡片间距调整 */
+        /* 卡片间距 */
         [data-testid="metric-container"] {
             margin-bottom: 0.75rem;
             padding: 1rem 1.25rem;
         }
 
-        /* 移动端按钮优化 */
+        /* 按钮 */
         .stButton > button {
             width: 100%;
             margin-bottom: 0.5rem;
@@ -589,12 +591,12 @@ st.markdown("""
             padding: 0.625rem 1rem;
         }
 
-        /* 移动端表单间距 */
+        /* 表单间距 */
         .stForm {
             margin-bottom: 1rem;
         }
 
-        /* 移动端输入框优化 */
+        /* 输入框 */
         .stTextInput > div > div > input,
         .stNumberInput > div > div > input,
         .stSelectbox > div > div > select,
@@ -603,7 +605,7 @@ st.markdown("""
             padding: 0.75rem 1rem !important;
         }
 
-        /* 移动端标签页优化 */
+        /* 标签页 */
         .stTabs [data-testid="stTabBar"] {
             gap: 0.5rem;
             padding: 0;
@@ -624,7 +626,7 @@ st.markdown("""
             min-width: auto;
         }
 
-        /* 移动端Alert优化 */
+        /* Alert */
         [data-testid="stAlert"] {
             padding: 0.75rem 1rem !important;
             margin: 0.5rem 0 !important;
@@ -633,7 +635,7 @@ st.markdown("""
         }
     }
 
-    /* 超小屏幕优化 */
+    /* 超小屏幕 */
     @media (max-width: 480px) {
         .block-container {
             padding: 0.75rem;
@@ -725,9 +727,9 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.5);
     }
 
-    /* 移动端触摸优化 - 保留动画效果 */
+    /* 移动端触摸 */
     @media (max-width: 768px) {
-        /* 保留卡片悬停动画，但减弱效果 */
+        /* 卡片悬停动画 */
         [data-testid="metric-container"]:hover {
             transform: translateY(-2px) scale(1.01);
         }
@@ -737,7 +739,7 @@ st.markdown("""
             transition: transform 0.15s ease;
         }
 
-        /* 保留按钮动画但适配触摸 */
+        /* 按钮动画 */
         .stButton > button:hover {
             transform: translateY(-1px);
         }
@@ -747,7 +749,7 @@ st.markdown("""
             transition: transform 0.1s ease;
         }
 
-        /* 保留导航项动画但减弱 */
+        /* 导航项动画 */
         section[data-testid="stSidebar"] .stRadio > div > label:hover {
             transform: translateX(3px);
         }
@@ -757,7 +759,7 @@ st.markdown("""
             transition: transform 0.1s ease;
         }
 
-        /* 保留Logo动画但减弱 */
+        /* Logo动画 */
         .sidebar-logo:hover {
             transform: translateY(-1px) scale(1.01);
         }
@@ -767,7 +769,7 @@ st.markdown("""
             transition: transform 0.1s ease;
         }
 
-        /* 保留状态卡片动画 */
+        /* 状态卡片动画 */
         .sidebar-status-card:hover {
             transform: translateY(-1px);
         }
@@ -777,7 +779,7 @@ st.markdown("""
             transition: transform 0.1s ease;
         }
 
-        /* 保留密钥卡片动画 */
+        /* 密钥卡片动画 */
         div[data-testid="stHorizontalBlock"]:hover {
             transform: translateY(-1px) scale(1.005);
         }
@@ -787,7 +789,7 @@ st.markdown("""
             transition: transform 0.1s ease;
         }
 
-        /* 保留链接动画 */
+        /* 链接动画 */
         .sidebar-footer-link:hover {
             transform: translateY(-0.5px);
         }
@@ -798,7 +800,7 @@ st.markdown("""
             transition: all 0.1s ease;
         }
 
-        /* 保留标签页动画 */
+        /* 标签页动画 */
         .stTabs [data-testid="stTabBar"] button:hover {
             transform: translateY(-0.5px);
         }
@@ -809,7 +811,7 @@ st.markdown("""
             transition: all 0.1s ease;
         }
 
-        /* 保留输入框聚焦动画 */
+        /* 输入框聚焦动画 */
         .stTextInput > div > div > input:focus,
         .stNumberInput > div > div > input:focus,
         .stSelectbox > div > div > select:focus,
@@ -817,11 +819,11 @@ st.markdown("""
             transform: translateY(-0.5px);
         }
 
-        /* 侧边栏滑动手势支持 */
+        /* 侧边栏滑动手势 */
         section[data-testid="stSidebar"] {
-            touch-action: pan-y; /* 允许垂直滚动，限制水平滚动 */
+            touch-action: pan-y; 
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform; /* 优化动画性能 */
+            will-change: transform; 
         }
 
         /* 侧边栏拖拽时的视觉反馈 */
@@ -832,7 +834,7 @@ st.markdown("""
                 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         }
 
-        /* 移动端状态标签保留动画 */
+        /* 状态标签保留动画 */
         .status-badge:hover {
             transform: translateY(-1px) scale(1.02);
         }
@@ -871,7 +873,7 @@ st.markdown("""
         color: #6b7280;
     }
 
-    /* 侧边栏设计 - 移动端优化 + 手势支持 */
+    /* 侧边栏设计 */
     section[data-testid="stSidebar"] {
         background: linear-gradient(135deg, 
             rgba(99, 102, 241, 0.12) 0%,
@@ -891,7 +893,7 @@ st.markdown("""
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* 移动端侧边栏宽度调整 + 手势优化 */
+    /* 移动端侧边栏宽度调整 */
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
             width: 280px !important;
@@ -953,7 +955,7 @@ st.markdown("""
         z-index: 2;
     }
 
-    /* Logo区域玻璃效果 - 移动端优化 */
+    /* Logo区域玻璃效果 */
     .sidebar-logo {
         display: flex;
         align-items: center;
@@ -1146,7 +1148,7 @@ st.markdown("""
         }
     }
 
-    /* 导航项玻璃效果 - 移动端优化 */
+    /* 导航项玻璃效果 */
     section[data-testid="stSidebar"] .stRadio > div > label {
         font-size: 1rem !important;
         font-weight: 500 !important;
@@ -1204,7 +1206,7 @@ st.markdown("""
         transition: opacity 0.4s ease;
     }
 
-    /* 悬停效果 - 移动端优化 */
+    /* 悬停效果 */
     section[data-testid="stSidebar"] .stRadio > div > label:hover {
         background: rgba(255, 255, 255, 0.12) !important;
         backdrop-filter: blur(16px) !important;
@@ -1300,7 +1302,7 @@ st.markdown("""
         display: none !important;
     }
 
-    /* 状态指示器玻璃卡片 - 移动端优化 */
+    /* 状态指示器玻璃卡片 */
     .sidebar-status {
         margin-top: auto;
         padding-top: 1.5rem;
@@ -1442,7 +1444,7 @@ st.markdown("""
         }
     }
 
-    /* 版本信息玻璃效果 - 移动端优化 */
+    /* 版本信息 */
     .sidebar-footer {
         padding-top: 1rem;
         border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -1512,7 +1514,7 @@ st.markdown("""
         border-radius: 6px;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        -webkit-tap-highlight-color: transparent; /* 移除iOS点击高亮 */
+        -webkit-tap-highlight-color: transparent; 
     }
 
     .sidebar-footer-link:hover {
@@ -1533,7 +1535,7 @@ st.markdown("""
         }
     }
 
-    /* 按钮玻璃效果 - 移动端优化 */
+    /* 按钮玻璃效果 */
     .stButton > button {
         border-radius: 14px;
         font-weight: 500;
@@ -1551,8 +1553,8 @@ st.markdown("""
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
         position: relative;
         overflow: hidden;
-        -webkit-tap-highlight-color: transparent; /* 移除iOS点击高亮 */
-        min-height: 44px; /* iOS推荐的最小触摸区域 */
+        -webkit-tap-highlight-color: transparent; 
+        min-height: 44px; 
     }
 
     .stButton > button::before {
@@ -1580,7 +1582,7 @@ st.markdown("""
         color: #4338ca;
     }
 
-    /* 移动端按钮优化 */
+    /* 按钮 */
     @media (max-width: 768px) {
         .stButton > button:hover {
             transform: none;
@@ -1600,7 +1602,7 @@ st.markdown("""
         transform: translateY(-1px) scale(0.98);
     }
 
-    /* 输入框玻璃效果 - 移动端优化 */
+    /* 输入框 */
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > select,
@@ -1617,7 +1619,7 @@ st.markdown("""
             0 8px 24px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
         color: #1f2937 !important;
-        min-height: 44px !important; /* iOS推荐的最小触摸区域 */
+        min-height: 44px !important; 
     }
 
     .stTextInput > div > div > input::placeholder,
@@ -1649,7 +1651,7 @@ st.markdown("""
         }
     }
 
-    /* 健康状态标签玻璃效果 - 移动端优化 */
+    /* 健康状态标签玻璃效果 */
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -1724,7 +1726,7 @@ st.markdown("""
         border-color: rgba(107, 114, 128, 0.3);
     }
 
-    /* 密钥卡片玻璃效果 - 移动端优化 */
+    /* 密钥卡片玻璃效果 */
     div[data-testid="stHorizontalBlock"] {
         background: rgba(255, 255, 255, 0.4);
         backdrop-filter: blur(16px);
@@ -1780,7 +1782,7 @@ st.markdown("""
         }
     }
 
-    /* 密钥代码显示 - 移动端优化 */
+    /* 密钥代码显示 */
     .key-code {
         background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(8px);
@@ -1794,7 +1796,7 @@ st.markdown("""
         text-overflow: ellipsis;
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        word-break: break-all; /* 移动端强制换行 */
+        word-break: break-all; 
     }
 
     /* 移动端密钥代码调整 */
@@ -1834,7 +1836,7 @@ st.markdown("""
         }
     }
 
-    /* 标签页玻璃效果 - 移动端优化 */
+    /* 标签页玻璃效果 */
     .stTabs [data-testid="stTabBar"] {
         gap: 1.5rem;
         border-bottom: 1px solid rgba(99, 102, 241, 0.2);
@@ -1849,7 +1851,7 @@ st.markdown("""
         box-shadow: 
             0 4px 16px rgba(0, 0, 0, 0.04),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        overflow-x: auto; /* 移动端水平滚动 */
+        overflow-x: auto; 
         scrollbar-width: none;
         -ms-overflow-style: none;
     }
@@ -1870,9 +1872,9 @@ st.markdown("""
         background: transparent;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        white-space: nowrap; /* 防止文字换行 */
+        white-space: nowrap; 
         min-width: auto;
-        flex-shrink: 0; /* 防止压缩 */
+        flex-shrink: 0; 
     }
 
     .stTabs [data-testid="stTabBar"] button:hover {
@@ -1901,7 +1903,7 @@ st.markdown("""
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
-    /* Alert消息玻璃效果 - 移动端优化 */
+    /* Alert消息玻璃效果 */
     [data-testid="stAlert"] {
         border: none !important;
         backdrop-filter: blur(12px) !important;
@@ -1939,7 +1941,7 @@ st.markdown("""
         border-color: rgba(239, 68, 68, 0.3) !important;
     }
 
-    /* 图表容器玻璃效果 - 移动端优化 */
+    /* 图表容器玻璃效果 */
     .js-plotly-plot .plotly {
         border-radius: 16px;
         overflow: hidden;
@@ -1950,8 +1952,8 @@ st.markdown("""
         box-shadow: 
             0 12px 40px rgba(0, 0, 0, 0.05),
             inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        pointer-events: none; /* 禁用所有交互 */
-        user-select: none; /* 禁用文本选择 */
+        pointer-events: none;
+        user-select: none; 
     }
 
     /* 禁用图表内部元素的交互 */
@@ -1971,7 +1973,7 @@ st.markdown("""
         }
     }
 
-    /* 表格玻璃效果 - 移动端优化 */
+    /* 表格玻璃效果 */
     .stDataFrame {
         border-radius: 14px;
         overflow: hidden;
@@ -1992,7 +1994,7 @@ st.markdown("""
         }
     }
 
-    /* 标题样式 - 移动端优化 */
+    /* 标题样式 */
     h1, h2, h3 {
         color: #1f2937;
     }
@@ -2024,7 +2026,7 @@ st.markdown("""
         margin-bottom: 0.75rem;
     }
 
-    /* 页面副标题 - 移动端优化 */
+    /* 页面副标题 */
     .page-subtitle {
         font-size: 1rem;
         color: #6b7280;
@@ -2095,7 +2097,7 @@ st.markdown("""
         overflow-y: auto;
     }
 
-    /* 自定义滚动条 - 移动端优化 */
+    /* 自定义滚动条 */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -2154,7 +2156,7 @@ st.markdown("""
         }
     }
 
-    /* 移动端性能优化 - 保留基本交互 */
+    /* 移动端性能优化 */
     @media (max-width: 768px) {
         * {
             -webkit-tap-highlight-color: transparent;
@@ -2179,7 +2181,7 @@ st.markdown("""
             user-select: none !important;
         }
 
-        /* 优化滑动体验 */
+        /* 滑动 */
         .stApp {
             touch-action: manipulation;
             overflow-x: hidden;
@@ -2188,7 +2190,7 @@ st.markdown("""
 
         /* 侧边栏特殊触摸处理 */
         section[data-testid="stSidebar"] {
-            -webkit-overflow-scrolling: touch; /* iOS 滑动优化 */
+            -webkit-overflow-scrolling: touch; 
         }
     }
 
@@ -2227,9 +2229,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 添加移动端检测和手势控制脚本
+# 移动端检测和手势控制脚本
 st.markdown(is_mobile(), unsafe_allow_html=True)
-
 
 # --- 获取服务状态函数 ---
 @st.cache_data(ttl=10)
@@ -2322,7 +2323,7 @@ with st.sidebar:
     <div class="sidebar-footer">
         <div class="sidebar-footer-content">
             <div class="sidebar-footer-item">
-                <span>版本 v1.1.0</span>
+                <span>版本 v1.2.0</span>
             </div>
             <div class="sidebar-footer-item">
                 <a href="{API_BASE_URL}/docs" target="_blank" class="sidebar-footer-link">API 文档</a>
@@ -3440,7 +3441,7 @@ elif page == "系统设置":
         with col1:
             st.markdown("##### 服务信息")
             st.text(f"Python: {status_data.get('python_version', 'Unknown').split()[0]}")
-            st.text(f"版本: {status_data.get('version', '1.1.0')}")
+            st.text(f"版本: {status_data.get('version', '1.2.0')}")
             st.text(f"模型: {', '.join(status_data.get('models', []))}")
 
         with col2:
@@ -3448,18 +3449,6 @@ elif page == "系统设置":
             st.text(f"内存: {status_data.get('memory_usage_mb', 0):.1f} MB")
             st.text(f"CPU: {status_data.get('cpu_percent', 0):.1f}%")
             st.text(f"运行: {status_data.get('uptime_seconds', 0) // 3600} 小时")
-
-        # 服务状态信息
-        st.markdown("##### 服务状态")
-        st.text(f"环境: {'Render' if os.getenv('RENDER_EXTERNAL_URL') else 'Local'}")
-        st.text(f"后端地址: {API_BASE_URL}")
-
-        # 多模态支持信息
-        st.markdown("##### 多模态支持")
-        st.text("✅ Gemini 2.5 图片、音频、视频分析")
-        st.text("✅ 文档处理 (PDF, Word, Excel)")
-        st.text("✅ 智能文件大小处理")
-        st.text("✅ 内联数据 + 文件引用双模式")
 
 # --- 页脚 ---
 st.markdown(

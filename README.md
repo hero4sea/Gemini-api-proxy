@@ -14,6 +14,34 @@
 - 📊 **可视化管理**：Streamlit 构建的直观管理界面
 - ⚡ **高性能**：FastAPI + 异步处理，支持流式响应
 - 🔐 **安全可靠**：用户密钥管理、使用统计、速率限制
+- 🎨 **多模态支持**：原生支持 Gemini 2.5 的图片、音频、视频、文档处理能力
+
+## 🎉 v1.2 更新内容
+
+### 🎨 移动端体验革命
+- **响应式设计**：完美适配手机、平板等各种移动设备
+- **触摸优化**：专为触屏设备优化的交互体验
+- **移动端布局**：针对小屏幕优化的紧凑布局和字体大小
+
+### 🖼️ 全面多模态支持
+- **Gemini 2.5 完整能力**：支持文本、图片、音频、视频、文档全类型处理
+- **文件上传 API**：提供 `/v1/files` 端点，支持最大100MB文件上传
+- **智能文件处理**：
+  - 📷 **图片**：PNG, JPG, JPEG, GIF, WebP, BMP
+  - 🎵 **音频**：MP3, WAV, M4A, FLAC, AAC, OGG
+  - 🎬 **视频**：MP4, AVI, MOV, WebM, QuickTime
+  - 📄 **文档**：PDF, TXT, CSV, DOCX, XLSX
+- **内联数据优化**：小文件(<20MB)使用内联传输，大文件自动使用Gemini File API
+
+### 🧹 智能自动清理系统
+- **异常Key检测**：自动监控API Key健康状态，识别连续异常的Key
+- **自动清理策略**：可配置连续异常天数阈值，自动移除问题Key
+- **安全保护机制**：
+  - 🛡️ 保留至少1个健康Key，确保服务不中断
+  - 📊 检测次数保护，避免因监控数据不足导致误删
+  - 🔄 软删除设计，被清理的Key可随时恢复
+- **风险预警**：实时显示处于风险状态的Key，提前预警
+- **灵活配置**：可自定义清理阈值、检测频率等参数
 
 ## 🎉 v1.1 更新内容
 
@@ -166,6 +194,72 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 
 配置完成后，你就可以使用 OpenAI SDK 访问轮询代理了。系统会自动在多个 Gemini Key 之间进行轮询，提供更高的请求限制和稳定性。
 
+### 🔌 API 端点
+
+#### 文件上传 API
+
+```bash
+# 上传文件
+curl -X POST "http://localhost:8000/v1/files" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@image.jpg"
+
+# 响应示例
+{
+  "id": "file-abc123",
+  "object": "file",
+  "bytes": 1024000,
+  "created_at": 1703123456,
+  "filename": "image.jpg",
+  "purpose": "multimodal"
+}
+```
+
+#### 多模态对话 API
+
+```python
+import openai
+
+client = openai.OpenAI(
+    api_key="YOUR_API_KEY",
+    base_url="http://localhost:8000/v1"
+)
+
+# 文本 + 图片对话
+response = client.chat.completions.create(
+    model="gemini-2.5-flash",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "这张图片里有什么？"
+                },
+                {
+                    "type": "image",
+                    "file_data": {
+                        "file_id": "file-abc123",
+                        "mime_type": "image/jpeg"
+                    }
+                }
+            ]
+        }
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+#### 支持的文件类型
+
+| 类型 | 支持格式 | 最大大小 | 用途 |
+|------|----------|----------|------|
+| 图片 | PNG, JPG, JPEG, GIF, WebP | 100MB | 图像识别、分析、描述 |
+| 音频 | MP3, WAV, M4A, FLAC | 100MB | 语音转文字、音频分析 |
+| 视频 | MP4, AVI, MOV, WebM | 100MB | 视频内容分析、帧提取 |
+| 文档 | PDF | 100MB | 文档解析、内容提取 |
+
 ### 💬 加入交流群
 
 遇到问题或想要交流经验？欢迎加入我们的QQ群：
@@ -216,8 +310,7 @@ Key 3: AIzaSyZZZZZZZZZZZZZZZZZZZZZZ
 - ⚡ **冷启动**：休眠后首次请求需要15-30秒唤醒
 - 🔄 **自动重启**：系统可能随时重启服务
 
-### 保活机制
-本项目内置保活功能，每14分钟自动发送请求保持服务活跃，从而阻止休眠限制。
+
 
 ## 🌐 自定义域名（可选）
 
@@ -267,7 +360,7 @@ A: 在管理界面可以看到每个Key的使用分布和轮询状态。
 A: 这是 Render 免费层的冷启动特性，等待15-30秒即可恢复正常。
 
 **Q: 如何避免服务休眠？**
-A: 项目内置保活机制，**即使是免费层也不会休眠！**
+A: 服务可能会因为无请求而休眠，首次访问需要等待唤醒。
 
 **Q: 可以商用吗？**
 A: 本项目采用 CC BY-NC 4.0 许可证，仅允许非商业使用。

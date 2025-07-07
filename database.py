@@ -59,7 +59,7 @@ class Database:
                 )
             ''')
 
-            # Gemini Keys表 - 增加健康状态字段
+            # Gemini Keys表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS gemini_keys (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +77,7 @@ class Database:
                 )
             ''')
 
-            # 新增：健康检测历史记录表
+            # 健康检测历史记录表
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS health_check_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -250,7 +250,7 @@ class Database:
             ('inject_prompt_enabled', 'false', '是否启用注入prompt'),
             ('inject_prompt_content', '', '注入的prompt内容'),
             ('inject_prompt_position', 'system', '注入位置: system, user_prefix, user_suffix'),
-            # 新增：自动清理配置
+            # 自动清理配置
             ('auto_cleanup_enabled', 'false', '是否启用自动清理异常API key'),
             ('auto_cleanup_days', '3', '连续异常天数阈值'),
             ('min_checks_per_day', '5', '每日最少检测次数'),
@@ -816,7 +816,7 @@ class Database:
             return []  # 出错时返回空列表
 
     def auto_remove_failed_keys(self, days_threshold: int = None, min_checks_per_day: int = None) -> List[Dict]:
-        """自动移除连续异常的API key - 修复版本"""
+        """自动移除连续异常的API key"""
         try:
             if days_threshold is None:
                 days_threshold = int(self.get_config('auto_cleanup_days', '3'))
