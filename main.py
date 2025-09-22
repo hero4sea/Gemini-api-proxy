@@ -51,7 +51,7 @@ def call_api(endpoint: str, method: str = 'GET', data: Any = None, timeout: int 
             if response.status_code == 200:
                 return response.json()
             else:
-                st.error(f"API错误: {response.status_code}")
+                st.error(f"API错误: URL:{API_BASE_URL} END:{endpoint}  ERROR:{response.status_code}")
                 return None
 
     except requests.exceptions.Timeout:

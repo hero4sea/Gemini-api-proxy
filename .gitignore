@@ -1,0 +1,5 @@
+/.venv
+/__pycache__
+gemini_proxy.db
+gemini_proxy.db-shm
+gemini_proxy.db-wal

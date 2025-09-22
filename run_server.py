@@ -80,7 +80,7 @@ def main():
     else:
         # 开发环境配置
         config.update({
-            "reload": True,  # 热重载
+            "reload": False,  # 热重载
             "reload_dirs": ["."],
             "reload_excludes": ["*.db", "*.log"],
         })
