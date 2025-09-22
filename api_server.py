@@ -254,7 +254,7 @@ async def check_gemini_key_health(api_key: str, timeout: int = 10) -> Dict[str, 
     """检测单个Gemini Key的健康状态"""
     test_request = {
         "contents": [{"role": "user", "parts": [{"text": "Test"}]}],
-        "generationConfig": {"maxOutputTokens": 1}
+        "generationConfig": {"maxOutputTokens": 4}
     }
 
     start_time = time.time()
