@@ -3,7 +3,7 @@
 services:
   # 后端 API 服务 (FastAPI)
   - type: web
-    name: gemini-api-proxy
+    name: gemini-keys
     env: python
     plan: free
     region: oregon  # 美国西海岸，对中国访问友好
@@ -29,7 +29,7 @@ services:
 
   # 前端管理界面 (Streamlit)  
   - type: web
-    name: gemini-proxy-admin
+    name: gemini-keys-admin
     env: python
     plan: free
     region: oregon
@@ -46,8 +46,8 @@ services:
     # 环境变量
     envVars:
       # 手动构建API URL - 用户需要在部署后手动设置
-      - key: API_BASE_URL
-        sync: false  # 需要手动设置
+      #- key: API_BASE_URL
+      #  sync: false  # 需要手动设置
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: PYTHONDONTWRITEBYTECODE
