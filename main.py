@@ -2232,6 +2232,32 @@ st.markdown("""
 # 移动端检测和手势控制脚本
 st.markdown(is_mobile(), unsafe_allow_html=True)
 
+# --- 简易登录（预设密码） ---
+AUTH_PASSWORD = os.getenv('APP_PASSWORD', 'zhb123456')
+
+def render_login_page():
+    st.title("登录")
+    st.markdown('<p class="page-subtitle">请输入访问密码以进入控制台</p>', unsafe_allow_html=True)
+
+    password = st.text_input("访问密码", type="password", placeholder="输入预设密码")
+    login_col1, login_col2 = st.columns([1, 3])
+    with login_col1:
+        if st.button("登录", type="primary", use_container_width=True):
+            if password == AUTH_PASSWORD:
+                st.session_state['authenticated'] = True
+                st.success("登录成功，正在进入...")
+                st.rerun()
+            else:
+                st.error("密码错误，请重试")
+    with login_col2:
+        st.info("默认密码可通过环境变量 APP_PASSWORD 配置")
+
+    st.stop()
+
+# 访问控制：未登录则显示登录页
+if not st.session_state.get('authenticated', False):
+    render_login_page()
+
 # --- 获取服务状态函数 ---
 @st.cache_data(ttl=10)
 def get_service_status():
